@@ -181,22 +181,23 @@ footer{padding:16px 0 68px;text-align:center;font-size:10px;color:#bbb;border-to
     </div>
     <p class="lim-galaxy" style="text-align:center;margin:0 0 22px;font-size:44px;font-weight:900;color:var(--blue);font-style:italic;line-height:1;letter-spacing:-.03em;font-family:'Pretendard Variable',Arial,sans-serif">Galaxy S26</p>
 
-    <!-- 콜아웃 with connector lines -->
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;max-width:480px;margin:4px auto 26px;padding:0 6px">
-      <div style="display:flex;align-items:center;flex:1">
-        <div class="lim-callout" style="background:var(--blue-l);border:1.5px solid #c5cdec;border-radius:12px;padding:14px 16px;line-height:1.25;color:var(--blue);text-align:center;white-space:nowrap">
+    <!-- 콜아웃 + 연결선/화살표 -->
+    <div style="position:relative;max-width:480px;margin:4px auto 0;padding:0 6px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;position:relative">
+        <div class="lim-callout" style="background:var(--blue-l);border:1.5px solid #c5cdec;border-radius:12px;padding:14px 16px;line-height:1.25;color:var(--blue);text-align:center;white-space:nowrap;position:relative;z-index:2">
           <span style="font-size:14px;color:var(--sub);font-weight:700;display:block;margin-bottom:4px">통신사 별</span>
           <span style="font-size:20px;font-weight:900">추가할인금액</span>
         </div>
-        <span style="display:block;flex:1;height:2px;background:var(--blue);margin-left:4px;opacity:.6"></span>
-      </div>
-      <div style="display:flex;align-items:center;flex:1">
-        <span style="display:block;flex:1;height:2px;background:var(--blue);margin-right:4px;opacity:.6"></span>
-        <div class="lim-callout" style="background:var(--blue-l);border:1.5px solid #c5cdec;border-radius:12px;padding:14px 16px;line-height:1.25;color:var(--blue);text-align:center;white-space:nowrap">
+        <!-- 연결 가로선 -->
+        <span style="flex:1;height:0;border-top:2px dashed var(--blue);opacity:.7;position:relative"></span>
+        <div class="lim-callout" style="background:var(--blue-l);border:1.5px solid #c5cdec;border-radius:12px;padding:14px 16px;line-height:1.25;color:var(--blue);text-align:center;white-space:nowrap;position:relative;z-index:2">
           <span style="font-size:14px;color:var(--sub);font-weight:700;display:block;margin-bottom:4px">도매코드</span>
           <span style="font-size:20px;font-weight:900">특판할인 추가</span>
         </div>
       </div>
+      <!-- 수직 연결선 + 화살표 (가로선 중앙에서 아래 pill로) -->
+      <div style="position:relative;width:2px;height:34px;margin:0 auto;border-left:2px dashed var(--blue);opacity:.7"></div>
+      <svg viewBox="0 0 20 14" style="display:block;margin:-6px auto 8px;width:18px;height:12px"><path d="M10 12 L2 2 L18 2 Z" fill="var(--blue)" opacity=".85"/></svg>
     </div>
 
     <!-- 도매한정특가 pill -->
