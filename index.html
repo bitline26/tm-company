@@ -100,13 +100,48 @@ footer{padding:16px 0 68px;text-align:center;font-size:10px;color:#bbb;border-to
 
 <!-- 모델 히어로 -->
 <section style="background:#fff;position:relative;overflow:hidden">
-  <img src="hero.png" alt="Galaxy S26 모델" style="width:100%;height:auto;display:block">
-  <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(255,255,255,.95));padding:28px 20px 24px;text-align:center">
-    <p style="font-size:12px;font-weight:800;color:var(--blue);margin-bottom:4px;letter-spacing:.05em">Galaxy S26 시리즈 단독특가</p>
-    <p style="font-size:24px;font-weight:900;color:#111;line-height:1.2;margin-bottom:10px">역대급 할인, 지금 신청하세요</p>
-    <a href="#apply" style="display:inline-block;background:var(--blue);color:#fff;padding:12px 32px;border-radius:12px;font-size:15px;font-weight:800;text-decoration:none">단독특가 신청하기</a>
+  <div class="hero-img-wrap" style="max-width:480px;margin:0 auto">
+    <img src="hero.png" alt="Galaxy S26 모델" style="width:100%;height:auto;display:block">
+  </div>
+  <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent 0%,rgba(255,255,255,.6) 30%,#fff 100%);padding:60px 20px 28px;text-align:center">
+    <p style="font-size:15px;font-weight:800;color:var(--blue);margin-bottom:6px;letter-spacing:.03em">Galaxy S26 시리즈 단독특가</p>
+    <p style="font-size:24px;font-weight:900;color:#111;line-height:1.2;margin-bottom:12px;white-space:nowrap">역대급 할인, 지금 신청하세요</p>
+    <a href="#apply" style="display:inline-block;background:var(--blue);color:#fff;padding:14px 40px;border-radius:12px;font-size:17px;font-weight:900;text-decoration:none">단독특가 신청하기</a>
   </div>
 </section>
+
+<!-- 공식판매점 배지 -->
+<section class="official-sec" style="background:linear-gradient(180deg,#111 0%,#1a1a2e 100%);padding:36px 20px;text-align:center">
+  <div style="max-width:480px;margin:0 auto">
+    <div style="display:flex;justify-content:center;gap:24px;margin-bottom:20px">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div style="width:56px;height:56px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15)">
+          <img src="skt_logo.png" alt="SKT" style="width:36px;height:auto" onerror="this.outerHTML='<span style=font-size:14px;font-weight:900;color:#e6002d>SK</span>'">
+        </div>
+        <span style="font-size:11px;color:rgba(255,255,255,.6);font-weight:700">SKT</span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div style="width:56px;height:56px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15)">
+          <img src="kt_logo.png" alt="KT" style="width:32px;height:auto" onerror="this.outerHTML='<span style=font-size:14px;font-weight:900;color:#e4002b>KT</span>'">
+        </div>
+        <span style="font-size:11px;color:rgba(255,255,255,.6);font-weight:700">KT</span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div style="width:56px;height:56px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15)">
+          <img src="lgu_logo.png" alt="LGU+" style="width:34px;height:auto" onerror="this.outerHTML='<span style=font-size:11px;font-weight:900;color:#e6007e>LGU+</span>'">
+        </div>
+        <span style="font-size:11px;color:rgba(255,255,255,.6);font-weight:700">LGU+</span>
+      </div>
+    </div>
+    <p style="font-size:20px;font-weight:900;color:#fff;margin-bottom:6px">이동통신 3사 공식 판매점</p>
+    <p style="font-size:13px;font-weight:500;color:rgba(255,255,255,.45);line-height:1.6">SKT · KT · LGU+ 판매허가를 받은<br>공식 온라인 판매점입니다</p>
+    <div style="display:inline-flex;align-items:center;gap:6px;margin-top:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:6px 16px">
+      <span style="font-size:10px;color:rgba(212,168,71,1);font-weight:800">★★★★★</span>
+      <span style="font-size:11px;color:rgba(255,255,255,.5);font-weight:700">공식 인증 판매점</span>
+    </div>
+  </div>
+</section>
+<style>.hero-img-wrap{max-width:480px}@media(max-width:640px){.hero-img-wrap{max-width:100%!important}}.official-sec>div{max-width:480px}@media(max-width:640px){.official-sec>div{max-width:100%!important}}</style>
 
 <section class="sec">
 <div class="c">
@@ -137,9 +172,6 @@ footer{padding:16px 0 68px;text-align:center;font-size:10px;color:#bbb;border-to
 </div>
 </section>
 
-<section class="live">
-  <div class="lc">오늘 <span class="num" id="liveNum">312</span>명 신청 완료</div>
-</section>
 
 <!-- 구매 혜택 -->
 <section style="padding:28px 0;background:#fff">
@@ -187,6 +219,16 @@ footer{padding:16px 0 68px;text-align:center;font-size:10px;color:#bbb;border-to
 </div>
 </section>
 
+<!-- 실시간 접수현황 -->
+<section style="padding:28px 0;background:#fff;border-top:1px solid var(--bdr);border-bottom:1px solid var(--bdr)">
+<div class="c">
+  <div style="text-align:center;margin-bottom:14px;font-size:18px;font-weight:900">실시간 접수현황</div>
+  <div id="rollWrap" style="height:160px;overflow:hidden;position:relative;background:var(--bg);border-radius:12px;border:1px solid var(--bdr)">
+    <div id="rollList" style="transition:transform .5s ease"></div>
+  </div>
+</div>
+</section>
+
 <footer>
   <p>TM COMPANY · 특판 상담 전문</p>
   <p style="margin-top:4px">본 페이지는 삼성전자 공식 페이지가 아닌 특판 상담 안내 페이지입니다.</p>
@@ -197,7 +239,28 @@ footer{padding:16px 0 68px;text-align:center;font-size:10px;color:#bbb;border-to
 <script>
 function pickC(el){document.querySelectorAll('.cb').forEach(b=>b.classList.remove('active'));el.classList.add('active')}
 function submitDB(e){e.preventDefault();const c=document.querySelector('.cb.active');if(!c){alert('통신사를 선택해주세요');return false}const d={name:document.getElementById('dbName').value,phone:document.getElementById('dbPrefix').value+'-'+document.getElementById('dbPhone1').value+'-'+document.getElementById('dbPhone2').value,carrier:c.textContent,model:document.getElementById('dbModel').value,date:new Date().toISOString()};try{const db=JSON.parse(localStorage.getItem('tm_inquiries')||'[]');db.push(d);localStorage.setItem('tm_inquiries',JSON.stringify(db))}catch(x){}document.getElementById('dbForm').style.display='none';document.getElementById('formOk').style.display='block';document.getElementById('liveNum').textContent=parseInt(document.getElementById('liveNum').textContent)+1;return false}
-setInterval(()=>{const el=document.getElementById('liveNum');if(Math.random()>.6)el.textContent=parseInt(el.textContent)+1},8000);
+// 실시간 접수현황 롤링
+const names=['김**','이**','박**','최**','정**','강**','조**','윤**','장**','임**','한**','오**','서**','신**','권**','황**','안**','송**','전**','홍**'];
+const models=['S26 Ultra','S26+','S26','S26 Ultra','S26','S26+','S26 Ultra','S26+','S26','S26 Ultra'];
+const carriers=['SKT','KT','LGU+'];
+function genRow(){
+  const n=names[Math.floor(Math.random()*names.length)];
+  const m=models[Math.floor(Math.random()*models.length)];
+  const c=carriers[Math.floor(Math.random()*carriers.length)];
+  const h=String(Math.floor(Math.random()*12)+1).padStart(2,'0');
+  const mi=String(Math.floor(Math.random()*60)).padStart(2,'0');
+  const ph='010-****-'+String(Math.floor(Math.random()*9000)+1000);
+  return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(0,0,0,.04);font-size:13px"><span style="font-weight:700;color:#111;min-width:40px">'+n+'</span><span style="color:var(--sub)">'+ph+'</span><span style="color:var(--blue);font-weight:700">'+m+'</span><span style="color:var(--sub);font-size:11px">'+c+' · '+h+':'+mi+'</span></div>';
+}
+const rl=document.getElementById('rollList');
+let rows='';for(let i=0;i<20;i++)rows+=genRow();
+rl.innerHTML=rows;
+let rollPos=0;
+setInterval(()=>{
+  rollPos+=40;
+  rl.style.transform='translateY(-'+rollPos+'px)';
+  if(rollPos>600){rollPos=0;rl.style.transition='none';rl.style.transform='translateY(0)';setTimeout(()=>{rl.style.transition='transform .5s ease'},50);let nr='';for(let i=0;i<20;i++)nr+=genRow();rl.innerHTML=nr;}
+},2000);
 </script>
 </body>
 </html>
