@@ -195,9 +195,11 @@ footer{padding:16px 0 68px;text-align:center;font-size:10px;color:#bbb;border-to
           <span style="font-size:20px;font-weight:900">특판할인 추가</span>
         </div>
       </div>
-      <!-- 수직 연결선 + 화살표 (가로선 중앙에서 아래 pill로) -->
-      <div style="position:relative;width:2px;height:34px;margin:0 auto;border-left:2px dashed var(--blue);opacity:.7"></div>
-      <svg viewBox="0 0 20 14" style="display:block;margin:-6px auto 8px;width:18px;height:12px"><path d="M10 12 L2 2 L18 2 Z" fill="var(--blue)" opacity=".85"/></svg>
+      <!-- 수직 연결선 + 화살표 (seamless) -->
+      <svg viewBox="0 0 24 48" width="24" height="48" style="display:block;margin:0 auto 8px">
+        <line x1="12" y1="0" x2="12" y2="36" stroke="#1428A0" stroke-width="2" stroke-dasharray="4,3" opacity=".7"/>
+        <path d="M12 46 L4 34 L20 34 Z" fill="#1428A0" opacity=".85"/>
+      </svg>
     </div>
 
     <!-- 도매한정특가 pill -->
@@ -209,13 +211,15 @@ footer{padding:16px 0 68px;text-align:center;font-size:10px;color:#bbb;border-to
     <!-- Quote -->
     <p class="lim-quote" style="font-size:20px;color:#111;font-weight:700;letter-spacing:-.01em;line-height:1.5">
       <span style="color:var(--blue);font-size:32px;font-weight:900;vertical-align:-6px">“</span>
-      이벤트기간 이후 프로모션은 <span style="color:#ef4444;font-weight:800">즉시 종료됩니다</span>
+      이벤트기간 이후 프로모션은 <span class="lim-blink" style="color:#ef4444;font-weight:800">즉시 종료됩니다</span>
       <span style="color:var(--blue);font-size:32px;font-weight:900;vertical-align:-6px">”</span>
     </p>
   </div>
 </section>
 <style>
 .lim-urgent .lim-urgent-hl{color:#ff4d4d;animation:limBlink 1s step-end infinite;text-shadow:0 0 8px rgba(255,77,77,.6)}
+.lim-blink{animation:limBlink2 .9s step-end infinite;text-shadow:0 0 6px rgba(239,68,68,.35)}
+@keyframes limBlink2{0%,50%,100%{opacity:1}25%,75%{opacity:.25}}
 .lim-urgent-text{animation:limGlow 1.8s ease-in-out infinite}
 .lim-urgent::before,.lim-urgent::after{content:"";position:absolute;top:0;height:100%;width:120px;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);animation:limShine 2.4s linear infinite}
 .lim-urgent::before{left:-120px}
@@ -237,12 +241,106 @@ footer{padding:16px 0 68px;text-align:center;font-size:10px;color:#bbb;border-to
 }
 </style>
 
-<section class="sec">
-<div class="c">
-  <div class="sec-title"><div class="sec-badge">FLAGSHIP</div><h2 class="sec-h">Galaxy S26 Ultra</h2></div>
-  <div class="fc"><div class="fi"><img src="../s26ultra.jpg"></div><div class="ff"><h3>Galaxy S26 Ultra</h3><div class="pr-old">출고가 1,797,400원</div><div class="pr-new">단독특가 350,000원~ <span class="pr-tag">80%↓</span></div></div></div>
+<section class="sec flag-sec">
+<div class="c" style="max-width:100%;padding:0">
+  <div class="sec-title" style="padding:0 20px"><div class="sec-badge">FLAGSHIP</div><h2 class="sec-h">단독 특판 라인업</h2></div>
+  <div class="flag-scroll" style="display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:6px 20px 18px;-webkit-overflow-scrolling:touch">
+
+    <!-- Z플립7 (SOLD OUT) -->
+    <div class="flag-card sold">
+      <div class="flag-img" style="background:linear-gradient(135deg,#3a3a3a 0%,#151515 100%)">
+        <img src="../zflip7.jpg" alt="Galaxy Z Flip7">
+        <span class="flag-watermark">Galaxy<br>Z Flip7</span>
+        <span class="flag-sold">SOLD OUT</span>
+      </div>
+      <div class="flag-body">
+        <h3>Galaxy Z 플립7</h3>
+        <div class="flag-row"><span>출고가</span><s>1,485,000원</s></div>
+        <div class="flag-row red"><span>특판코드 할인</span><b>-1,270,000원</b></div>
+        <div class="flag-price">
+          <p class="flag-lbl">도매특판가</p>
+          <p class="flag-amt">115,000원</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- S26 -->
+    <div class="flag-card">
+      <div class="flag-img" style="background:linear-gradient(135deg,#2a3848 0%,#0f1520 100%)">
+        <img src="../s26.jpg" alt="Galaxy S26">
+        <span class="flag-watermark">Galaxy<br>S26</span>
+      </div>
+      <div class="flag-body">
+        <h3>Galaxy S26</h3>
+        <div class="flag-row"><span>출고가</span><s>1,254,000원</s></div>
+        <div class="flag-row red"><span>특판코드 할인</span><b>-1,232,000원</b></div>
+        <div class="flag-price">
+          <p class="flag-lbl">도매특판가</p>
+          <p class="flag-amt">22,000원</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- S26+ -->
+    <div class="flag-card">
+      <div class="flag-img" style="background:linear-gradient(135deg,#f0f0f2 0%,#d8d8dc 100%)">
+        <img src="../s26plus.jpg" alt="Galaxy S26+">
+        <span class="flag-watermark" style="color:rgba(0,0,0,.25)">Galaxy<br>S26+</span>
+      </div>
+      <div class="flag-body">
+        <h3>Galaxy S26+</h3>
+        <div class="flag-row"><span>출고가</span><s>1,452,000원</s></div>
+        <div class="flag-row red"><span>특판코드 할인</span><b>-1,272,000원</b></div>
+        <div class="flag-price">
+          <p class="flag-lbl">도매특판가</p>
+          <p class="flag-amt">180,000원</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- S26 Ultra -->
+    <div class="flag-card">
+      <div class="flag-img" style="background:linear-gradient(135deg,#4a3d68 0%,#241b36 100%)">
+        <img src="../s26ultra.jpg" alt="Galaxy S26 Ultra">
+        <span class="flag-watermark">Galaxy<br>S26 Ultra</span>
+      </div>
+      <div class="flag-body">
+        <h3>Galaxy S26 울트라</h3>
+        <div class="flag-row"><span>출고가</span><s>1,797,000원</s></div>
+        <div class="flag-row red"><span>특판코드 할인</span><b>-1,277,000원</b></div>
+        <div class="flag-price">
+          <p class="flag-lbl">도매특판가</p>
+          <p class="flag-amt">520,000원</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="flag-hint" style="text-align:center;font-size:12px;color:var(--sub);padding:0 20px">← 좌우로 밀어서 다른 모델 보기 →</div>
 </div>
 </section>
+<style>
+.flag-sec .flag-scroll::-webkit-scrollbar{height:4px}
+.flag-sec .flag-scroll::-webkit-scrollbar-thumb{background:#d6dcf0;border-radius:2px}
+.flag-card{flex:0 0 72%;max-width:260px;scroll-snap-align:start;background:#fff;border:1.5px solid var(--bdr);border-radius:16px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.05)}
+.flag-card.sold{opacity:.95}
+.flag-img{position:relative;aspect-ratio:3/4;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.flag-img img{width:70%;height:auto;object-fit:contain;position:relative;z-index:1}
+.flag-watermark{position:absolute;right:10px;top:50%;transform:translateY(-50%) rotate(90deg);transform-origin:center center;color:rgba(255,255,255,.35);font-size:24px;font-weight:900;font-style:italic;letter-spacing:-.02em;line-height:.95;white-space:nowrap;text-align:center}
+.flag-sold{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-6deg);background:#ffd24a;color:#111;padding:8px 20px;border-radius:4px;font-size:20px;font-weight:900;font-style:italic;letter-spacing:-.02em;z-index:2;box-shadow:0 4px 10px rgba(0,0,0,.25)}
+.flag-body{padding:14px 14px 14px}
+.flag-body h3{font-size:17px;font-weight:900;text-align:center;margin-bottom:10px;color:#111}
+.flag-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--sub);margin-bottom:3px}
+.flag-row s{color:#bbb;font-weight:500}
+.flag-row.red{color:#111;font-weight:700;margin-bottom:10px}
+.flag-row.red b{color:#ef4444;font-weight:900}
+.flag-price{background:#f5f5f7;border-radius:10px;padding:10px;text-align:center}
+.flag-lbl{font-size:11px;color:var(--sub);font-weight:700;margin-bottom:2px}
+.flag-amt{font-size:24px;font-weight:900;color:#ef4444;letter-spacing:-.02em;line-height:1}
+.flag-hint{animation:flagHint 2.4s ease-in-out infinite}
+@keyframes flagHint{0%,100%{opacity:.6}50%{opacity:1}}
+@media(min-width:720px){.flag-card{flex:0 0 260px}}
+</style>
 
 
 <!-- 안내 배너 -->
