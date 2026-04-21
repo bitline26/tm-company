@@ -146,16 +146,55 @@ footer{padding:16px 0 68px;text-align:center;font-size:10px;color:#bbb;border-to
 
 
 <!-- 안내 배너 -->
-<section style="padding:32px 0;background:linear-gradient(180deg,#e8edf8 0%,#d6dff2 100%);text-align:center">
-<div class="c">
-  <p style="font-size:22px;font-weight:700;color:#333;line-height:1.5;margin-bottom:4px">지금 이 페이지에서만</p>
-  <p style="font-size:28px;font-weight:900;color:#111;line-height:1.3;margin-bottom:4px"><span style="color:var(--blue)">Galaxy S26 시리즈</span>를 <span style="text-decoration:underline;text-underline-offset:6px;text-decoration-color:var(--blue)">단독 최저가</span>로 드립니다.</p>
-  <p style="font-size:12px;color:#888;margin-top:10px">※선착순 한정혜택으로 이벤트는 조기종료 될 수 있습니다.</p>
-  <div style="margin-top:20px;background:#222;border-radius:16px;padding:20px 24px;display:inline-block;max-width:480px;width:100%">
-    <p style="font-size:18px;font-weight:800;color:#fff;line-height:1.5">본 상품은 <span style="color:#ff6b6b;font-weight:900">신용불량자, 미성년자,<br>만 65세 이상</span>은 신청이 불가합니다.</p>
+<section class="hint-sec" style="padding:44px 0 40px;background:#fff;text-align:center;position:relative;overflow:hidden">
+  <!-- 컨페티 배경 -->
+  <svg aria-hidden="true" viewBox="0 0 400 300" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0">
+    <g>
+      <rect x="30" y="22" width="14" height="6" rx="1.5" fill="#ff5a5f" transform="rotate(-20 37 25)"/>
+      <rect x="70" y="12" width="12" height="5" rx="1.5" fill="#ffc43d" transform="rotate(25 76 14)"/>
+      <rect x="120" y="30" width="16" height="6" rx="1.5" fill="#3ecf8e" transform="rotate(-35 128 33)"/>
+      <rect x="178" y="8" width="12" height="5" rx="1.5" fill="#5b8dff" transform="rotate(15 184 10)"/>
+      <rect x="240" y="24" width="14" height="6" rx="1.5" fill="#ff7ab6" transform="rotate(-18 247 27)"/>
+      <rect x="300" y="14" width="12" height="5" rx="1.5" fill="#8b5cf6" transform="rotate(30 306 16)"/>
+      <rect x="355" y="40" width="14" height="6" rx="1.5" fill="#ffc43d" transform="rotate(-24 362 43)"/>
+      <rect x="18" y="80" width="10" height="5" rx="1.5" fill="#3ecf8e" transform="rotate(50 23 82)"/>
+      <rect x="55" y="118" width="14" height="6" rx="1.5" fill="#ff5a5f" transform="rotate(-10 62 121)"/>
+      <rect x="340" y="110" width="12" height="5" rx="1.5" fill="#5b8dff" transform="rotate(40 346 112)"/>
+      <rect x="372" y="150" width="14" height="6" rx="1.5" fill="#ff7ab6" transform="rotate(-15 379 153)"/>
+      <circle cx="15" cy="50" r="3" fill="#ffc43d"/>
+      <circle cx="390" cy="85" r="3" fill="#ff5a5f"/>
+      <circle cx="100" cy="70" r="2.5" fill="#5b8dff"/>
+      <circle cx="260" cy="60" r="2.5" fill="#3ecf8e"/>
+    </g>
+  </svg>
+
+  <div class="c" style="position:relative;z-index:1">
+    <!-- 최저가 할인 배지 -->
+    <div class="discount-bubble" style="position:absolute;top:-32px;right:10px;background:#ef4444;color:#fff;width:72px;height:72px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;line-height:1.1;box-shadow:0 6px 14px rgba(239,68,68,.35);transform:rotate(8deg);font-size:14px">
+      <span>최저가</span><span>할인</span>
+      <span style="position:absolute;bottom:-6px;left:14px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:10px solid #ef4444;transform:rotate(-15deg)"></span>
+    </div>
+
+    <p style="font-size:20px;font-weight:700;color:#333;line-height:1.4;margin-bottom:8px">지금 이 페이지에서만</p>
+    <p class="hint-main" style="font-size:30px;font-weight:900;color:#111;line-height:1.25;margin-bottom:6px;white-space:nowrap"><span style="color:var(--blue)">Galaxy S26 시리즈</span>를</p>
+    <p style="font-size:28px;font-weight:900;color:#111;line-height:1.25;margin-bottom:16px"><span style="text-decoration:underline;text-underline-offset:8px;text-decoration-thickness:3px;text-decoration-color:#ef4444">단독 최저가</span>로 드립니다.</p>
+    <p style="font-size:13px;color:#888;margin-top:8px;margin-bottom:24px">※선착순 한정혜택으로 이벤트는 조기종료 될 수 있습니다.</p>
+
+    <!-- 경고 박스 + 확성기 -->
+    <div style="position:relative;display:inline-block;max-width:520px;width:100%">
+      <div style="position:absolute;left:-6px;bottom:-14px;font-size:52px;line-height:1;z-index:2;transform:rotate(-8deg);filter:drop-shadow(0 3px 6px rgba(0,0,0,.15))">📢</div>
+      <div style="background:#1a1a1a;border-radius:999px;padding:26px 28px 26px 56px;box-shadow:0 8px 24px rgba(0,0,0,.18)">
+        <p style="font-size:21px;font-weight:800;color:#fff;line-height:1.5;letter-spacing:-.02em">본 상품은 <span style="color:#ff6b6b;font-weight:900">신용불량자, 미성년자,</span><br><span style="color:#ff6b6b;font-weight:900">만 65세 이상</span>은 신청이 불가합니다.</p>
+      </div>
+    </div>
   </div>
-</div>
 </section>
+<style>
+@media(max-width:420px){
+  .hint-sec .hint-main{font-size:24px!important}
+  .hint-sec .discount-bubble{width:62px!important;height:62px!important;font-size:12px!important;top:-22px!important;right:6px!important}
+}
+</style>
 
 <section class="fs" id="apply">
 <div class="c">
