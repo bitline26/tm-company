@@ -1,7 +1,8 @@
 """
-Cleanly remove text from hero_new.jpg.
-Approach: per-row gradient interpolation from LEFT+RIGHT clean edges, then
-heavy feathered blur composite to make patch undetectable.
+Hero text removal v3:
+- Copy clean lavender STRIPS from regions adjacent to the text and stretch across.
+- Preserves natural gradient texture (no flat color patches).
+- Soft-feather composite blend so patch edges fade out.
 """
 from PIL import Image, ImageDraw, ImageFilter
 
@@ -11,52 +12,31 @@ DST = "hero_new.jpg"
 im = Image.open(SRC).convert("RGB")
 W, H = im.size
 print("size:", W, H)
-px = im.load()
 
-def sample_row(y, x0, x1):
-    rs = gs = bs = n = 0
-    for x in range(x0, x1):
-        r, g, b = px[x, y]
-        rs += r; gs += g; bs += b; n += 1
-    return (rs / n, gs / n, bs / n)
+def patch_strip(y0, y1, x0, x1, sx0, sx1):
+    """Crop vertical strip (sx0..sx1, y0..y1) and stretch over (x0..x1, y0..y1)."""
+    strip = im.crop((sx0, y0, sx1, y1))
+    stretched = strip.resize((x1 - x0, y1 - y0), Image.LANCZOS)
+    im.paste(stretched, (x0, y0))
 
-# Build per-row LEFT and RIGHT background colors
-# Clean strips: x=10..70 on left, x=920..980 on right (away from any text/phones)
-left_col = [sample_row(y, 10, 70) for y in range(H)]
-right_col = [sample_row(y, 920, 980) for y in range(H)]
+# 1) TOP wording region: y=18..210, x=220..780
+#    sample from LEFT clean lavender strip (x=40..200)
+patch_strip(18, 212, 220, 780, 40, 200)
 
-draw = ImageDraw.Draw(im)
+# 2) BOTTOM small disclaimer: y=520..H, x=295..715
+#    sample from LEFT clean strip below the phones (x=20..200)
+patch_strip(520, H, 295, 715, 20, 200)
 
-def fill_text_region(y0, y1, x0, x1):
-    """Fill rectangle with per-row, per-x interpolated background color."""
-    for y in range(y0, y1):
-        if y < 0 or y >= H: continue
-        lr, lg, lb = left_col[y]
-        rr, rg, rb = right_col[y]
-        for x in range(x0, x1):
-            t = (x - x0) / max(1, (x1 - x0))
-            r = int(lr + (rr - lr) * t)
-            g = int(lg + (rg - lg) * t)
-            b = int(lb + (rb - lb) * t)
-            draw.point((x, y), fill=(r, g, b))
-
-# TOP wording block (Galaxy S26 Series + Galaxy AI + 사전판매 + dates)
-# generous margins to fully cover text + dot decorations
-fill_text_region(28, 200, 230, 770)
-
-# BOTTOM small disclaimer (2 tiny lines)
-fill_text_region(525, H, 305, 705)
-
-# Heavy feathered blend so the patches disappear into the gradient
+# 3) Soft feathered blend: blur a copy and composite using a feathered mask
+#    so the patch edges disappear into the surrounding gradient.
 mask = Image.new("L", im.size, 0)
 md = ImageDraw.Draw(mask)
-# Top mask, slightly larger than fill region, then blur for soft feather
-md.rectangle([220, 18, 780, 210], fill=255)
-md.rectangle([295, 520, 715, H], fill=255)
-mask = mask.filter(ImageFilter.GaussianBlur(radius=18))
+md.rectangle([218, 16, 782, 214], fill=255)
+md.rectangle([293, 518, 717, H], fill=255)
+mask = mask.filter(ImageFilter.GaussianBlur(radius=20))
 
-blurred = im.filter(ImageFilter.GaussianBlur(radius=12))
+blurred = im.filter(ImageFilter.GaussianBlur(radius=14))
 im = Image.composite(blurred, im, mask)
 
-im.save(DST, "JPEG", quality=94)
+im.save(DST, "JPEG", quality=95)
 print("saved:", DST)
