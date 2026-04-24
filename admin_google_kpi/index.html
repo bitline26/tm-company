@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>TM COMPANY · Google KPI</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
+<style>
+:root{--blue:#1428A0;--blue-l:#eef1fb;--bdr:#e5e7eb;--bg:#f5f5f7;--sub:#888;--red:#ef4444;--green:#10b981}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Pretendard Variable',sans-serif;background:#f5f7fb;color:#111;line-height:1.5}
+a{color:var(--blue);text-decoration:none}
+button{font-family:inherit;cursor:pointer}
+
+/* LOGIN */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.login-card{background:#fff;border-radius:18px;padding:36px 30px;box-shadow:0 8px 32px rgba(0,0,0,.08);width:100%;max-width:380px}
+.login-card h1{font-size:22px;font-weight:900;text-align:center;margin-bottom:6px}
+.login-card .sub{font-size:13px;color:var(--sub);text-align:center;margin-bottom:24px}
+.fl{margin-bottom:14px}
+.fl label{display:block;font-size:12px;font-weight:700;color:var(--sub);margin-bottom:6px}
+.fl input{width:100%;padding:12px 14px;background:var(--bg);border:1.5px solid var(--bdr);border-radius:10px;font-size:15px;font-family:inherit;outline:none}
+.fl input:focus{border-color:var(--blue)}
+.btn-primary{width:100%;padding:14px;background:var(--blue);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800}
+.err{background:#fee;color:#c00;padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:12px;font-weight:700;display:none}
+.err.show{display:block}
+
+/* DASHBOARD */
+.dash{min-height:100vh}
+header{background:#fff;border-bottom:1px solid var(--bdr);padding:14px 24px;display:flex;justify-content:space-between;align-items:center}
+header h1{font-size:18px;font-weight:900}
+header .who{font-size:13px;color:var(--sub)}
+.btn-out{background:#fff;border:1.5px solid var(--bdr);padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;color:#555;margin-left:10px}
+
+.toolbar{padding:20px 24px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:#fff;border-bottom:1px solid var(--bdr)}
+.toolbar .stat{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--sub);font-weight:700;margin-right:auto}
+.toolbar .stat b{font-size:18px;color:var(--blue);font-weight:900}
+.search{flex:1;min-width:180px;max-width:320px;padding:10px 14px;border:1.5px solid var(--bdr);border-radius:8px;font-size:14px;font-family:inherit;outline:none}
+.search:focus{border-color:var(--blue)}
+.btn{padding:10px 16px;border-radius:8px;font-size:13px;font-weight:800;border:1.5px solid var(--bdr);background:#fff;color:#111}
+.btn.csv{border-color:var(--green);color:var(--green)}
+.btn.del{border-color:var(--red);color:var(--red)}
+
+.tbl-wrap{padding:20px 24px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.04);min-width:760px}
+th,td{padding:12px 14px;text-align:left;font-size:14px;border-bottom:1px solid var(--bdr)}
+th{background:#fafbfc;font-weight:800;color:#555;font-size:12px;letter-spacing:.02em;text-transform:uppercase}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafbfc}
+td.actions{text-align:right}
+td .badge{display:inline-block;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:800}
+td .b-skt{background:#fee2e2;color:#dc2626}
+td .b-kt{background:#fef3c7;color:#d97706}
+td .b-lgu{background:#fce7f3;color:#db2777}
+td .del-row{background:#fee;color:#c00;border:none;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}
+.empty{text-align:center;padding:60px 20px;color:var(--sub)}
+.empty .ico{font-size:48px;margin-bottom:10px;opacity:.5}
+.empty .msg{font-size:15px;font-weight:700;margin-bottom:4px;color:#555}
+.empty .sub2{font-size:13px}
+
+.notice{margin:0 24px 16px;padding:14px 16px;background:#fff8e1;border:1px solid #ffd54f;border-radius:10px;font-size:12px;color:#7c5400;line-height:1.5}
+.notice b{color:#c44}
+</style>
+</head>
+<body>
+
+<!-- LOGIN VIEW -->
+<div id="loginView" class="login-wrap">
+  <div class="login-card">
+    <h1>TM COMPANY 어드민 · Google KPI</h1>
+    <p class="sub">관리자 로그인</p>
+    <div id="loginErr" class="err">아이디 또는 비밀번호가 일치하지 않습니다</div>
+    <form id="loginForm" onsubmit="return doLogin(event)">
+      <div class="fl"><label>아이디</label><input type="text" id="lUser" autocomplete="username" required></div>
+      <div class="fl"><label>비밀번호</label><input type="password" id="lPass" autocomplete="current-password" required></div>
+      <button type="submit" class="btn-primary">로그인</button>
+    </form>
+  </div>
+</div>
+
+<!-- DASHBOARD VIEW -->
+<div id="dashView" class="dash" style="display:none">
+  <header>
+    <h1>📋 신청 관리</h1>
+    <div>
+      <span class="who" id="whoami"></span>
+      <button class="btn-out" onclick="doLogout()">로그아웃</button>
+    </div>
+  </header>
+
+  <div class="notice">
+    <b>※ 데이터 위치 안내:</b> 현재 신청 데이터는 <b>각 사용자의 브라우저 localStorage</b>에 저장되어 있어, 이 어드민에서는 <b>본 브라우저에서 발생한 신청만</b> 보입니다. 실제 운영용으로 모든 기기/유저의 신청을 통합 관리하려면 백엔드 DB(Vercel KV/Postgres·Supabase·Google Sheets API 등) 연결이 필요합니다.
+  </div>
+
+  <div class="toolbar">
+    <div class="stat">총 신청 <b id="cnt">0</b>건</div>
+    <input type="text" class="search" id="search" placeholder="이름·전화·통신사·기종 검색" oninput="render()">
+    <button class="btn csv" onclick="exportCSV()">📥 CSV 다운로드</button>
+    <button class="btn del" onclick="clearAll()">🗑 전체 삭제</button>
+  </div>
+
+  <div class="tbl-wrap">
+    <div id="tblHolder"></div>
+  </div>
+</div>
+
+<script>
+// ===== AUTH =====
+// NOTE: 클라이언트사이드 평문 자격증명 — 정적호스팅 한계상 임시. 보안 강화시 백엔드 인증 필요.
+var ACCOUNTS = {'admin':'kpi2025!'};
+var SESSION_KEY = 'tm_admin_google_kpi';
+
+function doLogin(e){
+  e.preventDefault();
+  var u = document.getElementById('lUser').value.trim();
+  var p = document.getElementById('lPass').value;
+  if(ACCOUNTS[u] && ACCOUNTS[u] === p){
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({user:u, ts:Date.now()}));
+    showDash(u);
+  } else {
+    document.getElementById('loginErr').classList.add('show');
+  }
+  return false;
+}
+function doLogout(){
+  sessionStorage.removeItem(SESSION_KEY);
+  location.reload();
+}
+function checkSession(){
+  try{
+    var s = JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');
+    if(s && s.user && ACCOUNTS[s.user]){
+      // 8시간 유효
+      if(Date.now() - s.ts < 8*60*60*1000){ showDash(s.user); return; }
+    }
+  }catch(x){}
+  document.getElementById('loginView').style.display='flex';
+  document.getElementById('dashView').style.display='none';
+}
+function showDash(u){
+  document.getElementById('loginView').style.display='none';
+  document.getElementById('dashView').style.display='block';
+  document.getElementById('whoami').textContent = u + ' 님';
+  render();
+}
+
+// ===== DATA =====
+function getAll(){
+  try{ return JSON.parse(localStorage.getItem('tm_inq_google_kpi')||'[]'); }catch(x){ return []; }
+}
+function setAll(arr){ localStorage.setItem('tm_inq_google_kpi', JSON.stringify(arr)); }
+
+function render(){
+  var data = getAll();
+  var q = (document.getElementById('search').value||'').trim().toLowerCase();
+  if(q){
+    data = data.filter(function(d){
+      return ((d.name||'')+(d.phone||'')+(d.carrier||'')+(d.model||'')).toLowerCase().indexOf(q) >= 0;
+    });
+  }
+  document.getElementById('cnt').textContent = data.length;
+
+  var holder = document.getElementById('tblHolder');
+  if(!data.length){
+    holder.innerHTML = '<div class="empty"><div class="ico">📭</div><div class="msg">신청 내역이 없습니다</div><div class="sub2">고객이 폼을 제출하면 여기에 표시됩니다</div></div>';
+    return;
+  }
+  // 최신순
+  data.sort(function(a,b){ return new Date(b.date||0) - new Date(a.date||0); });
+  var html = '<table><thead><tr><th>#</th><th>신청일시</th><th>이름</th><th>연락처</th><th>통신사</th><th>희망기종</th><th></th></tr></thead><tbody>';
+  data.forEach(function(d, i){
+    var carClass = d.carrier === 'SKT' ? 'b-skt' : (d.carrier === 'KT' ? 'b-kt' : 'b-lgu');
+    html += '<tr>'+
+      '<td>'+(i+1)+'</td>'+
+      '<td>'+fmtDate(d.date)+'</td>'+
+      '<td><b>'+esc(d.name)+'</b></td>'+
+      '<td>'+esc(d.phone)+'</td>'+
+      '<td><span class="badge '+carClass+'">'+esc(d.carrier)+'</span></td>'+
+      '<td>'+esc(d.model)+'</td>'+
+      '<td class="actions"><button class="del-row" onclick="delOne(\''+(d.date||'')+'\',\''+esc(d.phone)+'\')">삭제</button></td>'+
+    '</tr>';
+  });
+  html += '</tbody></table>';
+  holder.innerHTML = html;
+}
+
+function esc(s){
+  return String(s||'').replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function fmtDate(s){
+  if(!s) return '-';
+  try{
+    var d = new Date(s);
+    var y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+    var h = String(d.getHours()).padStart(2,'0'), mi = String(d.getMinutes()).padStart(2,'0');
+    return y+'-'+m+'-'+dd+' '+h+':'+mi;
+  }catch(x){ return s; }
+}
+
+function delOne(date, phone){
+  if(!confirm('정말 이 신청을 삭제하시겠습니까?')) return;
+  var arr = getAll().filter(function(d){ return !(d.date===date && d.phone===phone); });
+  setAll(arr);
+  render();
+}
+function clearAll(){
+  if(!confirm('정말 모든 신청 데이터를 삭제하시겠습니까? 복구 불가능합니다.')) return;
+  if(!confirm('마지막 확인입니다. 진행하시겠습니까?')) return;
+  setAll([]);
+  render();
+}
+
+function exportCSV(){
+  var data = getAll();
+  if(!data.length){ alert('내보낼 데이터가 없습니다'); return; }
+  var rows = [['신청일시','이름','연락처','통신사','희망기종']];
+  data.forEach(function(d){
+    rows.push([fmtDate(d.date), d.name||'', d.phone||'', d.carrier||'', d.model||'']);
+  });
+  var csv = rows.map(function(r){
+    return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(',');
+  }).join('\n');
+  var bom = '﻿'; // Excel UTF-8 호환
+  var blob = new Blob([bom+csv], {type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  var ts = new Date().toISOString().slice(0,16).replace(/[T:]/g,'-');
+  a.href = url; a.download = 'tm_google_kpi_'+ts+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// init
+checkSession();
+</script>
+</body>
+</html>

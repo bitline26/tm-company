@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>갤럭시 특판 — TM COMPANY</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
+<style>
+:root{--blue:#1428A0;--blue-l:#eef1fb;--sub:#888;--bdr:#e5e7eb;--bg:#f5f5f7;--r:10px;--r2:14px;--r3:18px;--tr:.2s ease;--red:#e53935}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Pretendard Variable',sans-serif;background:#fff;color:#111;line-height:1.5;overflow-x:hidden}
+img{max-width:100%;display:block}
+.c{max-width:640px;margin:0 auto;padding:0 20px}
+
+/* HERO - 큰 이미지 풀 */
+.hero{background:#f0f2f8;text-align:center;padding:28px 20px 0}
+.hero-inner{max-width:640px;margin:0 auto}
+.hero-badge{display:inline-block;background:#fff;border:1.5px solid var(--blue);border-radius:999px;padding:5px 14px;font-size:12px;font-weight:800;color:var(--blue);margin-bottom:12px}
+.hero h1{font-size:32px;font-weight:900;line-height:1.15;margin-bottom:6px}
+.hero h1 .hl{color:var(--blue)}
+.hero .sub{font-size:14px;color:var(--sub);margin-bottom:14px;font-weight:500}
+.hero-cta{display:inline-block;background:var(--blue);color:#fff;padding:12px 32px;border-radius:var(--r2);font-size:15px;font-weight:800;text-decoration:none;margin-bottom:16px}
+.hero-img img{width:100%;height:auto}
+
+/* SECTION */
+.sec{padding:28px 0}
+.sec-alt{background:var(--bg)}
+.sec-title{text-align:center;margin-bottom:16px}
+.sec-badge{display:inline-block;background:var(--blue-l);border-radius:999px;padding:3px 10px;font-size:10px;font-weight:800;color:var(--blue);margin-bottom:4px}
+.sec-h{font-size:19px;font-weight:900}
+
+/* MODEL CARD - 가격 존나 크게 */
+.ml{display:flex;flex-direction:column;gap:10px}
+.mc{background:#fff;border:1.5px solid var(--bdr);border-radius:var(--r3);display:flex;align-items:center;gap:12px;padding:14px}
+.mc .mi{width:90px;height:90px;flex-shrink:0;border-radius:10px;overflow:hidden;background:var(--bg)}
+.mc .mi img{width:100%;height:100%;object-fit:cover}
+.mc .mf{flex:1}
+.mc h3{font-size:15px;font-weight:900;margin-bottom:1px}
+.mc .sp{font-size:10px;color:var(--sub);margin-bottom:4px}
+.mc .pr-wrap{display:flex;flex-direction:column}
+.mc .pr-old{font-size:12px;color:#bbb;text-decoration:line-through;font-weight:500}
+.mc .pr-new{font-size:22px;font-weight:900;color:var(--red);letter-spacing:-.5px}
+.mc .pr-tag{display:inline-block;background:var(--red);color:#fff;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:800;margin-left:4px;vertical-align:middle}
+
+/* FEATURED */
+.fc{background:#fff;border:1.5px solid var(--bdr);border-radius:var(--r3);overflow:hidden;margin-bottom:10px}
+.fc .fi img{width:100%;height:auto}
+.fc .ff{padding:16px}
+.fc h3{font-size:20px;font-weight:900;margin-bottom:2px}
+.fc .sp{font-size:11px;color:var(--sub);margin-bottom:6px}
+.fc .pr-old{font-size:13px;color:#bbb;text-decoration:line-through}
+.fc .pr-new{font-size:28px;font-weight:900;color:var(--red);letter-spacing:-.5px}
+.fc .pr-tag{display:inline-block;background:var(--red);color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:800;margin-left:4px}
+
+/* WHY */
+.wg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.wi{background:#fff;border:1.5px solid var(--bdr);border-radius:var(--r2);padding:14px 10px;text-align:center}
+.wi .t{font-size:14px;font-weight:900;margin-bottom:1px}
+.wi .d{font-size:10px;color:var(--sub)}
+
+.live{padding:16px 0;text-align:center;border-top:1px solid var(--bdr);border-bottom:1px solid var(--bdr)}
+.lc{display:inline-block;background:var(--blue-l);border-radius:999px;padding:8px 20px;font-size:13px;font-weight:800;color:var(--blue)}
+.lc .num{font-size:18px;font-weight:900;color:#111}
+
+/* FORM */
+.fs{padding:28px 0;background:linear-gradient(180deg,#f0f3fa 0%,#fff 100%)}
+.fcard{background:#fff;border:1.5px solid var(--bdr);border-radius:var(--r3);padding:24px 20px;box-shadow:0 4px 16px rgba(0,0,0,.03)}
+.fcard h2{font-size:20px;font-weight:900;text-align:center;margin-bottom:3px}
+.fcard .fsub{font-size:12px;color:var(--sub);text-align:center;margin-bottom:14px}
+.warn-box{background:#fff4f4;border:1.5px solid #fecaca;border-radius:var(--r);padding:10px 12px;margin-bottom:14px;font-size:11px;color:var(--red);font-weight:700;line-height:1.5;text-align:center}
+.fl{margin-bottom:10px}
+.fl label{display:block;font-size:11px;font-weight:700;color:var(--sub);margin-bottom:3px}
+.fl input,.fl select{width:100%;padding:12px 14px;background:var(--bg);border:1.5px solid var(--bdr);border-radius:var(--r);font-size:15px;color:#111;font-family:inherit;outline:none}
+.fl input:focus,.fl select:focus{border-color:var(--blue)}
+.fl input::placeholder{color:#bbb}
+.pr2{display:flex;gap:6px;align-items:center}
+.pr2 select{width:76px;flex-shrink:0}
+.pr2 .dash{color:var(--sub);font-weight:700}
+.pr2 input{flex:1}
+.cr{display:flex;gap:6px}
+.cb{flex:1;padding:12px;background:var(--bg);border:1.5px solid var(--bdr);border-radius:var(--r);font-size:14px;font-weight:700;color:var(--sub);cursor:pointer;text-align:center;font-family:inherit;transition:all var(--tr)}
+.cb.active{border-color:var(--blue);color:var(--blue);background:var(--blue-l)}
+.ag{display:flex;align-items:center;gap:6px;margin:12px 0;font-size:11px;color:var(--sub)}
+.ag input{width:16px;height:16px;accent-color:var(--blue)}
+.ag a{color:var(--blue)}
+.sbtn{width:100%;padding:16px;background:var(--blue);color:#fff;border:none;border-radius:var(--r2);font-size:18px;font-weight:900;cursor:pointer;font-family:inherit}
+.fok{display:none;text-align:center;padding:28px 16px}
+.fok .msg{font-size:18px;font-weight:900;margin-bottom:4px}
+.fok .msg2{font-size:12px;color:var(--sub)}
+
+footer{padding:16px 0 68px;text-align:center;font-size:10px;color:#bbb;border-top:1px solid var(--bdr)}
+.float-cta{position:fixed;bottom:0;left:0;right:0;padding:8px 16px env(safe-area-inset-bottom,6px);background:rgba(255,255,255,.97);backdrop-filter:blur(12px);border-top:1px solid var(--bdr);z-index:100}
+.float-cta a{display:block;width:100%;max-width:640px;margin:0 auto;padding:14px;background:var(--blue);color:#fff;border-radius:var(--r2);font-size:17px;font-weight:900;text-align:center;text-decoration:none}
+
+@media(min-width:768px){.c{max-width:720px}.hero h1{font-size:38px}.ml.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}}
+</style>
+</head>
+<body>
+
+<!-- 모델 히어로 -->
+<section style="background:#fff;position:relative;overflow:hidden">
+  <div class="hero-img-wrap" style="max-width:480px;margin:0 auto">
+    <img src="hero.png" alt="Galaxy S26 모델" style="width:100%;height:auto;display:block">
+  </div>
+  <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent 0%,rgba(255,255,255,.6) 30%,#fff 100%);padding:60px 20px 28px;text-align:center">
+    <p style="font-size:15px;font-weight:800;color:var(--blue);margin-bottom:6px;letter-spacing:.03em">Galaxy S26 시리즈 단독특가</p>
+    <p style="font-size:24px;font-weight:900;color:#111;line-height:1.2;margin-bottom:12px;white-space:nowrap">역대급 할인, 지금 신청하세요</p>
+    <a href="#apply" style="display:inline-block;background:var(--blue);color:#fff;padding:14px 40px;border-radius:12px;font-size:17px;font-weight:900;text-decoration:none">단독특가 신청하기</a>
+  </div>
+</section>
+
+<!-- 공식판매점 배지 -->
+<section class="official-sec" style="background:linear-gradient(180deg,#111 0%,#1a1a2e 100%);padding:36px 20px;text-align:center">
+  <div style="max-width:480px;margin:0 auto">
+    <div style="display:flex;justify-content:center;gap:24px;margin-bottom:20px">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div style="width:56px;height:56px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15)">
+          <img src="skt_logo.webp" alt="SKT" style="width:42px;height:42px;object-fit:contain" onerror="this.outerHTML='<span style=font-size:14px;font-weight:900;color:#e6002d>SK</span>'">
+        </div>
+        <span style="font-size:11px;color:rgba(255,255,255,.6);font-weight:700">SKT</span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div style="width:56px;height:56px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15)">
+          <img src="kt_logo.png" alt="KT" style="width:32px;height:auto" onerror="this.outerHTML='<span style=font-size:14px;font-weight:900;color:#e4002b>KT</span>'">
+        </div>
+        <span style="font-size:11px;color:rgba(255,255,255,.6);font-weight:700">KT</span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div style="width:56px;height:56px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15)">
+          <img src="lgu_logo.png" alt="LGU+" style="width:34px;height:auto" onerror="this.outerHTML='<span style=font-size:11px;font-weight:900;color:#e6007e>LGU+</span>'">
+        </div>
+        <span style="font-size:11px;color:rgba(255,255,255,.6);font-weight:700">LGU+</span>
+      </div>
+    </div>
+    <p style="font-size:20px;font-weight:900;color:#fff;margin-bottom:6px">이동통신 3사 공식 판매점</p>
+    <p style="font-size:13px;font-weight:500;color:rgba(255,255,255,.45);line-height:1.6">SKT · KT · LGU+ 판매허가를 받은<br>공식 온라인 판매점입니다</p>
+    <div style="display:inline-flex;align-items:center;gap:6px;margin-top:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:6px 16px">
+      <span style="font-size:10px;color:rgba(212,168,71,1);font-weight:800">★★★★★</span>
+      <span style="font-size:11px;color:rgba(255,255,255,.5);font-weight:700">공식 인증 판매점</span>
+    </div>
+  </div>
+</section>
+<style>.hero-img-wrap{max-width:480px}@media(max-width:640px){.hero-img-wrap{max-width:100%!important}}.official-sec>div{max-width:480px}@media(max-width:640px){.official-sec>div{max-width:100%!important}}</style>
+
+<section class="sec">
+<div class="c">
+  <div class="sec-title"><div class="sec-badge">FLAGSHIP</div><h2 class="sec-h">Galaxy S26 Ultra</h2></div>
+  <div class="fc"><div class="fi"><img src="s26ultra.jpg"></div><div class="ff"><h3>Galaxy S26 Ultra</h3><div class="pr-old">출고가 1,797,400원</div><div class="pr-new">단독특가 350,000원~ <span class="pr-tag">80%↓</span></div></div></div>
+</div>
+</section>
+
+<section class="sec sec-alt">
+<div class="c">
+  <div class="sec-title"><div class="sec-badge">S26</div><h2 class="sec-h">Galaxy S26 시리즈</h2></div>
+  <div class="ml g2">
+    <div class="mc"><div class="mi"><img src="s26ultra_new.jpg"></div><div class="mf"><h3>Galaxy S26+</h3><div class="pr-wrap"><span class="pr-old">출고가 1,452,000원</span><span class="pr-new">140,000원~<span class="pr-tag">90%↓</span></span></div></div></div>
+    <div class="mc"><div class="mi"><img src="s26ultra_new.jpg"></div><div class="mf"><h3>Galaxy S26</h3><div class="pr-wrap"><span class="pr-old">출고가 1,254,000원</span><span class="pr-new">40,000원~<span class="pr-tag">97%↓</span></span></div></div></div>
+  </div>
+</div>
+</section>
+
+
+<section class="sec sec-alt">
+<div class="c">
+  <div class="wg">
+    <div class="wi"><div class="t">최저가 보장</div><div class="d">업계 최저가</div></div>
+    <div class="wi"><div class="t">사은품 증정</div><div class="d">케이스·버즈·필름</div></div>
+    <div class="wi"><div class="t">당일 개통</div><div class="d">즉시 상담 후 개통</div></div>
+    <div class="wi"><div class="t">전문 상담</div><div class="d">1:1 전담 상담사</div></div>
+  </div>
+</div>
+</section>
+
+
+<!-- 구매 혜택 -->
+<section style="padding:28px 0;background:#fff">
+<div class="c">
+  <div style="text-align:center;margin-bottom:16px">
+    <p style="font-size:10px;color:var(--blue);font-weight:800;letter-spacing:.05em;margin-bottom:2px">SAMSUNG</p>
+    <p style="font-size:22px;font-weight:900;color:#111;margin-bottom:2px">Galaxy S26 Series 구매 혜택</p>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div style="background:var(--bg);border:1.5px solid var(--bdr);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px"><div style="background:var(--blue);color:#fff;padding:3px 8px;border-radius:5px;font-size:10px;font-weight:900;flex-shrink:0">혜택 1</div><div><span style="font-size:14px;font-weight:900">갤럭시 버즈4 시리즈</span> <span style="font-size:13px;color:var(--red);font-weight:900">10% 할인</span></div></div>
+    <div style="background:var(--bg);border:1.5px solid var(--bdr);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px"><div style="background:var(--blue);color:#fff;padding:3px 8px;border-radius:5px;font-size:10px;font-weight:900;flex-shrink:0">혜택 2</div><div><span style="font-size:14px;font-weight:900">60W 충전기</span> <span style="font-size:13px;color:var(--red);font-weight:900">30% 할인 (Ultra 한정)</span></div></div>
+    <div style="background:var(--bg);border:1.5px solid var(--bdr);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px"><div style="background:var(--blue);color:#fff;padding:3px 8px;border-radius:5px;font-size:10px;font-weight:900;flex-shrink:0">혜택 3</div><div><span style="font-size:14px;font-weight:900">케이스 & 액세서리</span> <span style="font-size:13px;color:var(--red);font-weight:900">30% 할인 (5장)</span></div></div>
+  </div>
+  <p style="font-size:10px;color:#bbb;margin-top:10px;text-align:center">※ 신규 구매·개통 고객 한정 · 선착순 소진 시 조기종료</p>
+</div>
+</section>
+
+<!-- 안내 배너 -->
+<section style="padding:32px 0;background:linear-gradient(180deg,#e8edf8 0%,#d6dff2 100%);text-align:center">
+<div class="c">
+  <p style="font-size:22px;font-weight:700;color:#333;line-height:1.5;margin-bottom:4px">지금 이 페이지에서만</p>
+  <p style="font-size:28px;font-weight:900;color:#111;line-height:1.3;margin-bottom:4px"><span style="color:var(--blue)">Galaxy S26 시리즈</span>를 <span style="text-decoration:underline;text-underline-offset:6px;text-decoration-color:var(--blue)">단독 최저가</span>로 드립니다.</p>
+  <p style="font-size:12px;color:#888;margin-top:10px">※선착순 한정혜택으로 이벤트는 조기종료 될 수 있습니다.</p>
+  <div style="margin-top:20px;background:#222;border-radius:16px;padding:20px 24px;display:inline-block;max-width:480px;width:100%">
+    <p style="font-size:18px;font-weight:800;color:#fff;line-height:1.5">본 상품은 <span style="color:#ff6b6b;font-weight:900">신용불량자, 미성년자,<br>만 65세 이상</span>은 신청이 불가합니다.</p>
+  </div>
+</div>
+</section>
+
+<section class="fs" id="apply">
+<div class="c">
+  <div class="fcard">
+    <h2>단독특가 신청</h2>
+    <p class="fsub">연락처 남기면 전담 상담사가 즉시 연락드립니다</p>
+    <form id="dbForm" onsubmit="return submitDB(event)">
+      <div class="fl"><label>이름</label><input type="text" id="dbName" required placeholder="신청자 이름"></div>
+      <div class="fl"><label>연락처</label><div class="pr2"><select id="dbPrefix"><option>010</option><option>011</option><option>016</option></select><span class="dash">-</span><input type="tel" id="dbPhone1" required placeholder="0000" maxlength="4"><span class="dash">-</span><input type="tel" id="dbPhone2" required placeholder="0000" maxlength="4"></div></div>
+      <div class="fl"><label>통신사</label><div class="cr"><div class="cb" onclick="pickC(this)">SKT</div><div class="cb" onclick="pickC(this)">KT</div><div class="cb" onclick="pickC(this)">LGU+</div></div></div>
+      <div class="fl"><label>희망기종</label><select id="dbModel" required><option value="" disabled selected>기종 선택</option><option>갤럭시 S26 Ultra</option><option>갤럭시 S26+</option><option>갤럭시 S26</option></select></div>
+      <div class="ag"><input type="checkbox" id="dbAgree" required><span>개인정보 수집·이용 동의 <a href="javascript:void(0)" onclick="alert('수집항목: 이름, 연락처, 통신사, 희망기종\n이용목적: 단독특가 상담\n보유기간: 목적 달성 후 즉시 파기\n동의 거부 시 신청 불가')">[보기]</a></span></div>
+      <button type="submit" class="sbtn">갤럭시 단독특가 신청하기</button>
+    </form>
+    <div class="fok" id="formOk"><div class="msg">신청 완료!</div><div class="msg2">전담 상담사가 곧 연락드립니다</div></div>
+  </div>
+</div>
+</section>
+
+<!-- 실시간 접수현황 -->
+<section style="padding:28px 0;background:#fff;border-top:1px solid var(--bdr);border-bottom:1px solid var(--bdr)">
+<div class="c">
+  <div style="text-align:center;margin-bottom:14px;font-size:18px;font-weight:900">실시간 접수현황</div>
+  <div id="rollWrap" style="height:160px;overflow:hidden;position:relative;background:var(--bg);border-radius:12px;border:1px solid var(--bdr)">
+    <div id="rollList" style="transition:transform .5s ease"></div>
+  </div>
+</div>
+</section>
+
+<footer>
+  <p>TM COMPANY · 특판 상담 전문</p>
+  <p style="margin-top:4px">본 페이지는 삼성전자 공식 페이지가 아닌 특판 상담 안내 페이지입니다.</p>
+  <p style="margin-top:4px">© 2026 TM COMPANY</p>
+</footer>
+<div class="float-cta"><a href="#apply">단독특가 신청하기</a></div>
+
+<script>
+function pickC(el){document.querySelectorAll('.cb').forEach(b=>b.classList.remove('active'));el.classList.add('active')}
+function submitDB(e){e.preventDefault();const c=document.querySelector('.cb.active');if(!c){alert('통신사를 선택해주세요');return false}const d={name:document.getElementById('dbName').value,phone:document.getElementById('dbPrefix').value+'-'+document.getElementById('dbPhone1').value+'-'+document.getElementById('dbPhone2').value,carrier:c.textContent,model:document.getElementById('dbModel').value,date:new Date().toISOString()};try{const db=JSON.parse(localStorage.getItem('tm_inquiries')||'[]');db.push(d);localStorage.setItem('tm_inquiries',JSON.stringify(db))}catch(x){}document.getElementById('dbForm').style.display='none';document.getElementById('formOk').style.display='block';document.getElementById('liveNum').textContent=parseInt(document.getElementById('liveNum').textContent)+1;return false}
+// 실시간 접수현황 롤링
+const names=['김**','이**','박**','최**','정**','강**','조**','윤**','장**','임**','한**','오**','서**','신**','권**','황**','안**','송**','전**','홍**'];
+const models=['S26 Ultra','S26+','S26','S26 Ultra','S26','S26+','S26 Ultra','S26+','S26','S26 Ultra'];
+const carriers=['SKT','KT','LGU+'];
+function genRow(){
+  const n=names[Math.floor(Math.random()*names.length)];
+  const m=models[Math.floor(Math.random()*models.length)];
+  const c=carriers[Math.floor(Math.random()*carriers.length)];
+  const h=String(Math.floor(Math.random()*12)+1).padStart(2,'0');
+  const mi=String(Math.floor(Math.random()*60)).padStart(2,'0');
+  const ph='010-****-'+String(Math.floor(Math.random()*9000)+1000);
+  return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(0,0,0,.04);font-size:13px"><span style="font-weight:700;color:#111;min-width:40px">'+n+'</span><span style="color:var(--sub)">'+ph+'</span><span style="color:var(--blue);font-weight:700">'+m+'</span><span style="color:var(--sub);font-size:11px">'+c+' · '+h+':'+mi+'</span></div>';
+}
+const rl=document.getElementById('rollList');
+let rows='';for(let i=0;i<20;i++)rows+=genRow();
+rl.innerHTML=rows;
+let rollPos=0;
+setInterval(()=>{
+  rollPos+=40;
+  rl.style.transform='translateY(-'+rollPos+'px)';
+  if(rollPos>600){rollPos=0;rl.style.transition='none';rl.style.transform='translateY(0)';setTimeout(()=>{rl.style.transition='transform .5s ease'},50);let nr='';for(let i=0;i<20;i++)nr+=genRow();rl.innerHTML=nr;}
+},2000);
+</script>
+</body>
+</html>
