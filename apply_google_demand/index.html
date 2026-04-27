@@ -101,7 +101,8 @@ img{max-width:100%;display:block}
 .fok .msg2{font-size:12px;color:var(--sub)}
 
 footer{padding:16px 0 68px;text-align:center;font-size:10px;color:#bbb;border-top:1px solid var(--bdr)}
-.float-cta{position:fixed;bottom:0;left:0;right:0;padding:8px 16px env(safe-area-inset-bottom,6px);background:rgba(255,255,255,.97);backdrop-filter:blur(12px);border-top:1px solid var(--bdr);z-index:100}
+.float-cta{position:fixed;bottom:0;left:0;right:0;padding:8px 16px env(safe-area-inset-bottom,6px);background:rgba(255,255,255,.97);backdrop-filter:blur(12px);border-top:1px solid var(--bdr);z-index:100;transition:transform .3s ease,opacity .3s ease}
+.float-cta.hide{transform:translateY(110%);opacity:0;pointer-events:none}
 .float-cta a{display:block;width:100%;max-width:640px;margin:0 auto;padding:14px;background:var(--blue);color:#fff;border-radius:var(--r2);font-size:17px;font-weight:900;text-align:center;text-decoration:none}
 
 @media(min-width:768px){.c{max-width:720px}.hero h1{font-size:38px}.ml.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}}
@@ -416,6 +417,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <div class="float-cta"><a href="#apply">단독특가 신청하기</a></div>
 
 <script>
+// 폼이 화면에 보이면 하단 플로팅 CTA 숨김
+(function(){var f=document.querySelector('.float-cta'),s=document.getElementById('apply');if(!f||!s||!window.IntersectionObserver)return;new IntersectionObserver(function(es){es.forEach(function(e){f.classList.toggle('hide',e.isIntersecting)})},{threshold:0.12}).observe(s)})();
 function pickC(el){document.querySelectorAll('.cb').forEach(b=>b.classList.remove('active'));el.classList.add('active')}
 function submitDB(e){e.preventDefault();const name=document.getElementById('dbName').value.trim();if(!name||name.length<2){alert('이름을 정확히 입력해 주세요');document.getElementById('dbName').focus();return false}const p1=document.getElementById('dbPhone1').value.trim();const p2=document.getElementById('dbPhone2').value.trim();if(!/^\d{3,4}$/.test(p1)){alert('연락처 가운데 4자리를 정확히 입력해 주세요');document.getElementById('dbPhone1').focus();return false}if(!/^\d{4}$/.test(p2)){alert('연락처 끝 4자리를 정확히 입력해 주세요');document.getElementById('dbPhone2').focus();return false}const c=document.querySelector('.cb.active');if(!c){alert('통신사를 선택해 주세요');return false}const model=document.getElementById('dbModel').value;if(!model){alert('희망 기종을 선택해 주세요');document.getElementById('dbModel').focus();return false}if(!document.getElementById('dbAgree').checked){alert('개인정보 수집·이용에 동의해 주세요');return false}const d={name,phone:document.getElementById('dbPrefix').value+'-'+p1+'-'+p2,carrier:c.textContent,model,date:new Date().toISOString()};try{const db=JSON.parse(localStorage.getItem('tm_inq_google_demand')||'[]');db.push(d);localStorage.setItem('tm_inq_google_demand',JSON.stringify(db))}catch(x){}window.location.href='/demand_finish/';return false}
 // 실시간 접수현황 롤링
