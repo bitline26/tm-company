@@ -122,7 +122,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <p style="font-size:24px;font-weight:900;color:#111;line-height:1.2;margin-bottom:12px;white-space:nowrap">역대급 할인, 지금 신청하세요</p>
       <a href="#apply" style="display:inline-block;background:var(--blue);color:#fff;padding:14px 40px;border-radius:12px;font-size:17px;font-weight:900;text-decoration:none">단독특가 신청하기</a>
     </div>
-    <img src="../gs_logo_square.png?v=6" alt="galaxysale" style="position:absolute;top:8px;right:10px;width:44px;height:44px;z-index:9999;pointer-events:none">
+    <img src="../gs_logo_square.png?v=6" alt="galaxysale" style="position:absolute;top:8px;right:10px;width:30px;height:30px;z-index:9999;pointer-events:none;opacity:.92">
   </div>
 </section>
 
@@ -417,7 +417,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <script>
 function pickC(el){document.querySelectorAll('.cb').forEach(b=>b.classList.remove('active'));el.classList.add('active')}
-function submitDB(e){e.preventDefault();const c=document.querySelector('.cb.active');if(!c){alert('통신사를 선택해주세요');return false}const d={name:document.getElementById('dbName').value,phone:document.getElementById('dbPrefix').value+'-'+document.getElementById('dbPhone1').value+'-'+document.getElementById('dbPhone2').value,carrier:c.textContent,model:document.getElementById('dbModel').value,date:new Date().toISOString()};try{const db=JSON.parse(localStorage.getItem('tm_inq_google_kpi')||'[]');db.push(d);localStorage.setItem('tm_inq_google_kpi',JSON.stringify(db))}catch(x){}document.getElementById('dbForm').style.display='none';document.getElementById('formOk').style.display='block';return false}
+function submitDB(e){e.preventDefault();const c=document.querySelector('.cb.active');if(!c){alert('통신사를 선택해주세요');return false}const d={name:document.getElementById('dbName').value,phone:document.getElementById('dbPrefix').value+'-'+document.getElementById('dbPhone1').value+'-'+document.getElementById('dbPhone2').value,carrier:c.textContent,model:document.getElementById('dbModel').value,date:new Date().toISOString()};try{const db=JSON.parse(localStorage.getItem('tm_inq_google_kpi')||'[]');db.push(d);localStorage.setItem('tm_inq_google_kpi',JSON.stringify(db))}catch(x){}window.location.href='/kpi_thanks/';return false}
 // 실시간 접수현황 롤링
 const names=['김**','이**','박**','최**','정**','강**','조**','윤**','장**','임**','한**','오**','서**','신**','권**','황**','안**','송**','전**','홍**'];
 const models=['S26 Ultra','S26+','S26','S26 Ultra','S26','S26+','S26 Ultra','S26+','S26','S26 Ultra'];
