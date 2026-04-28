@@ -19,7 +19,9 @@ export async function ensureSchema() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
+  await sql`ALTER TABLE applications ADD COLUMN IF NOT EXISTS downloaded_at TIMESTAMPTZ NULL`;
   await sql`CREATE INDEX IF NOT EXISTS idx_apps_created ON applications (created_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_apps_source ON applications (source)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_apps_downloaded ON applications (downloaded_at)`;
   initialized = true;
 }

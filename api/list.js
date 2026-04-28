@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   try {
     await ensureSchema();
     const rows = await sql`
-      SELECT id, source, name, phone, carrier, model, created_at
+      SELECT id, source, name, phone, carrier, model, created_at, downloaded_at
       FROM applications
       ORDER BY created_at DESC
       LIMIT 5000

@@ -7,7 +7,7 @@
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
-:root{--blue:#1428A0;--blue-l:#eef1fb;--bdr:#e5e7eb;--bg:#f5f5f7;--sub:#888;--red:#ef4444;--green:#10b981;--src-a:#7c3aed;--src-b:#0ea5e9}
+:root{--blue:#1428A0;--blue-l:#eef1fb;--bdr:#e5e7eb;--bg:#f5f5f7;--sub:#888;--red:#ef4444;--green:#10b981;--src-a:#7c3aed;--src-b:#0ea5e9;--gray-row:#f1f3f5;--orange:#f59e0b}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Pretendard Variable',sans-serif;background:#f5f7fb;color:#111;line-height:1.5}
 a{color:var(--blue);text-decoration:none}
@@ -34,38 +34,53 @@ header .who{font-size:13px;color:var(--sub)}
 .btn-out{background:#fff;border:1.5px solid var(--bdr);padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;color:#555;margin-left:10px}
 
 .summary{display:flex;gap:10px;padding:16px 24px;background:#fff;border-bottom:1px solid var(--bdr);flex-wrap:wrap}
-.summary .card{flex:1;min-width:140px;padding:14px 18px;border-radius:12px;background:#fafbfc;border:1.5px solid var(--bdr)}
+.summary .card{flex:1;min-width:130px;padding:14px 18px;border-radius:12px;background:#fafbfc;border:1.5px solid var(--bdr)}
 .summary .card.total{background:linear-gradient(135deg,#eef1fb,#e0e7ff);border-color:#c7d2fe}
 .summary .card.src-a{background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-color:#ddd6fe}
 .summary .card.src-b{background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border-color:#bae6fd}
+.summary .card.pending{background:linear-gradient(135deg,#fff7ed,#ffedd5);border-color:#fdba74}
+.summary .card.done{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-color:#86efac}
 .summary .lbl{font-size:11px;font-weight:800;color:var(--sub);letter-spacing:.04em;margin-bottom:4px}
 .summary .num{font-size:24px;font-weight:900;color:#111;line-height:1}
 .summary .card.src-a .num{color:var(--src-a)}
 .summary .card.src-b .num{color:var(--src-b)}
 .summary .card.total .num{color:var(--blue)}
+.summary .card.pending .num{color:var(--orange)}
+.summary .card.done .num{color:var(--green)}
 
-.toolbar{padding:16px 24px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:#fff;border-bottom:1px solid var(--bdr)}
-.toolbar .filter-group{display:flex;gap:6px;margin-right:auto}
-.toolbar .filter-btn{padding:8px 14px;border-radius:8px;border:1.5px solid var(--bdr);background:#fff;font-size:13px;font-weight:700;color:#555}
-.toolbar .filter-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
-.toolbar .filter-btn[data-src="A"].active{background:var(--src-a);border-color:var(--src-a)}
-.toolbar .filter-btn[data-src="B"].active{background:var(--src-b);border-color:var(--src-b)}
-.search{flex:1;min-width:180px;max-width:320px;padding:10px 14px;border:1.5px solid var(--bdr);border-radius:8px;font-size:14px;font-family:inherit;outline:none}
+.toolbar{padding:14px 24px;background:#fff;border-bottom:1px solid var(--bdr)}
+.toolbar-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}
+.toolbar-row:last-child{margin-bottom:0}
+.tg{display:flex;gap:6px;align-items:center}
+.tg-lbl{font-size:11px;font-weight:800;color:var(--sub);letter-spacing:.04em;margin-right:4px}
+.filter-btn{padding:7px 12px;border-radius:8px;border:1.5px solid var(--bdr);background:#fff;font-size:12px;font-weight:700;color:#555}
+.filter-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.filter-btn[data-src="A"].active{background:var(--src-a);border-color:var(--src-a)}
+.filter-btn[data-src="B"].active{background:var(--src-b);border-color:var(--src-b)}
+.filter-btn[data-dl="PENDING"].active{background:var(--orange);border-color:var(--orange)}
+.filter-btn[data-dl="DONE"].active{background:var(--green);border-color:var(--green)}
+.search{flex:1;min-width:180px;max-width:280px;padding:9px 12px;border:1.5px solid var(--bdr);border-radius:8px;font-size:13px;font-family:inherit;outline:none}
 .search:focus{border-color:var(--blue)}
-.btn{padding:10px 16px;border-radius:8px;font-size:13px;font-weight:800;border:1.5px solid var(--bdr);background:#fff;color:#111}
+.dt{padding:8px 10px;border:1.5px solid var(--bdr);border-radius:8px;font-size:12px;font-family:inherit;outline:none}
+.dt:focus{border-color:var(--blue)}
+.btn{padding:9px 14px;border-radius:8px;font-size:12px;font-weight:800;border:1.5px solid var(--bdr);background:#fff;color:#111}
 .btn.csv{border-color:var(--green);color:var(--green)}
 .btn.xlsx{border-color:#107C41;color:#107C41;background:#fff}
 .btn.xlsx:hover{background:#107C41;color:#fff}
 .btn.del{border-color:var(--red);color:var(--red)}
 .btn.refresh{border-color:var(--blue);color:var(--blue)}
+.btn-spacer{margin-left:auto}
 
 .tbl-wrap{padding:20px 24px;overflow-x:auto}
-table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.04);min-width:880px}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.04);min-width:980px}
 th,td{padding:12px 14px;text-align:left;font-size:14px;border-bottom:1px solid var(--bdr)}
 th{background:#fafbfc;font-weight:800;color:#555;font-size:12px;letter-spacing:.02em;text-transform:uppercase}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#fafbfc}
-td.actions{text-align:right}
+tr.row-dl td{background:var(--gray-row);color:#999}
+tr.row-dl td b{color:#888;font-weight:600;text-decoration:line-through}
+tr.row-dl:hover td{background:#e9ecef}
+td.actions{text-align:right;white-space:nowrap}
 td .badge{display:inline-block;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:800}
 td .b-skt{background:#fee2e2;color:#dc2626}
 td .b-kt{background:#fef3c7;color:#d97706}
@@ -73,7 +88,11 @@ td .b-lgu{background:#fce7f3;color:#db2777}
 td .src-tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:.04em}
 td .src-A{background:#ede9fe;color:var(--src-a)}
 td .src-B{background:#e0f2fe;color:var(--src-b)}
-td .del-row{background:#fee;color:#c00;border:none;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}
+td .dl-tag{display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer;border:1.5px solid transparent;transition:all .15s}
+td .dl-pending{background:#fff7ed;color:var(--orange);border-color:#fed7aa}
+td .dl-done{background:#f0fdf4;color:var(--green);border-color:#bbf7d0}
+td .dl-tag:hover{transform:scale(1.05);filter:brightness(1.05)}
+td .del-row{background:#fee;color:#c00;border:none;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;margin-left:6px}
 .empty{text-align:center;padding:60px 20px;color:var(--sub)}
 .empty .ico{font-size:48px;margin-bottom:10px;opacity:.5}
 .empty .msg{font-size:15px;font-weight:700;margin-bottom:4px;color:#555}
@@ -81,8 +100,6 @@ td .del-row{background:#fee;color:#c00;border:none;padding:5px 10px;border-radiu
 
 .notice{margin:0 24px 16px;padding:14px 16px;background:#e8f5e9;border:1px solid #66bb6a;border-radius:10px;font-size:12px;color:#1b5e20;line-height:1.5}
 .notice b{color:#0d3a10}
-.notice.err{background:#ffebee;border-color:#ef5350;color:#b71c1c}
-.notice.err b{color:#7f0000}
 .legend{display:inline-flex;align-items:center;gap:14px;font-size:12px;color:var(--sub);font-weight:700}
 .legend .dot{display:inline-flex;align-items:center;gap:5px}
 .legend .dot::before{content:"";width:10px;height:10px;border-radius:50%;display:inline-block}
@@ -92,6 +109,8 @@ td .del-row{background:#fee;color:#c00;border:none;padding:5px 10px;border-radiu
 .status .dot{width:8px;height:8px;border-radius:50%;background:#10b981;animation:pulse 2s infinite}
 .status.err .dot{background:#ef4444;animation:none}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+.tip{font-size:11px;color:var(--sub);padding:6px 12px;background:#f8fafc;border-radius:6px;border:1px dashed var(--bdr)}
 </style>
 </head>
 <body>
@@ -125,36 +144,52 @@ td .del-row{background:#fee;color:#c00;border:none;padding:5px 10px;border-radiu
     </div>
   </header>
 
-  <div class="notice" id="noticeBanner">
-    <b>※ 중앙 DB 연동:</b> 모든 직원/모든 기기에서 발생한 신청이 <b>실시간으로 통합</b>되어 표시됩니다. <b>3초마다 자동 새로고침</b>됩니다. (Vercel Postgres / Singapore)
+  <div class="notice">
+    <b>※ 중앙 DB 연동 + 다운로드 추적:</b> 모든 직원/모든 기기에서 신청이 <b>실시간 통합</b>됩니다. 엑셀/CSV 다운로드 시 <b>자동으로 "다운완료" 표시</b>되어 중복 다운을 방지합니다. 행의 <b>주황/초록 배지를 클릭</b>하면 다운 상태를 수동 토글할 수 있습니다.
   </div>
 
   <div class="summary">
-    <div class="card total">
-      <div class="lbl">전체 신청</div>
-      <div class="num" id="totalCnt">0</div>
-    </div>
-    <div class="card src-a">
-      <div class="lbl">A · 실적최대화 (KPI)</div>
-      <div class="num" id="cntA">0</div>
-    </div>
-    <div class="card src-b">
-      <div class="lbl">B · Demand</div>
-      <div class="num" id="cntB">0</div>
-    </div>
+    <div class="card total"><div class="lbl">전체 신청</div><div class="num" id="totalCnt">0</div></div>
+    <div class="card src-a"><div class="lbl">A · KPI</div><div class="num" id="cntA">0</div></div>
+    <div class="card src-b"><div class="lbl">B · Demand</div><div class="num" id="cntB">0</div></div>
+    <div class="card pending"><div class="lbl">미다운로드 (신규)</div><div class="num" id="cntPending">0</div></div>
+    <div class="card done"><div class="lbl">다운완료</div><div class="num" id="cntDone">0</div></div>
   </div>
 
   <div class="toolbar">
-    <div class="filter-group">
-      <button class="filter-btn active" data-src="ALL" onclick="setFilter('ALL')">전체</button>
-      <button class="filter-btn" data-src="A" onclick="setFilter('A')">A · KPI</button>
-      <button class="filter-btn" data-src="B" onclick="setFilter('B')">B · Demand</button>
+    <div class="toolbar-row">
+      <div class="tg">
+        <span class="tg-lbl">출처</span>
+        <button class="filter-btn active" data-src="ALL" onclick="setSrcFilter('ALL')">전체</button>
+        <button class="filter-btn" data-src="A" onclick="setSrcFilter('A')">A · KPI</button>
+        <button class="filter-btn" data-src="B" onclick="setSrcFilter('B')">B · Demand</button>
+      </div>
+      <div class="tg">
+        <span class="tg-lbl">다운상태</span>
+        <button class="filter-btn" data-dl="ALL" onclick="setDlFilter('ALL')">전체</button>
+        <button class="filter-btn active" data-dl="PENDING" onclick="setDlFilter('PENDING')">미다운로드</button>
+        <button class="filter-btn" data-dl="DONE" onclick="setDlFilter('DONE')">다운완료</button>
+      </div>
+      <span class="tip">기본: 미다운로드만 보임 → 다운받으면 자동 사라짐</span>
     </div>
-    <input type="text" class="search" id="search" placeholder="이름·전화·통신사·기종 검색" oninput="render()">
-    <button class="btn refresh" onclick="refresh()">🔄 새로고침</button>
-    <button class="btn xlsx" onclick="exportXLSX()">📊 엑셀(.xlsx) 다운로드</button>
-    <button class="btn csv" onclick="exportCSV()">📥 CSV 다운로드</button>
-    <button class="btn del" onclick="clearAll()">🗑 전체 삭제</button>
+    <div class="toolbar-row">
+      <div class="tg">
+        <span class="tg-lbl">기간</span>
+        <input type="date" class="dt" id="dtFrom" onchange="render()">
+        <span style="color:var(--sub);font-size:12px">~</span>
+        <input type="date" class="dt" id="dtTo" onchange="render()">
+        <button class="filter-btn" onclick="setDateRange('today')">오늘</button>
+        <button class="filter-btn" onclick="setDateRange('7d')">7일</button>
+        <button class="filter-btn" onclick="setDateRange('30d')">30일</button>
+        <button class="filter-btn" onclick="setDateRange('clear')">전체기간</button>
+      </div>
+      <input type="text" class="search" id="search" placeholder="이름·전화·통신사·기종 검색" oninput="render()">
+      <div class="btn-spacer"></div>
+      <button class="btn refresh" onclick="refresh()">🔄 새로고침</button>
+      <button class="btn xlsx" onclick="exportXLSX()">📊 엑셀(.xlsx)</button>
+      <button class="btn csv" onclick="exportCSV()">📥 CSV</button>
+      <button class="btn del" onclick="clearAll()">🗑 전체삭제</button>
+    </div>
   </div>
 
   <div class="tbl-wrap">
@@ -166,7 +201,8 @@ td .del-row{background:#fee;color:#c00;border:none;padding:5px 10px;border-radiu
 // ===== AUTH =====
 var ACCOUNTS = {'1':'1'};
 var SESSION_KEY = 'tm_admin_both';
-var currentFilter = 'ALL';
+var srcFilter = 'ALL';
+var dlFilter = 'PENDING';
 var _items = [];
 
 function doLogin(e){
@@ -205,7 +241,7 @@ function showDash(u){
   }
 }
 
-// ===== DATA (DB-backed) =====
+// ===== DATA =====
 function setConnStatus(ok, msg){
   var s = document.getElementById('connStatus');
   var t = document.getElementById('connText');
@@ -229,7 +265,8 @@ function loadData(){
           phone: d.phone,
           carrier: d.carrier,
           model: d.model,
-          date: d.created_at
+          date: d.created_at,
+          downloaded_at: d.downloaded_at
         };
       });
       setConnStatus(true, '연결됨 ('+_items.length+'건)');
@@ -246,25 +283,61 @@ function refresh(){
   return loadData().then(render);
 }
 
-function setFilter(f){
-  currentFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(function(btn){
+function setSrcFilter(f){
+  srcFilter = f;
+  document.querySelectorAll('[data-src]').forEach(function(btn){
     btn.classList.toggle('active', btn.getAttribute('data-src') === f);
   });
   render();
 }
+function setDlFilter(f){
+  dlFilter = f;
+  document.querySelectorAll('[data-dl]').forEach(function(btn){
+    btn.classList.toggle('active', btn.getAttribute('data-dl') === f);
+  });
+  render();
+}
+function setDateRange(kind){
+  var from = document.getElementById('dtFrom');
+  var to = document.getElementById('dtTo');
+  var today = new Date();
+  function ymd(d){
+    var y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');
+    return y+'-'+m+'-'+dd;
+  }
+  if(kind === 'today'){
+    from.value = ymd(today); to.value = ymd(today);
+  } else if(kind === '7d'){
+    var s = new Date(today); s.setDate(s.getDate()-6);
+    from.value = ymd(s); to.value = ymd(today);
+  } else if(kind === '30d'){
+    var s2 = new Date(today); s2.setDate(s2.getDate()-29);
+    from.value = ymd(s2); to.value = ymd(today);
+  } else {
+    from.value = ''; to.value = '';
+  }
+  render();
+}
 
-function render(){
-  var all = _items;
-  var a = all.filter(function(d){return d.source==='A';});
-  var b = all.filter(function(d){return d.source==='B';});
-  document.getElementById('totalCnt').textContent = all.length;
-  document.getElementById('cntA').textContent = a.length;
-  document.getElementById('cntB').textContent = b.length;
-
-  var data = all;
-  if(currentFilter !== 'ALL'){
-    data = data.filter(function(d){ return d.source === currentFilter; });
+function getFilteredData(){
+  var data = _items;
+  if(srcFilter !== 'ALL'){
+    data = data.filter(function(d){ return d.source === srcFilter; });
+  }
+  if(dlFilter === 'PENDING'){
+    data = data.filter(function(d){ return !d.downloaded_at; });
+  } else if(dlFilter === 'DONE'){
+    data = data.filter(function(d){ return !!d.downloaded_at; });
+  }
+  var fromV = document.getElementById('dtFrom').value;
+  var toV = document.getElementById('dtTo').value;
+  if(fromV){
+    var fromTs = new Date(fromV+'T00:00:00').getTime();
+    data = data.filter(function(d){ return new Date(d.date).getTime() >= fromTs; });
+  }
+  if(toV){
+    var toTs = new Date(toV+'T23:59:59.999').getTime();
+    data = data.filter(function(d){ return new Date(d.date).getTime() <= toTs; });
   }
   var q = (document.getElementById('search').value||'').trim().toLowerCase();
   if(q){
@@ -272,17 +345,34 @@ function render(){
       return ((d.name||'')+(d.phone||'')+(d.carrier||'')+(d.model||'')+(d.source||'')).toLowerCase().indexOf(q) >= 0;
     });
   }
+  return data;
+}
+
+function render(){
+  var all = _items;
+  document.getElementById('totalCnt').textContent = all.length;
+  document.getElementById('cntA').textContent = all.filter(function(d){return d.source==='A';}).length;
+  document.getElementById('cntB').textContent = all.filter(function(d){return d.source==='B';}).length;
+  document.getElementById('cntPending').textContent = all.filter(function(d){return !d.downloaded_at;}).length;
+  document.getElementById('cntDone').textContent = all.filter(function(d){return !!d.downloaded_at;}).length;
+
+  var data = getFilteredData();
 
   var holder = document.getElementById('tblHolder');
   if(!data.length){
-    holder.innerHTML = '<div class="empty"><div class="ico">📭</div><div class="msg">신청 내역이 없습니다</div><div class="sub2">고객이 폼을 제출하면 여기에 표시됩니다 (3초마다 자동 갱신)</div></div>';
+    var emptyMsg = (dlFilter==='PENDING') ? '미다운로드 신청이 없습니다 🎉' : '신청 내역이 없습니다';
+    var emptySub = (dlFilter==='PENDING') ? '새 신청이 들어오면 여기에 표시됩니다 (3초마다 자동 갱신)' : '필터/기간을 조정해 보세요';
+    holder.innerHTML = '<div class="empty"><div class="ico">📭</div><div class="msg">'+emptyMsg+'</div><div class="sub2">'+emptySub+'</div></div>';
     return;
   }
-  var html = '<table><thead><tr><th>#</th><th>출처</th><th>신청일시</th><th>이름</th><th>연락처</th><th>통신사</th><th>희망기종</th><th></th></tr></thead><tbody>';
+  var html = '<table><thead><tr><th>#</th><th>출처</th><th>신청일시</th><th>이름</th><th>연락처</th><th>통신사</th><th>희망기종</th><th>다운상태</th><th></th></tr></thead><tbody>';
   data.forEach(function(d, i){
     var carClass = d.carrier === 'SKT' ? 'b-skt' : (d.carrier === 'KT' ? 'b-kt' : 'b-lgu');
     var srcLabel = d.source === 'A' ? 'A · KPI' : 'B · Demand';
-    html += '<tr>'+
+    var dlClass = d.downloaded_at ? 'dl-done' : 'dl-pending';
+    var dlText = d.downloaded_at ? ('✓ '+fmtDate(d.downloaded_at)) : '미다운';
+    var rowClass = d.downloaded_at ? 'row-dl' : '';
+    html += '<tr class="'+rowClass+'">'+
       '<td>'+(i+1)+'</td>'+
       '<td><span class="src-tag src-'+d.source+'">'+srcLabel+'</span></td>'+
       '<td>'+fmtDate(d.date)+'</td>'+
@@ -290,6 +380,7 @@ function render(){
       '<td>'+esc(d.phone)+'</td>'+
       '<td><span class="badge '+carClass+'">'+esc(d.carrier)+'</span></td>'+
       '<td>'+esc(d.model)+'</td>'+
+      '<td><span class="dl-tag '+dlClass+'" onclick="toggleDl('+d.id+','+(!!d.downloaded_at)+')" title="클릭하여 토글">'+dlText+'</span></td>'+
       '<td class="actions"><button class="del-row" onclick="delOne('+d.id+')">삭제</button></td>'+
     '</tr>';
   });
@@ -312,6 +403,21 @@ function fmtDate(s){
   }catch(x){ return s; }
 }
 
+function toggleDl(id, currentlyDownloaded){
+  var newState = !currentlyDownloaded;
+  fetch('/api/mark', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids:[id], downloaded:newState})})
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(){ refresh(); })
+    .catch(function(e){ alert('상태 변경 실패: '+e.message); });
+}
+
+function markDownloadedBatch(ids){
+  if(!ids||!ids.length) return Promise.resolve();
+  return fetch('/api/mark', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids:ids, downloaded:true})})
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .catch(function(e){ console.error('mark batch failed:', e); alert('다운완료 표시 실패: '+e.message+'\n파일은 정상 다운로드되었습니다.'); });
+}
+
 function delOne(id){
   if(!confirm('정말 이 신청을 삭제하시겠습니까?')) return;
   fetch('/api/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:id})})
@@ -329,8 +435,8 @@ function clearAll(){
 }
 
 function exportCSV(){
-  var data = _items.slice();
-  if(!data.length){ alert('내보낼 데이터가 없습니다'); return; }
+  var data = getFilteredData();
+  if(!data.length){ alert('내보낼 데이터가 없습니다 (현재 필터 기준)'); return; }
   var rows = [['','접수일자','고객명','휴대폰번호','현재통신사','현재단말기','구분']];
   data.forEach(function(d){
     var srcCode = d.source === 'A' ? 'TM-A' : 'TM-B';
@@ -347,12 +453,17 @@ function exportCSV(){
   a.href = url; a.download = 'tm_both_admin_'+ts+'.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  // 다운로드 후 자동 마킹
+  var ids = data.filter(function(d){return !d.downloaded_at;}).map(function(d){return d.id;});
+  if(ids.length){
+    markDownloadedBatch(ids).then(refresh);
+  }
 }
 
 function exportXLSX(){
   if(typeof XLSX === 'undefined'){ alert('엑셀 라이브러리 로드 실패. CSV 사용해 주세요.'); return; }
-  var data = _items.slice();
-  if(!data.length){ alert('내보낼 데이터가 없습니다'); return; }
+  var data = getFilteredData();
+  if(!data.length){ alert('내보낼 데이터가 없습니다 (현재 필터 기준)'); return; }
 
   var headers = ['','접수일자','고객명','휴대폰번호','현재통신사','현재단말기','구분'];
   var colWidths = [{wch:4},{wch:18},{wch:12},{wch:16},{wch:12},{wch:20},{wch:8}];
@@ -377,17 +488,24 @@ function exportXLSX(){
   var ws1 = XLSX.utils.aoa_to_sheet(allRows);
   ws1['!cols'] = colWidths;
   XLSX.utils.book_append_sheet(wb, ws1, '전체');
-
-  var ws2 = XLSX.utils.aoa_to_sheet(aRows);
-  ws2['!cols'] = colWidths;
-  XLSX.utils.book_append_sheet(wb, ws2, 'TM-A (KPI)');
-
-  var ws3 = XLSX.utils.aoa_to_sheet(bRows);
-  ws3['!cols'] = colWidths;
-  XLSX.utils.book_append_sheet(wb, ws3, 'TM-B (Demand)');
+  if(aRows.length>1){
+    var ws2 = XLSX.utils.aoa_to_sheet(aRows);
+    ws2['!cols'] = colWidths;
+    XLSX.utils.book_append_sheet(wb, ws2, 'TM-A (KPI)');
+  }
+  if(bRows.length>1){
+    var ws3 = XLSX.utils.aoa_to_sheet(bRows);
+    ws3['!cols'] = colWidths;
+    XLSX.utils.book_append_sheet(wb, ws3, 'TM-B (Demand)');
+  }
 
   var ts = new Date().toISOString().slice(0,16).replace(/[T:]/g,'-');
   XLSX.writeFile(wb, 'tm_both_admin_'+ts+'.xlsx');
+  // 다운로드 후 자동 마킹
+  var ids = data.filter(function(d){return !d.downloaded_at;}).map(function(d){return d.id;});
+  if(ids.length){
+    markDownloadedBatch(ids).then(refresh);
+  }
 }
 
 checkSession();
