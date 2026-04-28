@@ -306,30 +306,49 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="flag-price"><p class="flag-lbl">도매특판가</p><p class="flag-amt">180,000원</p></div>
       </div>
     </div>
-    <div class="flag-card">
+    <div class="flag-card ultra-card">
       <div class="flag-img" style="background:#fff">
-        <img src="./s26ultra_phone_v2.png?v=1" alt="Galaxy S26 Ultra">
+        <img class="ultra-img" src="./s26ultra_phone_v2.png?v=1" alt="Galaxy S26 Ultra">
       </div>
       <div class="flag-body">
-        <h3>Galaxy S26 울트라</h3>
+        <h3 class="h3-ultra">Galaxy S26 울트라</h3>
         <div class="flag-row"><span>출고가</span><s>1,797,000원</s></div>
         <div class="flag-row red"><span>특판코드 할인</span><b>-1,447,000원</b></div>
         <div class="flag-price"><p class="flag-lbl">도매특판가</p><p class="flag-amt">350,000원</p></div>
       </div>
     </div>
     <div class="flag-card promo-card">
-      <div class="promo-top">
-        <div class="promo-circle">
-          <div class="pc-line1">전국최저가</div>
-          <div class="pc-line2">보장!!!</div>
-          <div class="pc-line3"><span class="pc-num">5,000</span><span class="pc-unit">대 한정</span></div>
-          <div class="pc-line4">특판 할인!</div>
+      <div class="promo-visual">
+        <div class="live-dot-wrap"><span class="live-dot"></span><span class="live-txt">LIVE</span></div>
+        <div class="hourglass-wrap">
+          <svg class="hg" viewBox="0 0 80 110" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="sandGrad" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0" stop-color="#ffd54f"/>
+                <stop offset="1" stop-color="#ff9800"/>
+              </linearGradient>
+            </defs>
+            <!-- 프레임 -->
+            <rect x="6" y="2" width="68" height="6" rx="2" fill="#1428A0"/>
+            <rect x="6" y="102" width="68" height="6" rx="2" fill="#1428A0"/>
+            <path d="M10 8 L10 18 L36 50 L10 90 L10 102 L70 102 L70 90 L44 50 L70 18 L70 8 Z" fill="none" stroke="#1428A0" stroke-width="2.5" stroke-linejoin="round"/>
+            <!-- 위쪽 모래 (줄어듦) -->
+            <clipPath id="topClip"><path d="M11 8 L69 8 L69 18 L43.5 50 L36.5 50 L11 18 Z"/></clipPath>
+            <rect class="sand-top" x="11" y="8" width="58" height="42" fill="url(#sandGrad)" clip-path="url(#topClip)"/>
+            <!-- 아래쪽 모래 (쌓임) -->
+            <clipPath id="botClip"><path d="M36.5 50 L43.5 50 L69 90 L69 102 L11 102 L11 90 Z"/></clipPath>
+            <rect class="sand-bot" x="11" y="60" width="58" height="42" fill="url(#sandGrad)" clip-path="url(#botClip)"/>
+            <!-- 떨어지는 모래 줄기 -->
+            <line class="sand-stream" x1="40" y1="50" x2="40" y2="98" stroke="url(#sandGrad)" stroke-width="2" stroke-linecap="round"/>
+          </svg>
         </div>
-      </div>
-      <div class="promo-bottom">
-        <div class="pb-top">지금 보신 금액 그대로!</div>
-        <div class="pb-main">고객 부담금<span class="pb-em">없는</span></div>
-        <div class="pb-main">전국 최저가 금액<span class="pb-bang">!!</span></div>
+        <div class="promo-headline">단독 특판 한정수량</div>
+        <div class="promo-count-wrap">
+          <span class="promo-count" id="promoCount">5,000</span>
+          <span class="promo-unit">대</span>
+        </div>
+        <div class="promo-sub">전국 동시 진행 · 빠른 마감 임박</div>
+        <div class="promo-bar"><div class="promo-bar-fill"></div></div>
       </div>
     </div>
   </div>
@@ -359,35 +378,74 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 @media(max-width:400px){.flag-amt{font-size:21px}}
 @media(max-width:340px){.flag-amt{font-size:19px}}
 
-/* PROMO CARD (S26 울트라 옆) */
-.promo-card{background:#fff;border:1.5px solid var(--bdr);overflow:hidden;display:flex;flex-direction:column}
-.promo-top{aspect-ratio:1/1.05;background:#fff;display:flex;align-items:center;justify-content:center;padding:8px;position:relative;overflow:hidden}
-.promo-circle{width:100%;aspect-ratio:1/1;background:radial-gradient(circle at 30% 30%, #1d3acc, var(--blue) 60%, #0a1c70);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center;padding:8px;box-shadow:0 8px 24px rgba(20,40,160,.35);font-family:'Pretendard Variable',sans-serif;font-feature-settings:"tnum"}
-.promo-circle .pc-line1{font-size:18px;font-weight:900;letter-spacing:-.03em;line-height:1.05}
-.promo-circle .pc-line2{font-size:18px;font-weight:900;letter-spacing:-.03em;line-height:1.05;margin-bottom:6px}
-.promo-circle .pc-line3{display:flex;align-items:baseline;justify-content:center;gap:3px;line-height:1}
-.promo-circle .pc-num{font-size:30px;font-weight:900;color:#ffd54f;letter-spacing:-.04em;text-shadow:0 1px 0 rgba(0,0,0,.2)}
-.promo-circle .pc-unit{font-size:14px;font-weight:900;color:#fff;letter-spacing:-.02em}
-.promo-circle .pc-line4{font-size:18px;font-weight:900;color:#ff5a5f;letter-spacing:-.03em;margin-top:5px;line-height:1.05;text-shadow:0 1px 0 rgba(0,0,0,.15)}
+/* 울트라 카드: 이미지 줄이기 + 한 줄 타이틀 */
+.ultra-card .ultra-img{transform:scale(.92)}
+.ultra-card .h3-ultra{white-space:nowrap;font-size:16px;letter-spacing:-.04em}
+@media(max-width:400px){.ultra-card .h3-ultra{font-size:14px}}
+@media(max-width:340px){.ultra-card .h3-ultra{font-size:12.5px}}
 
-.promo-bottom{flex:1;background:linear-gradient(135deg, var(--blue) 0%, #2540c8 100%);padding:14px 12px;display:flex;flex-direction:column;justify-content:center;align-items:center;color:#fff;text-align:center;font-family:'Pretendard Variable',sans-serif}
-.promo-bottom .pb-top{font-size:13px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px;color:#fff}
-.promo-bottom .pb-main{font-size:15px;font-weight:900;letter-spacing:-.03em;line-height:1.25;color:#ffd54f}
-.promo-bottom .pb-em{color:#fff;margin-left:2px}
-.promo-bottom .pb-bang{color:#fff;margin-left:1px}
+/* PROMO CARD (시각적/긴박감) */
+.promo-card{background:linear-gradient(160deg,#fff 0%, #f0f4ff 100%);border:1.5px solid #c7d2fe;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.promo-visual{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px 10px;text-align:center;font-family:'Pretendard Variable',sans-serif;position:relative}
+
+.live-dot-wrap{position:absolute;top:10px;right:10px;display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid #fecaca;border-radius:999px;padding:3px 8px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#ef4444;animation:liveBlink 1s infinite}
+.live-txt{font-size:9px;font-weight:900;color:#ef4444;letter-spacing:.08em}
+@keyframes liveBlink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.85)}}
+
+.hourglass-wrap{margin-bottom:8px}
+.hg{width:64px;height:88px;display:block;animation:hgFlip 8s ease-in-out infinite}
+@keyframes hgFlip{
+  0%, 45% { transform: rotate(0); }
+  50%, 95% { transform: rotate(180deg); }
+  100% { transform: rotate(360deg); }
+}
+.sand-top{transform-origin:50% 8px;animation:sandTop 8s ease-in-out infinite}
+@keyframes sandTop{
+  0% { transform: translateY(0); }
+  45% { transform: translateY(34px); }
+  50% { transform: translateY(34px); }
+  95% { transform: translateY(0); }
+  100% { transform: translateY(0); }
+}
+.sand-bot{transform-origin:50% 102px;animation:sandBot 8s ease-in-out infinite}
+@keyframes sandBot{
+  0% { transform: translateY(38px); }
+  45% { transform: translateY(0); }
+  50% { transform: translateY(0); }
+  95% { transform: translateY(38px); }
+  100% { transform: translateY(38px); }
+}
+.sand-stream{stroke-dasharray:2 4;animation:sandStream 0.4s linear infinite, sandHide 8s linear infinite}
+@keyframes sandStream{ to { stroke-dashoffset:-12; } }
+@keyframes sandHide{
+  0%,42%{opacity:1}
+  43%,52%{opacity:0}
+  53%,92%{opacity:1}
+  93%,100%{opacity:0}
+}
+
+.promo-headline{font-size:11px;font-weight:800;color:var(--blue);letter-spacing:.04em;background:#eef1fb;padding:3px 9px;border-radius:999px;margin-bottom:6px}
+.promo-count-wrap{display:flex;align-items:baseline;justify-content:center;gap:3px;line-height:1;margin-bottom:6px}
+.promo-count{font-size:42px;font-weight:900;letter-spacing:-.05em;color:var(--blue);font-feature-settings:"tnum";animation:countPulse 2s ease-in-out infinite}
+.promo-unit{font-size:18px;font-weight:900;color:#111;letter-spacing:-.02em}
+@keyframes countPulse{0%,100%{transform:scale(1);color:var(--blue)}50%{transform:scale(1.04);color:#ef4444}}
+
+.promo-sub{font-size:11px;font-weight:700;color:var(--sub);margin-bottom:10px;letter-spacing:-.01em}
+.promo-bar{width:100%;max-width:160px;height:6px;background:#e5e7eb;border-radius:999px;overflow:hidden;position:relative}
+.promo-bar-fill{position:absolute;top:0;left:0;height:100%;background:linear-gradient(90deg,#ef4444,#ff9800,#ffd54f);border-radius:999px;width:18%;animation:barShrink 6s ease-in-out infinite}
+@keyframes barShrink{0%,100%{width:22%}50%{width:14%}}
 
 @media(max-width:400px){
-  .promo-circle .pc-line1,.promo-circle .pc-line2,.promo-circle .pc-line4{font-size:16px}
-  .promo-circle .pc-num{font-size:26px}
-  .promo-circle .pc-unit{font-size:12px}
-  .promo-bottom .pb-top{font-size:11.5px}
-  .promo-bottom .pb-main{font-size:13px}
+  .promo-count{font-size:34px}
+  .promo-unit{font-size:15px}
+  .hg{width:54px;height:74px}
 }
 @media(max-width:340px){
-  .promo-circle .pc-line1,.promo-circle .pc-line2,.promo-circle .pc-line4{font-size:14px}
-  .promo-circle .pc-num{font-size:22px}
-  .promo-bottom .pb-top{font-size:10.5px}
-  .promo-bottom .pb-main{font-size:11.5px}
+  .promo-count{font-size:28px}
+  .promo-unit{font-size:13px}
+  .hg{width:46px;height:64px}
+  .promo-headline{font-size:10px}
 }
 </style>
 
