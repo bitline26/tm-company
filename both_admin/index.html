@@ -111,6 +111,13 @@ td .del-row{background:#fee;color:#c00;border:none;padding:5px 10px;border-radiu
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
 .tip{font-size:11px;color:var(--sub);padding:6px 12px;background:#f8fafc;border-radius:6px;border:1px dashed var(--bdr)}
+.sel-info{display:none;align-items:center;gap:10px;padding:6px 14px;background:var(--blue-l);border:1.5px solid #c7d2fe;border-radius:8px;font-size:12px;font-weight:800;color:var(--blue)}
+.sel-info.show{display:inline-flex}
+.sel-info .clear{background:none;border:none;color:var(--blue);text-decoration:underline;font-size:11px;font-weight:700;cursor:pointer;padding:0}
+th.col-chk,td.col-chk{width:38px;padding-left:10px;padding-right:0;text-align:center}
+input[type=checkbox].rowchk{width:16px;height:16px;cursor:pointer;accent-color:var(--blue)}
+tr.row-sel td{background:#e0e7ff !important}
+tr.row-sel.row-dl td{background:#cfd8e7 !important}
 </style>
 </head>
 <body>
@@ -185,6 +192,7 @@ td .del-row{background:#fee;color:#c00;border:none;padding:5px 10px;border-radiu
       </div>
       <input type="text" class="search" id="search" placeholder="이름·전화·통신사·기종 검색" oninput="render()">
       <div class="btn-spacer"></div>
+      <span class="sel-info" id="selInfo">✓ <span id="selCnt">0</span>건 선택됨 <button class="clear" onclick="clearSel()">선택해제</button></span>
       <button class="btn refresh" onclick="refresh()">🔄 새로고침</button>
       <button class="btn xlsx" onclick="exportXLSX()">📊 엑셀(.xlsx)</button>
       <button class="btn csv" onclick="exportCSV()">📥 CSV</button>
@@ -204,6 +212,7 @@ var SESSION_KEY = 'tm_admin_both';
 var srcFilter = 'ALL';
 var dlFilter = 'PENDING';
 var _items = [];
+var _selected = new Set();
 
 function doLogin(e){
   e.preventDefault();
@@ -365,14 +374,22 @@ function render(){
     holder.innerHTML = '<div class="empty"><div class="ico">📭</div><div class="msg">'+emptyMsg+'</div><div class="sub2">'+emptySub+'</div></div>';
     return;
   }
-  var html = '<table><thead><tr><th>#</th><th>출처</th><th>신청일시</th><th>이름</th><th>연락처</th><th>통신사</th><th>희망기종</th><th>다운상태</th><th></th></tr></thead><tbody>';
+  var visIds = data.map(function(d){return d.id;});
+  var allVisChecked = visIds.length>0 && visIds.every(function(id){return _selected.has(id);});
+  var html = '<table><thead><tr>'+
+    '<th class="col-chk"><input type="checkbox" class="rowchk" id="chkAll" '+(allVisChecked?'checked':'')+' onchange="toggleAllVisible(this.checked)" title="현재 화면 전체 선택"></th>'+
+    '<th>#</th><th>출처</th><th>신청일시</th><th>이름</th><th>연락처</th><th>통신사</th><th>희망기종</th><th>다운상태</th><th></th></tr></thead><tbody>';
   data.forEach(function(d, i){
     var carClass = d.carrier === 'SKT' ? 'b-skt' : (d.carrier === 'KT' ? 'b-kt' : 'b-lgu');
     var srcLabel = d.source === 'A' ? 'A · KPI' : 'B · Demand';
     var dlClass = d.downloaded_at ? 'dl-done' : 'dl-pending';
     var dlText = d.downloaded_at ? ('✓ '+fmtDate(d.downloaded_at)) : '미다운';
-    var rowClass = d.downloaded_at ? 'row-dl' : '';
+    var rowDl = d.downloaded_at ? 'row-dl' : '';
+    var rowSel = _selected.has(d.id) ? 'row-sel' : '';
+    var rowClass = (rowDl+' '+rowSel).trim();
+    var chkAttr = _selected.has(d.id) ? 'checked' : '';
     html += '<tr class="'+rowClass+'">'+
+      '<td class="col-chk"><input type="checkbox" class="rowchk" '+chkAttr+' onchange="toggleSel('+d.id+', this.checked)"></td>'+
       '<td>'+(i+1)+'</td>'+
       '<td><span class="src-tag src-'+d.source+'">'+srcLabel+'</span></td>'+
       '<td>'+fmtDate(d.date)+'</td>'+
@@ -386,6 +403,54 @@ function render(){
   });
   html += '</tbody></table>';
   holder.innerHTML = html;
+  updateSelInfo();
+}
+
+function updateSelInfo(){
+  var info = document.getElementById('selInfo');
+  var cnt = document.getElementById('selCnt');
+  if(!info||!cnt) return;
+  if(_selected.size > 0){
+    info.classList.add('show');
+    cnt.textContent = _selected.size;
+  } else {
+    info.classList.remove('show');
+  }
+}
+
+function toggleSel(id, checked){
+  if(checked) _selected.add(id);
+  else _selected.delete(id);
+  // 행에 시각 표시
+  var trs = document.querySelectorAll('#tblHolder tbody tr');
+  trs.forEach(function(tr){
+    var chk = tr.querySelector('input.rowchk[onchange*="toggleSel"]');
+    if(!chk) return;
+    var rowId = Number((chk.getAttribute('onchange').match(/toggleSel\((\d+)/)||[])[1]);
+    if(rowId === id){
+      tr.classList.toggle('row-sel', checked);
+    }
+  });
+  // 헤더 체크박스 갱신
+  var visData = getFilteredData();
+  var allVisChecked = visData.length>0 && visData.every(function(d){return _selected.has(d.id);});
+  var chkAll = document.getElementById('chkAll');
+  if(chkAll) chkAll.checked = allVisChecked;
+  updateSelInfo();
+}
+
+function toggleAllVisible(checked){
+  var visData = getFilteredData();
+  visData.forEach(function(d){
+    if(checked) _selected.add(d.id);
+    else _selected.delete(d.id);
+  });
+  render();
+}
+
+function clearSel(){
+  _selected.clear();
+  render();
 }
 
 function esc(s){
@@ -434,9 +499,18 @@ function clearAll(){
     .catch(function(e){ alert('삭제 실패: '+e.message); });
 }
 
+function getExportData(){
+  if(_selected.size > 0){
+    return _items.filter(function(d){return _selected.has(d.id);});
+  }
+  return getFilteredData();
+}
+
 function exportCSV(){
-  var data = getFilteredData();
-  if(!data.length){ alert('내보낼 데이터가 없습니다 (현재 필터 기준)'); return; }
+  var data = getExportData();
+  if(!data.length){ alert('내보낼 데이터가 없습니다'); return; }
+  var label = _selected.size>0 ? ('선택한 '+data.length+'건') : ('필터 기준 '+data.length+'건');
+  if(!confirm(label+'을 다운로드합니다.\n다운로드 후 자동으로 "다운완료" 표시됩니다.\n계속하시겠습니까?')) return;
   var rows = [['','접수일자','고객명','휴대폰번호','현재통신사','현재단말기','구분']];
   data.forEach(function(d){
     var srcCode = d.source === 'A' ? 'TM-A' : 'TM-B';
@@ -456,14 +530,16 @@ function exportCSV(){
   // 다운로드 후 자동 마킹
   var ids = data.filter(function(d){return !d.downloaded_at;}).map(function(d){return d.id;});
   if(ids.length){
-    markDownloadedBatch(ids).then(refresh);
+    markDownloadedBatch(ids).then(function(){ _selected.clear(); refresh(); });
   }
 }
 
 function exportXLSX(){
   if(typeof XLSX === 'undefined'){ alert('엑셀 라이브러리 로드 실패. CSV 사용해 주세요.'); return; }
-  var data = getFilteredData();
-  if(!data.length){ alert('내보낼 데이터가 없습니다 (현재 필터 기준)'); return; }
+  var data = getExportData();
+  if(!data.length){ alert('내보낼 데이터가 없습니다'); return; }
+  var label = _selected.size>0 ? ('선택한 '+data.length+'건') : ('필터 기준 '+data.length+'건');
+  if(!confirm(label+'을 엑셀로 다운로드합니다.\n다운로드 후 자동으로 "다운완료" 표시됩니다.\n계속하시겠습니까?')) return;
 
   var headers = ['','접수일자','고객명','휴대폰번호','현재통신사','현재단말기','구분'];
   var colWidths = [{wch:4},{wch:18},{wch:12},{wch:16},{wch:12},{wch:20},{wch:8}];
@@ -504,7 +580,7 @@ function exportXLSX(){
   // 다운로드 후 자동 마킹
   var ids = data.filter(function(d){return !d.downloaded_at;}).map(function(d){return d.id;});
   if(ids.length){
-    markDownloadedBatch(ids).then(refresh);
+    markDownloadedBatch(ids).then(function(){ _selected.clear(); refresh(); });
   }
 }
 
