@@ -306,7 +306,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="flag-price"><p class="flag-lbl">도매특판가</p><p class="flag-amt">180,000원</p></div>
       </div>
     </div>
-    <div class="flag-card wide">
+    <div class="flag-card">
       <div class="flag-img" style="background:#fff">
         <img src="./s26ultra_phone_v2.png?v=1" alt="Galaxy S26 Ultra">
       </div>
@@ -315,6 +315,21 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="flag-row"><span>출고가</span><s>1,797,000원</s></div>
         <div class="flag-row red"><span>특판코드 할인</span><b>-1,447,000원</b></div>
         <div class="flag-price"><p class="flag-lbl">도매특판가</p><p class="flag-amt">350,000원</p></div>
+      </div>
+    </div>
+    <div class="flag-card promo-card">
+      <div class="promo-top">
+        <div class="promo-circle">
+          <div class="pc-line1">전국최저가</div>
+          <div class="pc-line2">보장!!!</div>
+          <div class="pc-line3"><span class="pc-num">5,000</span><span class="pc-unit">대 한정</span></div>
+          <div class="pc-line4">특판 할인!</div>
+        </div>
+      </div>
+      <div class="promo-bottom">
+        <div class="pb-top">지금 보신 금액 그대로!</div>
+        <div class="pb-main">고객 부담금<span class="pb-em">없는</span></div>
+        <div class="pb-main">전국 최저가 금액<span class="pb-bang">!!</span></div>
       </div>
     </div>
   </div>
@@ -343,6 +358,37 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 .flag-card.wide .flag-amt{font-size:36px}
 @media(max-width:400px){.flag-amt{font-size:21px}}
 @media(max-width:340px){.flag-amt{font-size:19px}}
+
+/* PROMO CARD (S26 울트라 옆) */
+.promo-card{background:#fff;border:1.5px solid var(--bdr);overflow:hidden;display:flex;flex-direction:column}
+.promo-top{aspect-ratio:1/1.05;background:#fff;display:flex;align-items:center;justify-content:center;padding:8px;position:relative;overflow:hidden}
+.promo-circle{width:100%;aspect-ratio:1/1;background:radial-gradient(circle at 30% 30%, #1d3acc, var(--blue) 60%, #0a1c70);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center;padding:8px;box-shadow:0 8px 24px rgba(20,40,160,.35);font-family:'Pretendard Variable',sans-serif;font-feature-settings:"tnum"}
+.promo-circle .pc-line1{font-size:18px;font-weight:900;letter-spacing:-.03em;line-height:1.05}
+.promo-circle .pc-line2{font-size:18px;font-weight:900;letter-spacing:-.03em;line-height:1.05;margin-bottom:6px}
+.promo-circle .pc-line3{display:flex;align-items:baseline;justify-content:center;gap:3px;line-height:1}
+.promo-circle .pc-num{font-size:30px;font-weight:900;color:#ffd54f;letter-spacing:-.04em;text-shadow:0 1px 0 rgba(0,0,0,.2)}
+.promo-circle .pc-unit{font-size:14px;font-weight:900;color:#fff;letter-spacing:-.02em}
+.promo-circle .pc-line4{font-size:18px;font-weight:900;color:#ff5a5f;letter-spacing:-.03em;margin-top:5px;line-height:1.05;text-shadow:0 1px 0 rgba(0,0,0,.15)}
+
+.promo-bottom{flex:1;background:linear-gradient(135deg, var(--blue) 0%, #2540c8 100%);padding:14px 12px;display:flex;flex-direction:column;justify-content:center;align-items:center;color:#fff;text-align:center;font-family:'Pretendard Variable',sans-serif}
+.promo-bottom .pb-top{font-size:13px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px;color:#fff}
+.promo-bottom .pb-main{font-size:15px;font-weight:900;letter-spacing:-.03em;line-height:1.25;color:#ffd54f}
+.promo-bottom .pb-em{color:#fff;margin-left:2px}
+.promo-bottom .pb-bang{color:#fff;margin-left:1px}
+
+@media(max-width:400px){
+  .promo-circle .pc-line1,.promo-circle .pc-line2,.promo-circle .pc-line4{font-size:16px}
+  .promo-circle .pc-num{font-size:26px}
+  .promo-circle .pc-unit{font-size:12px}
+  .promo-bottom .pb-top{font-size:11.5px}
+  .promo-bottom .pb-main{font-size:13px}
+}
+@media(max-width:340px){
+  .promo-circle .pc-line1,.promo-circle .pc-line2,.promo-circle .pc-line4{font-size:14px}
+  .promo-circle .pc-num{font-size:22px}
+  .promo-bottom .pb-top{font-size:10.5px}
+  .promo-bottom .pb-main{font-size:11.5px}
+}
 </style>
 
 
