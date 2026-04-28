@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>TM COMPANY · 통합 어드민 (KPI + Demand)</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{--blue:#1428A0;--blue-l:#eef1fb;--bdr:#e5e7eb;--bg:#f5f5f7;--sub:#888;--red:#ef4444;--green:#10b981;--src-a:#7c3aed;--src-b:#0ea5e9}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Pretendard Variable',sans-serif;background:#f5f7fb;color:#111;line-height:1.5}
+a{color:var(--blue);text-decoration:none}
+button{font-family:inherit;cursor:pointer}
+
+/* LOGIN */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.login-card{background:#fff;border-radius:18px;padding:36px 30px;box-shadow:0 8px 32px rgba(0,0,0,.08);width:100%;max-width:380px}
+.login-card h1{font-size:22px;font-weight:900;text-align:center;margin-bottom:6px}
+.login-card .sub{font-size:13px;color:var(--sub);text-align:center;margin-bottom:24px}
+.fl{margin-bottom:14px}
+.fl label{display:block;font-size:12px;font-weight:700;color:var(--sub);margin-bottom:6px}
+.fl input{width:100%;padding:12px 14px;background:var(--bg);border:1.5px solid var(--bdr);border-radius:10px;font-size:15px;font-family:inherit;outline:none}
+.fl input:focus{border-color:var(--blue)}
+.btn-primary{width:100%;padding:14px;background:var(--blue);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800}
+.err{background:#fee;color:#c00;padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:12px;font-weight:700;display:none}
+.err.show{display:block}
+
+/* DASHBOARD */
+.dash{min-height:100vh}
+header{background:#fff;border-bottom:1px solid var(--bdr);padding:14px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header h1{font-size:18px;font-weight:900}
+header .who{font-size:13px;color:var(--sub)}
+.btn-out{background:#fff;border:1.5px solid var(--bdr);padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;color:#555;margin-left:10px}
+
+.summary{display:flex;gap:10px;padding:16px 24px;background:#fff;border-bottom:1px solid var(--bdr);flex-wrap:wrap}
+.summary .card{flex:1;min-width:140px;padding:14px 18px;border-radius:12px;background:#fafbfc;border:1.5px solid var(--bdr)}
+.summary .card.total{background:linear-gradient(135deg,#eef1fb,#e0e7ff);border-color:#c7d2fe}
+.summary .card.src-a{background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-color:#ddd6fe}
+.summary .card.src-b{background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border-color:#bae6fd}
+.summary .lbl{font-size:11px;font-weight:800;color:var(--sub);letter-spacing:.04em;margin-bottom:4px}
+.summary .num{font-size:24px;font-weight:900;color:#111;line-height:1}
+.summary .card.src-a .num{color:var(--src-a)}
+.summary .card.src-b .num{color:var(--src-b)}
+.summary .card.total .num{color:var(--blue)}
+
+.toolbar{padding:16px 24px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:#fff;border-bottom:1px solid var(--bdr)}
+.toolbar .filter-group{display:flex;gap:6px;margin-right:auto}
+.toolbar .filter-btn{padding:8px 14px;border-radius:8px;border:1.5px solid var(--bdr);background:#fff;font-size:13px;font-weight:700;color:#555}
+.toolbar .filter-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.toolbar .filter-btn[data-src="A"].active{background:var(--src-a);border-color:var(--src-a)}
+.toolbar .filter-btn[data-src="B"].active{background:var(--src-b);border-color:var(--src-b)}
+.search{flex:1;min-width:180px;max-width:320px;padding:10px 14px;border:1.5px solid var(--bdr);border-radius:8px;font-size:14px;font-family:inherit;outline:none}
+.search:focus{border-color:var(--blue)}
+.btn{padding:10px 16px;border-radius:8px;font-size:13px;font-weight:800;border:1.5px solid var(--bdr);background:#fff;color:#111}
+.btn.csv{border-color:var(--green);color:var(--green)}
+.btn.xlsx{border-color:#107C41;color:#107C41;background:#fff}
+.btn.xlsx:hover{background:#107C41;color:#fff}
+.btn.del{border-color:var(--red);color:var(--red)}
+.btn.refresh{border-color:var(--blue);color:var(--blue)}
+
+.tbl-wrap{padding:20px 24px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.04);min-width:880px}
+th,td{padding:12px 14px;text-align:left;font-size:14px;border-bottom:1px solid var(--bdr)}
+th{background:#fafbfc;font-weight:800;color:#555;font-size:12px;letter-spacing:.02em;text-transform:uppercase}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafbfc}
+td.actions{text-align:right}
+td .badge{display:inline-block;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:800}
+td .b-skt{background:#fee2e2;color:#dc2626}
+td .b-kt{background:#fef3c7;color:#d97706}
+td .b-lgu{background:#fce7f3;color:#db2777}
+td .src-tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:.04em}
+td .src-A{background:#ede9fe;color:var(--src-a)}
+td .src-B{background:#e0f2fe;color:var(--src-b)}
+td .del-row{background:#fee;color:#c00;border:none;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}
+.empty{text-align:center;padding:60px 20px;color:var(--sub)}
+.empty .ico{font-size:48px;margin-bottom:10px;opacity:.5}
+.empty .msg{font-size:15px;font-weight:700;margin-bottom:4px;color:#555}
+.empty .sub2{font-size:13px}
+
+.notice{margin:0 24px 16px;padding:14px 16px;background:#fff8e1;border:1px solid #ffd54f;border-radius:10px;font-size:12px;color:#7c5400;line-height:1.5}
+.notice b{color:#c44}
+.legend{display:inline-flex;align-items:center;gap:14px;font-size:12px;color:var(--sub);font-weight:700}
+.legend .dot{display:inline-flex;align-items:center;gap:5px}
+.legend .dot::before{content:"";width:10px;height:10px;border-radius:50%;display:inline-block}
+.legend .dot.a::before{background:var(--src-a)}
+.legend .dot.b::before{background:var(--src-b)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN VIEW -->
+<div id="loginView" class="login-wrap">
+  <div class="login-card">
+    <h1>🔐 TM COMPANY 통합 어드민</h1>
+    <p class="sub">KPI + Demand 신청 통합 관리</p>
+    <div id="loginErr" class="err">아이디 또는 비밀번호가 일치하지 않습니다</div>
+    <form id="loginForm" onsubmit="return doLogin(event)">
+      <div class="fl"><label>아이디</label><input type="text" id="lUser" autocomplete="username" required></div>
+      <div class="fl"><label>비밀번호</label><input type="password" id="lPass" autocomplete="current-password" required></div>
+      <button type="submit" class="btn-primary">로그인</button>
+    </form>
+  </div>
+</div>
+
+<!-- DASHBOARD VIEW -->
+<div id="dashView" class="dash" style="display:none">
+  <header>
+    <h1>📋 통합 신청 관리 (KPI + Demand)</h1>
+    <div>
+      <span class="legend">
+        <span class="dot a">A=실적최대화(KPI)</span>
+        <span class="dot b">B=Demand</span>
+      </span>
+      <span class="who" id="whoami"></span>
+      <button class="btn-out" onclick="doLogout()">로그아웃</button>
+    </div>
+  </header>
+
+  <div class="notice">
+    <b>※ localStorage 기반:</b> 이 어드민에서는 <b>본 브라우저에서 발생한 신청만</b> 표시됩니다. 모든 기기/유저 통합 관리는 백엔드 DB 연결 필요. <b>3초마다 자동 새로고침</b>됩니다.
+  </div>
+
+  <div class="summary">
+    <div class="card total">
+      <div class="lbl">전체 신청</div>
+      <div class="num" id="totalCnt">0</div>
+    </div>
+    <div class="card src-a">
+      <div class="lbl">A · 실적최대화 (KPI)</div>
+      <div class="num" id="cntA">0</div>
+    </div>
+    <div class="card src-b">
+      <div class="lbl">B · Demand</div>
+      <div class="num" id="cntB">0</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="filter-group">
+      <button class="filter-btn active" data-src="ALL" onclick="setFilter('ALL')">전체</button>
+      <button class="filter-btn" data-src="A" onclick="setFilter('A')">A · KPI</button>
+      <button class="filter-btn" data-src="B" onclick="setFilter('B')">B · Demand</button>
+    </div>
+    <input type="text" class="search" id="search" placeholder="이름·전화·통신사·기종 검색" oninput="render()">
+    <button class="btn refresh" onclick="render()">🔄 새로고침</button>
+    <button class="btn xlsx" onclick="exportXLSX()">📊 엑셀(.xlsx) 다운로드</button>
+    <button class="btn csv" onclick="exportCSV()">📥 CSV 다운로드</button>
+    <button class="btn del" onclick="clearAll()">🗑 전체 삭제</button>
+  </div>
+
+  <div class="tbl-wrap">
+    <div id="tblHolder"></div>
+  </div>
+</div>
+
+<script>
+// ===== AUTH =====
+var ACCOUNTS = {'1':'1'};
+var SESSION_KEY = 'tm_admin_both';
+var KEY_A = 'tm_inq_google_kpi';   // 실적최대화
+var KEY_B = 'tm_inq_google_demand'; // Demand
+var currentFilter = 'ALL';
+
+function doLogin(e){
+  e.preventDefault();
+  var u = document.getElementById('lUser').value.trim();
+  var p = document.getElementById('lPass').value;
+  if(ACCOUNTS[u] && ACCOUNTS[u] === p){
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({user:u, ts:Date.now()}));
+    showDash(u);
+  } else {
+    document.getElementById('loginErr').classList.add('show');
+  }
+  return false;
+}
+function doLogout(){
+  sessionStorage.removeItem(SESSION_KEY);
+  location.reload();
+}
+function checkSession(){
+  try{
+    var s = JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');
+    if(s && s.user && ACCOUNTS[s.user]){
+      if(Date.now() - s.ts < 8*60*60*1000){ showDash(s.user); return; }
+    }
+  }catch(x){}
+  document.getElementById('loginView').style.display='flex';
+  document.getElementById('dashView').style.display='none';
+}
+function showDash(u){
+  document.getElementById('loginView').style.display='none';
+  document.getElementById('dashView').style.display='block';
+  document.getElementById('whoami').textContent = u + ' 님';
+  render();
+  // 자동 새로고침
+  if(!window._autoRefresh){
+    window._autoRefresh = setInterval(render, 3000);
+  }
+  // 다른 탭에서 신청 시 즉시 반영
+  window.addEventListener('storage', function(e){
+    if(e.key === KEY_A || e.key === KEY_B) render();
+  });
+}
+
+// ===== DATA =====
+function getA(){ try{return JSON.parse(localStorage.getItem(KEY_A)||'[]');}catch(x){return [];} }
+function getB(){ try{return JSON.parse(localStorage.getItem(KEY_B)||'[]');}catch(x){return [];} }
+function setA(arr){ localStorage.setItem(KEY_A, JSON.stringify(arr)); }
+function setB(arr){ localStorage.setItem(KEY_B, JSON.stringify(arr)); }
+
+function getAllTagged(){
+  var a = getA().map(function(d){ return Object.assign({}, d, {source:'A'}); });
+  var b = getB().map(function(d){ return Object.assign({}, d, {source:'B'}); });
+  return a.concat(b);
+}
+
+function setFilter(f){
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(function(btn){
+    btn.classList.toggle('active', btn.getAttribute('data-src') === f);
+  });
+  render();
+}
+
+function render(){
+  var all = getAllTagged();
+  var a = getA(), b = getB();
+  document.getElementById('totalCnt').textContent = a.length + b.length;
+  document.getElementById('cntA').textContent = a.length;
+  document.getElementById('cntB').textContent = b.length;
+
+  var data = all;
+  if(currentFilter !== 'ALL'){
+    data = data.filter(function(d){ return d.source === currentFilter; });
+  }
+  var q = (document.getElementById('search').value||'').trim().toLowerCase();
+  if(q){
+    data = data.filter(function(d){
+      return ((d.name||'')+(d.phone||'')+(d.carrier||'')+(d.model||'')+(d.source||'')).toLowerCase().indexOf(q) >= 0;
+    });
+  }
+
+  var holder = document.getElementById('tblHolder');
+  if(!data.length){
+    holder.innerHTML = '<div class="empty"><div class="ico">📭</div><div class="msg">신청 내역이 없습니다</div><div class="sub2">고객이 폼을 제출하면 여기에 표시됩니다 (3초마다 자동 갱신)</div></div>';
+    return;
+  }
+  data.sort(function(a,b){ return new Date(b.date||0) - new Date(a.date||0); });
+  var html = '<table><thead><tr><th>#</th><th>출처</th><th>신청일시</th><th>이름</th><th>연락처</th><th>통신사</th><th>희망기종</th><th></th></tr></thead><tbody>';
+  data.forEach(function(d, i){
+    var carClass = d.carrier === 'SKT' ? 'b-skt' : (d.carrier === 'KT' ? 'b-kt' : 'b-lgu');
+    var srcLabel = d.source === 'A' ? 'A · KPI' : 'B · Demand';
+    html += '<tr>'+
+      '<td>'+(i+1)+'</td>'+
+      '<td><span class="src-tag src-'+d.source+'">'+srcLabel+'</span></td>'+
+      '<td>'+fmtDate(d.date)+'</td>'+
+      '<td><b>'+esc(d.name)+'</b></td>'+
+      '<td>'+esc(d.phone)+'</td>'+
+      '<td><span class="badge '+carClass+'">'+esc(d.carrier)+'</span></td>'+
+      '<td>'+esc(d.model)+'</td>'+
+      '<td class="actions"><button class="del-row" onclick="delOne(\''+d.source+'\',\''+(d.date||'')+'\',\''+esc(d.phone)+'\')">삭제</button></td>'+
+    '</tr>';
+  });
+  html += '</tbody></table>';
+  holder.innerHTML = html;
+}
+
+function esc(s){
+  return String(s||'').replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function fmtDate(s){
+  if(!s) return '-';
+  try{
+    var d = new Date(s);
+    var y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+    var h = String(d.getHours()).padStart(2,'0'), mi = String(d.getMinutes()).padStart(2,'0');
+    return y+'-'+m+'-'+dd+' '+h+':'+mi;
+  }catch(x){ return s; }
+}
+
+function delOne(source, date, phone){
+  if(!confirm('정말 이 신청을 삭제하시겠습니까?')) return;
+  if(source === 'A'){
+    setA(getA().filter(function(d){ return !(d.date===date && d.phone===phone); }));
+  } else {
+    setB(getB().filter(function(d){ return !(d.date===date && d.phone===phone); }));
+  }
+  render();
+}
+function clearAll(){
+  if(!confirm('정말 모든 신청 데이터를 삭제하시겠습니까? (KPI + Demand 모두) 복구 불가능합니다.')) return;
+  if(!confirm('마지막 확인입니다. 진행하시겠습니까?')) return;
+  setA([]); setB([]);
+  render();
+}
+
+function exportCSV(){
+  var data = getAllTagged();
+  if(!data.length){ alert('내보낼 데이터가 없습니다'); return; }
+  data.sort(function(a,b){ return new Date(b.date||0) - new Date(a.date||0); });
+  var rows = [['출처','신청일시','이름','연락처','통신사','희망기종']];
+  data.forEach(function(d){
+    var srcLabel = d.source === 'A' ? 'A (실적최대화/KPI)' : 'B (Demand)';
+    rows.push([srcLabel, fmtDate(d.date), d.name||'', d.phone||'', d.carrier||'', d.model||'']);
+  });
+  var csv = rows.map(function(r){
+    return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(',');
+  }).join('\n');
+  var bom = '﻿';
+  var blob = new Blob([bom+csv], {type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  var ts = new Date().toISOString().slice(0,16).replace(/[T:]/g,'-');
+  a.href = url; a.download = 'tm_both_admin_'+ts+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportXLSX(){
+  if(typeof XLSX === 'undefined'){ alert('엑셀 라이브러리 로드 실패. CSV 사용해 주세요.'); return; }
+  var data = getAllTagged();
+  if(!data.length){ alert('내보낼 데이터가 없습니다'); return; }
+  data.sort(function(a,b){ return new Date(b.date||0) - new Date(a.date||0); });
+
+  // 시트 1: 전체
+  var allRows = [['출처','신청일시','이름','연락처','통신사','희망기종']];
+  data.forEach(function(d){
+    var srcLabel = d.source === 'A' ? 'A (실적최대화/KPI)' : 'B (Demand)';
+    allRows.push([srcLabel, fmtDate(d.date), d.name||'', d.phone||'', d.carrier||'', d.model||'']);
+  });
+
+  // 시트 2: A만
+  var aRows = [['신청일시','이름','연락처','통신사','희망기종']];
+  data.filter(function(d){return d.source==='A';}).forEach(function(d){
+    aRows.push([fmtDate(d.date), d.name||'', d.phone||'', d.carrier||'', d.model||'']);
+  });
+
+  // 시트 3: B만
+  var bRows = [['신청일시','이름','연락처','통신사','희망기종']];
+  data.filter(function(d){return d.source==='B';}).forEach(function(d){
+    bRows.push([fmtDate(d.date), d.name||'', d.phone||'', d.carrier||'', d.model||'']);
+  });
+
+  var wb = XLSX.utils.book_new();
+  var ws1 = XLSX.utils.aoa_to_sheet(allRows);
+  ws1['!cols'] = [{wch:22},{wch:18},{wch:12},{wch:16},{wch:10},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, ws1, '전체');
+
+  var ws2 = XLSX.utils.aoa_to_sheet(aRows);
+  ws2['!cols'] = [{wch:18},{wch:12},{wch:16},{wch:10},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'A · 실적최대화(KPI)');
+
+  var ws3 = XLSX.utils.aoa_to_sheet(bRows);
+  ws3['!cols'] = [{wch:18},{wch:12},{wch:16},{wch:10},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, ws3, 'B · Demand');
+
+  var ts = new Date().toISOString().slice(0,16).replace(/[T:]/g,'-');
+  XLSX.writeFile(wb, 'tm_both_admin_'+ts+'.xlsx');
+}
+
+// init
+checkSession();
+</script>
+</body>
+</html>
