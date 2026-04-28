@@ -302,10 +302,11 @@ function exportCSV(){
   var data = getAllTagged();
   if(!data.length){ alert('내보낼 데이터가 없습니다'); return; }
   data.sort(function(a,b){ return new Date(b.date||0) - new Date(a.date||0); });
-  var rows = [['출처','신청일시','이름','연락처','통신사','희망기종']];
+  // A=공백, B=접수일자, C=고객명, D=휴대폰번호, E=현재통신사, F=현재단말기, G=구분
+  var rows = [['','접수일자','고객명','휴대폰번호','현재통신사','현재단말기','구분']];
   data.forEach(function(d){
-    var srcLabel = d.source === 'A' ? 'A (실적최대화/KPI)' : 'B (Demand)';
-    rows.push([srcLabel, fmtDate(d.date), d.name||'', d.phone||'', d.carrier||'', d.model||'']);
+    var srcCode = d.source === 'A' ? 'TM-A' : 'TM-B';
+    rows.push(['', fmtDate(d.date), d.name||'', d.phone||'', d.carrier||'', d.model||'', srcCode]);
   });
   var csv = rows.map(function(r){
     return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(',');
@@ -326,37 +327,41 @@ function exportXLSX(){
   if(!data.length){ alert('내보낼 데이터가 없습니다'); return; }
   data.sort(function(a,b){ return new Date(b.date||0) - new Date(a.date||0); });
 
+  // 컬럼: A=공백, B=접수일자, C=고객명, D=휴대폰번호, E=현재통신사, F=현재단말기, G=구분(TM-A/TM-B)
+  var headers = ['','접수일자','고객명','휴대폰번호','현재통신사','현재단말기','구분'];
+  var colWidths = [{wch:4},{wch:18},{wch:12},{wch:16},{wch:12},{wch:20},{wch:8}];
+
   // 시트 1: 전체
-  var allRows = [['출처','신청일시','이름','연락처','통신사','희망기종']];
+  var allRows = [headers.slice()];
   data.forEach(function(d){
-    var srcLabel = d.source === 'A' ? 'A (실적최대화/KPI)' : 'B (Demand)';
-    allRows.push([srcLabel, fmtDate(d.date), d.name||'', d.phone||'', d.carrier||'', d.model||'']);
+    var srcCode = d.source === 'A' ? 'TM-A' : 'TM-B';
+    allRows.push(['', fmtDate(d.date), d.name||'', d.phone||'', d.carrier||'', d.model||'', srcCode]);
   });
 
-  // 시트 2: A만
-  var aRows = [['신청일시','이름','연락처','통신사','희망기종']];
+  // 시트 2: A만(TM-A)
+  var aRows = [headers.slice()];
   data.filter(function(d){return d.source==='A';}).forEach(function(d){
-    aRows.push([fmtDate(d.date), d.name||'', d.phone||'', d.carrier||'', d.model||'']);
+    aRows.push(['', fmtDate(d.date), d.name||'', d.phone||'', d.carrier||'', d.model||'', 'TM-A']);
   });
 
-  // 시트 3: B만
-  var bRows = [['신청일시','이름','연락처','통신사','희망기종']];
+  // 시트 3: B만(TM-B)
+  var bRows = [headers.slice()];
   data.filter(function(d){return d.source==='B';}).forEach(function(d){
-    bRows.push([fmtDate(d.date), d.name||'', d.phone||'', d.carrier||'', d.model||'']);
+    bRows.push(['', fmtDate(d.date), d.name||'', d.phone||'', d.carrier||'', d.model||'', 'TM-B']);
   });
 
   var wb = XLSX.utils.book_new();
   var ws1 = XLSX.utils.aoa_to_sheet(allRows);
-  ws1['!cols'] = [{wch:22},{wch:18},{wch:12},{wch:16},{wch:10},{wch:18}];
+  ws1['!cols'] = colWidths;
   XLSX.utils.book_append_sheet(wb, ws1, '전체');
 
   var ws2 = XLSX.utils.aoa_to_sheet(aRows);
-  ws2['!cols'] = [{wch:18},{wch:12},{wch:16},{wch:10},{wch:18}];
-  XLSX.utils.book_append_sheet(wb, ws2, 'A · 실적최대화(KPI)');
+  ws2['!cols'] = colWidths;
+  XLSX.utils.book_append_sheet(wb, ws2, 'TM-A (KPI)');
 
   var ws3 = XLSX.utils.aoa_to_sheet(bRows);
-  ws3['!cols'] = [{wch:18},{wch:12},{wch:16},{wch:10},{wch:18}];
-  XLSX.utils.book_append_sheet(wb, ws3, 'B · Demand');
+  ws3['!cols'] = colWidths;
+  XLSX.utils.book_append_sheet(wb, ws3, 'TM-B (Demand)');
 
   var ts = new Date().toISOString().slice(0,16).replace(/[T:]/g,'-');
   XLSX.writeFile(wb, 'tm_both_admin_'+ts+'.xlsx');
