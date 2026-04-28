@@ -225,24 +225,23 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <p class="lim-galaxy" style="text-align:center;margin:0 0 22px;font-size:44px;font-weight:900;color:var(--blue);font-style:italic;line-height:1;letter-spacing:-.03em;font-family:'Pretendard Variable',Arial,sans-serif">Galaxy S26</p>
 
     <!-- 콜아웃 + 연결선/화살표 -->
-    <div style="position:relative;max-width:480px;margin:4px auto 0;padding:0 6px">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;position:relative">
-        <div class="lim-callout" style="background:var(--blue-l);border:1.5px solid #c5cdec;border-radius:12px;padding:14px 16px;line-height:1.25;color:var(--blue);text-align:center;white-space:nowrap;position:relative;z-index:2">
+    <div class="lim-conn" style="position:relative;max-width:480px;margin:4px auto 0;padding:0 6px 60px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;position:relative;z-index:2">
+        <div class="lim-callout" style="background:var(--blue-l);border:1.5px solid #c5cdec;border-radius:12px;padding:14px 16px;line-height:1.25;color:var(--blue);text-align:center;white-space:nowrap;position:relative">
           <span style="font-size:14px;color:var(--sub);font-weight:700;display:block;margin-bottom:4px">통신사 별</span>
           <span style="font-size:20px;font-weight:900">추가할인금액</span>
         </div>
-        <!-- 연결 가로선 -->
-        <span style="flex:1;height:0;border-top:2px dashed var(--blue);opacity:.7;position:relative"></span>
-        <div class="lim-callout" style="background:var(--blue-l);border:1.5px solid #c5cdec;border-radius:12px;padding:14px 16px;line-height:1.25;color:var(--blue);text-align:center;white-space:nowrap;position:relative;z-index:2">
+        <div class="lim-callout" style="background:var(--blue-l);border:1.5px solid #c5cdec;border-radius:12px;padding:14px 16px;line-height:1.25;color:var(--blue);text-align:center;white-space:nowrap;position:relative">
           <span style="font-size:14px;color:var(--sub);font-weight:700;display:block;margin-bottom:4px">도매코드</span>
           <span style="font-size:20px;font-weight:900">특판할인 추가</span>
         </div>
       </div>
-      <!-- 수직 연결선 + 화살표 (seamless) -->
-      <svg viewBox="0 0 24 48" width="24" height="48" style="display:block;margin:0 auto 8px">
-        <line x1="12" y1="0" x2="12" y2="36" stroke="#1428A0" stroke-width="2" stroke-dasharray="4,3" opacity=".7"/>
-        <path d="M12 46 L4 34 L20 34 Z" fill="#1428A0" opacity=".85"/>
-      </svg>
+      <!-- 수평 연결선 (콜아웃 사이) -->
+      <div class="lim-h" style="position:absolute;left:34%;right:34%;top:35px;border-top:2px dashed var(--blue);opacity:.7;z-index:1"></div>
+      <!-- 수직 연결선 (수평선 중앙에서 아래로) -->
+      <div class="lim-v" style="position:absolute;left:50%;top:33px;width:0;height:62px;transform:translateX(-50%);border-left:2px dashed var(--blue);opacity:.7;z-index:1"></div>
+      <!-- 화살표 (수직선 끝에 정확히 붙음) -->
+      <div class="lim-arrow" style="position:absolute;left:50%;top:91px;transform:translateX(-50%);width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:13px solid var(--blue);opacity:.88;z-index:1"></div>
     </div>
 
     <!-- 도매한정특가 pill -->
