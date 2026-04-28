@@ -79,13 +79,19 @@ td .del-row{background:#fee;color:#c00;border:none;padding:5px 10px;border-radiu
 .empty .msg{font-size:15px;font-weight:700;margin-bottom:4px;color:#555}
 .empty .sub2{font-size:13px}
 
-.notice{margin:0 24px 16px;padding:14px 16px;background:#fff8e1;border:1px solid #ffd54f;border-radius:10px;font-size:12px;color:#7c5400;line-height:1.5}
-.notice b{color:#c44}
+.notice{margin:0 24px 16px;padding:14px 16px;background:#e8f5e9;border:1px solid #66bb6a;border-radius:10px;font-size:12px;color:#1b5e20;line-height:1.5}
+.notice b{color:#0d3a10}
+.notice.err{background:#ffebee;border-color:#ef5350;color:#b71c1c}
+.notice.err b{color:#7f0000}
 .legend{display:inline-flex;align-items:center;gap:14px;font-size:12px;color:var(--sub);font-weight:700}
 .legend .dot{display:inline-flex;align-items:center;gap:5px}
 .legend .dot::before{content:"";width:10px;height:10px;border-radius:50%;display:inline-block}
 .legend .dot.a::before{background:var(--src-a)}
 .legend .dot.b::before{background:var(--src-b)}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);margin-left:8px}
+.status .dot{width:8px;height:8px;border-radius:50%;background:#10b981;animation:pulse 2s infinite}
+.status.err .dot{background:#ef4444;animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 </style>
 </head>
 <body>
@@ -94,7 +100,7 @@ td .del-row{background:#fee;color:#c00;border:none;padding:5px 10px;border-radiu
 <div id="loginView" class="login-wrap">
   <div class="login-card">
     <h1>🔐 TM COMPANY 통합 어드민</h1>
-    <p class="sub">KPI + Demand 신청 통합 관리</p>
+    <p class="sub">KPI + Demand 신청 통합 관리 (DB 연동)</p>
     <div id="loginErr" class="err">아이디 또는 비밀번호가 일치하지 않습니다</div>
     <form id="loginForm" onsubmit="return doLogin(event)">
       <div class="fl"><label>아이디</label><input type="text" id="lUser" autocomplete="username" required></div>
@@ -113,13 +119,14 @@ td .del-row{background:#fee;color:#c00;border:none;padding:5px 10px;border-radiu
         <span class="dot a">A=실적최대화(KPI)</span>
         <span class="dot b">B=Demand</span>
       </span>
+      <span class="status" id="connStatus"><span class="dot"></span><span id="connText">연결됨</span></span>
       <span class="who" id="whoami"></span>
       <button class="btn-out" onclick="doLogout()">로그아웃</button>
     </div>
   </header>
 
-  <div class="notice">
-    <b>※ localStorage 기반:</b> 이 어드민에서는 <b>본 브라우저에서 발생한 신청만</b> 표시됩니다. 모든 기기/유저 통합 관리는 백엔드 DB 연결 필요. <b>3초마다 자동 새로고침</b>됩니다.
+  <div class="notice" id="noticeBanner">
+    <b>※ 중앙 DB 연동:</b> 모든 직원/모든 기기에서 발생한 신청이 <b>실시간으로 통합</b>되어 표시됩니다. <b>3초마다 자동 새로고침</b>됩니다. (Vercel Postgres / Singapore)
   </div>
 
   <div class="summary">
@@ -144,7 +151,7 @@ td .del-row{background:#fee;color:#c00;border:none;padding:5px 10px;border-radiu
       <button class="filter-btn" data-src="B" onclick="setFilter('B')">B · Demand</button>
     </div>
     <input type="text" class="search" id="search" placeholder="이름·전화·통신사·기종 검색" oninput="render()">
-    <button class="btn refresh" onclick="render()">🔄 새로고침</button>
+    <button class="btn refresh" onclick="refresh()">🔄 새로고침</button>
     <button class="btn xlsx" onclick="exportXLSX()">📊 엑셀(.xlsx) 다운로드</button>
     <button class="btn csv" onclick="exportCSV()">📥 CSV 다운로드</button>
     <button class="btn del" onclick="clearAll()">🗑 전체 삭제</button>
@@ -159,9 +166,8 @@ td .del-row{background:#fee;color:#c00;border:none;padding:5px 10px;border-radiu
 // ===== AUTH =====
 var ACCOUNTS = {'1':'1'};
 var SESSION_KEY = 'tm_admin_both';
-var KEY_A = 'tm_inq_google_kpi';   // 실적최대화
-var KEY_B = 'tm_inq_google_demand'; // Demand
 var currentFilter = 'ALL';
+var _items = [];
 
 function doLogin(e){
   e.preventDefault();
@@ -193,27 +199,51 @@ function showDash(u){
   document.getElementById('loginView').style.display='none';
   document.getElementById('dashView').style.display='block';
   document.getElementById('whoami').textContent = u + ' 님';
-  render();
-  // 자동 새로고침
+  refresh();
   if(!window._autoRefresh){
-    window._autoRefresh = setInterval(render, 3000);
+    window._autoRefresh = setInterval(refresh, 3000);
   }
-  // 다른 탭에서 신청 시 즉시 반영
-  window.addEventListener('storage', function(e){
-    if(e.key === KEY_A || e.key === KEY_B) render();
-  });
 }
 
-// ===== DATA =====
-function getA(){ try{return JSON.parse(localStorage.getItem(KEY_A)||'[]');}catch(x){return [];} }
-function getB(){ try{return JSON.parse(localStorage.getItem(KEY_B)||'[]');}catch(x){return [];} }
-function setA(arr){ localStorage.setItem(KEY_A, JSON.stringify(arr)); }
-function setB(arr){ localStorage.setItem(KEY_B, JSON.stringify(arr)); }
+// ===== DATA (DB-backed) =====
+function setConnStatus(ok, msg){
+  var s = document.getElementById('connStatus');
+  var t = document.getElementById('connText');
+  if(!s||!t) return;
+  if(ok){ s.classList.remove('err'); t.textContent = msg||'연결됨'; }
+  else { s.classList.add('err'); t.textContent = msg||'연결 끊김'; }
+}
 
-function getAllTagged(){
-  var a = getA().map(function(d){ return Object.assign({}, d, {source:'A'}); });
-  var b = getB().map(function(d){ return Object.assign({}, d, {source:'B'}); });
-  return a.concat(b);
+function loadData(){
+  return fetch('/api/list', {cache:'no-store'})
+    .then(function(r){
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    })
+    .then(function(j){
+      _items = (j.items||[]).map(function(d){
+        return {
+          id: d.id,
+          source: d.source,
+          name: d.name,
+          phone: d.phone,
+          carrier: d.carrier,
+          model: d.model,
+          date: d.created_at
+        };
+      });
+      setConnStatus(true, '연결됨 ('+_items.length+'건)');
+      return true;
+    })
+    .catch(function(e){
+      console.error('load failed:', e);
+      setConnStatus(false, '연결 실패: '+e.message);
+      return false;
+    });
+}
+
+function refresh(){
+  return loadData().then(render);
 }
 
 function setFilter(f){
@@ -225,9 +255,10 @@ function setFilter(f){
 }
 
 function render(){
-  var all = getAllTagged();
-  var a = getA(), b = getB();
-  document.getElementById('totalCnt').textContent = a.length + b.length;
+  var all = _items;
+  var a = all.filter(function(d){return d.source==='A';});
+  var b = all.filter(function(d){return d.source==='B';});
+  document.getElementById('totalCnt').textContent = all.length;
   document.getElementById('cntA').textContent = a.length;
   document.getElementById('cntB').textContent = b.length;
 
@@ -247,7 +278,6 @@ function render(){
     holder.innerHTML = '<div class="empty"><div class="ico">📭</div><div class="msg">신청 내역이 없습니다</div><div class="sub2">고객이 폼을 제출하면 여기에 표시됩니다 (3초마다 자동 갱신)</div></div>';
     return;
   }
-  data.sort(function(a,b){ return new Date(b.date||0) - new Date(a.date||0); });
   var html = '<table><thead><tr><th>#</th><th>출처</th><th>신청일시</th><th>이름</th><th>연락처</th><th>통신사</th><th>희망기종</th><th></th></tr></thead><tbody>';
   data.forEach(function(d, i){
     var carClass = d.carrier === 'SKT' ? 'b-skt' : (d.carrier === 'KT' ? 'b-kt' : 'b-lgu');
@@ -260,7 +290,7 @@ function render(){
       '<td>'+esc(d.phone)+'</td>'+
       '<td><span class="badge '+carClass+'">'+esc(d.carrier)+'</span></td>'+
       '<td>'+esc(d.model)+'</td>'+
-      '<td class="actions"><button class="del-row" onclick="delOne(\''+d.source+'\',\''+(d.date||'')+'\',\''+esc(d.phone)+'\')">삭제</button></td>'+
+      '<td class="actions"><button class="del-row" onclick="delOne('+d.id+')">삭제</button></td>'+
     '</tr>';
   });
   html += '</tbody></table>';
@@ -282,27 +312,25 @@ function fmtDate(s){
   }catch(x){ return s; }
 }
 
-function delOne(source, date, phone){
+function delOne(id){
   if(!confirm('정말 이 신청을 삭제하시겠습니까?')) return;
-  if(source === 'A'){
-    setA(getA().filter(function(d){ return !(d.date===date && d.phone===phone); }));
-  } else {
-    setB(getB().filter(function(d){ return !(d.date===date && d.phone===phone); }));
-  }
-  render();
+  fetch('/api/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:id})})
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(){ refresh(); })
+    .catch(function(e){ alert('삭제 실패: '+e.message); });
 }
 function clearAll(){
   if(!confirm('정말 모든 신청 데이터를 삭제하시겠습니까? (KPI + Demand 모두) 복구 불가능합니다.')) return;
   if(!confirm('마지막 확인입니다. 진행하시겠습니까?')) return;
-  setA([]); setB([]);
-  render();
+  fetch('/api/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({all:true})})
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(){ refresh(); })
+    .catch(function(e){ alert('삭제 실패: '+e.message); });
 }
 
 function exportCSV(){
-  var data = getAllTagged();
+  var data = _items.slice();
   if(!data.length){ alert('내보낼 데이터가 없습니다'); return; }
-  data.sort(function(a,b){ return new Date(b.date||0) - new Date(a.date||0); });
-  // A=공백, B=접수일자, C=고객명, D=휴대폰번호, E=현재통신사, F=현재단말기, G=구분
   var rows = [['','접수일자','고객명','휴대폰번호','현재통신사','현재단말기','구분']];
   data.forEach(function(d){
     var srcCode = d.source === 'A' ? 'TM-A' : 'TM-B';
@@ -323,28 +351,23 @@ function exportCSV(){
 
 function exportXLSX(){
   if(typeof XLSX === 'undefined'){ alert('엑셀 라이브러리 로드 실패. CSV 사용해 주세요.'); return; }
-  var data = getAllTagged();
+  var data = _items.slice();
   if(!data.length){ alert('내보낼 데이터가 없습니다'); return; }
-  data.sort(function(a,b){ return new Date(b.date||0) - new Date(a.date||0); });
 
-  // 컬럼: A=공백, B=접수일자, C=고객명, D=휴대폰번호, E=현재통신사, F=현재단말기, G=구분(TM-A/TM-B)
   var headers = ['','접수일자','고객명','휴대폰번호','현재통신사','현재단말기','구분'];
   var colWidths = [{wch:4},{wch:18},{wch:12},{wch:16},{wch:12},{wch:20},{wch:8}];
 
-  // 시트 1: 전체
   var allRows = [headers.slice()];
   data.forEach(function(d){
     var srcCode = d.source === 'A' ? 'TM-A' : 'TM-B';
     allRows.push(['', fmtDate(d.date), d.name||'', d.phone||'', d.carrier||'', d.model||'', srcCode]);
   });
 
-  // 시트 2: A만(TM-A)
   var aRows = [headers.slice()];
   data.filter(function(d){return d.source==='A';}).forEach(function(d){
     aRows.push(['', fmtDate(d.date), d.name||'', d.phone||'', d.carrier||'', d.model||'', 'TM-A']);
   });
 
-  // 시트 3: B만(TM-B)
   var bRows = [headers.slice()];
   data.filter(function(d){return d.source==='B';}).forEach(function(d){
     bRows.push(['', fmtDate(d.date), d.name||'', d.phone||'', d.carrier||'', d.model||'', 'TM-B']);
@@ -367,7 +390,6 @@ function exportXLSX(){
   XLSX.writeFile(wb, 'tm_both_admin_'+ts+'.xlsx');
 }
 
-// init
 checkSession();
 </script>
 </body>
