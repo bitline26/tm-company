@@ -32,7 +32,7 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           from: 'GalaxySale <onboarding@resend.dev>',
-          to: ['ami981001@gmail.com'],
+          to: ['tami981001@gmail.com'],
           subject: `[신규 신청] ${campaign} - ${safeName}`,
           html: `<h2>신규 신청 들어왔습니다 (미다운로드)</h2>
 <table style="border-collapse:collapse;font-size:14px">
