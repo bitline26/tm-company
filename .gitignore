@@ -3,3 +3,4 @@
 **/.DS_Store
 .env*.local
 node_modules
+_dedup_db.mjs

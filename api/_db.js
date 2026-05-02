@@ -23,5 +23,6 @@ export async function ensureSchema() {
   await sql`CREATE INDEX IF NOT EXISTS idx_apps_created ON applications (created_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_apps_source ON applications (source)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_apps_downloaded ON applications (downloaded_at)`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS uniq_apps_phone ON applications (phone)`;
   initialized = true;
 }

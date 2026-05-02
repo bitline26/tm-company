@@ -14,9 +14,17 @@ export default async function handler(req, res) {
     if (!name || String(name).trim().length < 2) return res.status(400).json({ error: 'invalid name' });
     if (!phone || String(phone).length < 9) return res.status(400).json({ error: 'invalid phone' });
 
+    const phoneTrim = String(phone).trim();
+    const existing = await sql`
+      SELECT id, created_at FROM applications WHERE phone = ${phoneTrim} ORDER BY id ASC LIMIT 1
+    `;
+    if (existing.length > 0) {
+      return res.status(200).json({ ok: true, id: existing[0].id, created_at: existing[0].created_at, duplicate: true });
+    }
+
     const rows = await sql`
       INSERT INTO applications (source, name, phone, carrier, model)
-      VALUES (${source}, ${String(name).trim()}, ${String(phone).trim()}, ${carrier || null}, ${model || null})
+      VALUES (${source}, ${String(name).trim()}, ${phoneTrim}, ${carrier || null}, ${model || null})
       RETURNING id, created_at
     `;
 
