@@ -118,6 +118,20 @@ th.col-chk,td.col-chk{width:38px;padding-left:10px;padding-right:0;text-align:ce
 input[type=checkbox].rowchk{width:16px;height:16px;cursor:pointer;accent-color:var(--blue)}
 tr.row-sel td{background:#e0e7ff !important}
 tr.row-sel.row-dl td{background:#cfd8e7 !important}
+
+/* TABS */
+.tabs{display:flex;gap:2px;padding:0 24px;background:#fff;border-bottom:1px solid var(--bdr);overflow-x:auto}
+.tab-btn{padding:14px 20px;background:none;border:none;border-bottom:3px solid transparent;font-size:14px;font-weight:800;color:var(--sub);cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .15s}
+.tab-btn:hover{color:var(--blue);background:#f8fafc}
+.tab-btn.active{color:var(--blue);border-bottom-color:var(--blue);background:#fff}
+.tab-btn .pill{display:inline-block;margin-left:6px;padding:2px 8px;background:#fee2e2;color:#dc2626;font-size:10px;font-weight:900;border-radius:999px;letter-spacing:.05em}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+.placeholder{padding:80px 24px;text-align:center;color:var(--sub)}
+.placeholder .ico{font-size:64px;margin-bottom:16px;opacity:.4}
+.placeholder h2{font-size:20px;font-weight:900;color:#333;margin-bottom:8px}
+.placeholder p{font-size:14px;line-height:1.7;max-width:560px;margin:0 auto 6px}
+.placeholder .feat{display:inline-block;margin:4px 4px 0;padding:6px 12px;background:#fff;border:1.5px solid var(--bdr);border-radius:999px;font-size:12px;font-weight:700;color:#555}
 </style>
 </head>
 <body>
@@ -151,6 +165,17 @@ tr.row-sel.row-dl td{background:#cfd8e7 !important}
     </div>
   </header>
 
+  <!-- TABS -->
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="db"        onclick="switchTab('db')">📋 신청자 DB</button>
+    <button class="tab-btn"        data-tab="att"       onclick="switchTab('att')">🗓️ 근무표<span class="pill">NEW</span></button>
+    <button class="tab-btn"        data-tab="distribute"onclick="switchTab('distribute')">🎯 DB 분배<span class="pill">NEW</span></button>
+    <button class="tab-btn"        data-tab="work"      onclick="switchTab('work')">📞 TM 워크보드<span class="pill">NEW</span></button>
+    <button class="tab-btn"        data-tab="perf"      onclick="switchTab('perf')">📊 퍼포먼스<span class="pill">NEW</span></button>
+  </nav>
+
+  <!-- ===== TAB 1 : 신청자 DB (기존) ===== -->
+  <section id="tab-db" class="tab-pane active">
   <div class="notice">
     <b>※ 중앙 DB 연동 + 다운로드 추적:</b> 모든 직원/모든 기기에서 신청이 <b>실시간 통합</b>됩니다. 엑셀/CSV 다운로드 시 <b>자동으로 "다운완료" 표시</b>되어 중복 다운을 방지합니다. 행의 <b>주황/초록 배지를 클릭</b>하면 다운 상태를 수동 토글할 수 있습니다.
   </div>
@@ -203,8 +228,88 @@ tr.row-sel.row-dl td{background:#cfd8e7 !important}
   <div class="tbl-wrap">
     <div id="tblHolder"></div>
   </div>
+  </section>
+  <!-- /TAB 1 -->
+
+  <!-- ===== TAB 2 : 근무표 ===== -->
+  <section id="tab-att" class="tab-pane">
+    <div class="placeholder">
+      <div class="ico">🗓️</div>
+      <h2>근무표 (월간 캘린더)</h2>
+      <p>부서(배송/개통/해피콜/민원/1차) × 직원 × 1~31일 그리드를 어드민 안에 그대로 옮긴 화면입니다. 셀 클릭으로 정상/월차/반차/연차/휴무를 입력하고, 각 날짜의 가용 TM과 가중치 합계가 자동 계산됩니다.</p>
+      <div style="margin-top:18px">
+        <span class="feat">월 선택 ◀ 2026-05 ▶</span>
+        <span class="feat">부서 필터</span>
+        <span class="feat">셀 드롭다운 입력</span>
+        <span class="feat">주말/공휴일 자동 음영</span>
+        <span class="feat">우측 사이드: 오늘 가용 TM N명</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TAB 3 : DB 분배 ===== -->
+  <section id="tab-distribute" class="tab-pane">
+    <div class="placeholder">
+      <div class="ico">🎯</div>
+      <h2>DB 분배 (자체 광고 + 외부 업체 엑셀)</h2>
+      <p>업체 엑셀 파일을 드래그 업로드 → 자체 광고 DB와 합쳐서 같은 풀에 소스 태그(A-A·A-B·B-B·B-C·C-B·TM-A)로 저장. 그날 출근한 TM의 가중치(반차 0.5, 월차 0)에 비례해 자동 분배하고, 매니저가 ±버튼으로 미세 조정 가능합니다.</p>
+      <div style="margin-top:18px">
+        <span class="feat">엑셀 업로드 + 컬럼 매핑</span>
+        <span class="feat">소스별 색깔 칩</span>
+        <span class="feat">자동 분배 실행</span>
+        <span class="feat">TM별 할당표</span>
+        <span class="feat">수량 ± 수동 조정</span>
+        <span class="feat">확정 → TM 워크보드로 푸시</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TAB 4 : TM 워크보드 ===== -->
+  <section id="tab-work" class="tab-pane">
+    <div class="placeholder">
+      <div class="ico">📞</div>
+      <h2>TM 워크보드 (개인 콜 화면)</h2>
+      <p>TM 본인이 로그인하면 보이는 콜 작업 화면입니다. 오늘 할당된 콜 카드 리스트(이름·전화·통신사·모델·소스칩)를 보고, 각 카드를 클릭해 결과(완료/삭제/부재/거절/재통화/접수)와 매출액·메모를 입력합니다.</p>
+      <div style="margin-top:18px">
+        <span class="feat">오늘 할당량 / 처리량 진행바</span>
+        <span class="feat">콜 카드 리스트</span>
+        <span class="feat">결과 입력 모달</span>
+        <span class="feat">매출액·통신사·모델 기록</span>
+        <span class="feat">실시간 처리 표시</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TAB 5 : 퍼포먼스 ===== -->
+  <section id="tab-perf" class="tab-pane">
+    <div class="placeholder">
+      <div class="ico">📊</div>
+      <h2>퍼포먼스 (일일 마감 + 비주얼라이제이션)</h2>
+      <p>이미지1의 일일 마감 양식을 어드민 안에 그대로 재현한 표 + Chart.js 그래프. 좌측 소스별 박스, 우측 TM별 마감기준 표(총갯수·일평균·마감예상·디비효율%), 하단 합계(실근무일·남은근무일·매출총합)까지 셀 함수와 100% 일치.</p>
+      <p style="color:#dc2626;font-weight:800;margin-top:10px">⚠ 퍼포먼스 양식 디테일은 별도 자료 받은 후 확정 예정</p>
+      <div style="margin-top:18px">
+        <span class="feat">상단 KPI 4장</span>
+        <span class="feat">소스별 박스 (A-A·A-B·B-B·B-C·C-B·TM-A)</span>
+        <span class="feat">TM별 마감기준 표</span>
+        <span class="feat">도넛 차트(접수율/효율%)</span>
+        <span class="feat">가로바 (TM별 매출 랭킹)</span>
+        <span class="feat">라인 (일자별 효율 추이)</span>
+        <span class="feat">하단 매출 합계</span>
+      </div>
+    </div>
+  </section>
 </div>
 
+<script>
+function switchTab(name){
+  document.querySelectorAll('.tab-btn').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-tab') === name);
+  });
+  document.querySelectorAll('.tab-pane').forEach(function(p){
+    p.classList.toggle('active', p.id === 'tab-'+name);
+  });
+}
+</script>
 <script>
 // ===== AUTH =====
 var ACCOUNTS = {'1':'1'};
