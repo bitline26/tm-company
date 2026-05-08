@@ -13,8 +13,8 @@ const KOREAN_HOLIDAYS = {
   '2026-10-03': true, '2026-10-09': true, '2026-12-25': true
 };
 
-// 영업(1차)만 TM으로 잡음. 필요 시 query param group으로 바꿀 수 있음.
-const TM_DEPTS_DEFAULT = ['1차'];
+// 모든 활성 직원을 분배 대상(관리직)으로 통일
+const TM_DEPTS_DEFAULT = null;  // null = 전체
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -26,7 +26,7 @@ export default async function handler(req, res) {
     const date = String(req.query.date || '').match(/^\d{4}-\d{2}-\d{2}$/) ? req.query.date : null;
     if (!date) return res.status(400).json({ error: 'date YYYY-MM-DD required' });
     const groupQ = req.query.group;
-    const tmDepts = groupQ ? String(groupQ).split(',') : TM_DEPTS_DEFAULT;
+    const tmDepts = groupQ ? String(groupQ).split(',') : TM_DEPTS_DEFAULT;  // null = 전체
 
     const dateObj = new Date(date + 'T00:00:00');
     const weekday = dateObj.getDay();
@@ -40,7 +40,7 @@ export default async function handler(req, res) {
       WHERE active = TRUE
       ORDER BY sort_order, id
     `;
-    const empsTM = allEmps.filter(e => tmDepts.includes(e.dept));
+    const empsTM = tmDepts ? allEmps.filter(e => tmDepts.includes(e.dept)) : allEmps;
 
     // 2. 그날 attendance 조회
     const attRows = await sql`

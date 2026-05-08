@@ -179,6 +179,34 @@ export async function ensureSchema() {
     }
   }
 
+  // 9. 시드 — 근태(반차/휴가) 샘플: 1명당 2개씩 주입 (테스트 환경, 첫 실행 시만)
+  const attCnt = await sql`SELECT COUNT(*)::int AS n FROM attendance`;
+  if ((attCnt[0]?.n || 0) === 0 && !isProd) {
+    const today = new Date();
+    const ymd = (d) => d.toISOString().slice(0, 10);
+    const dPlus = (offset) => { const d = new Date(today); d.setDate(d.getDate() + offset); return ymd(d); };
+    // 4명 × 2개씩 = 8개 샘플
+    const seedAtt = [
+      ['김상현', 'HALF_AM', dPlus(0)],   ['김상현', 'ANNUAL',  dPlus(2)],
+      ['이경민', 'HALF_PM', dPlus(0)],   ['이경민', 'MONTHLY_OFF', dPlus(3)],
+      ['양정연', 'ANNUAL',  dPlus(0)],   ['양정연', 'HALF_AM', dPlus(1)],
+      ['이기성', 'OFF',     dPlus(0)],   ['이기성', 'HALF_PM', dPlus(1)],
+    ];
+    for (const [name, status, date] of seedAtt) {
+      const emp = await sql`SELECT id FROM employees WHERE name = ${name} LIMIT 1`;
+      if (!emp[0]) continue;
+      const ratio = statusToRatio(status);
+      // 토/일이거나 공휴일이면 건너뜀 (의미 없음)
+      const dow = new Date(date + 'T00:00:00').getDay();
+      if (dow === 0 || dow === 6) continue;
+      await sql`
+        INSERT INTO attendance (employee_id, work_date, status, ratio)
+        VALUES (${emp[0].id}, ${date}, ${status}, ${ratio})
+        ON CONFLICT (employee_id, work_date) DO NOTHING
+      `;
+    }
+  }
+
   initialized = true;
 }
 

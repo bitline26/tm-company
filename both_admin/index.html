@@ -196,7 +196,22 @@ tr.row-sel.row-dl td{background:#cfd8e7 !important}
 .pool-tbl .st-ASSIGNED{background:#eef1fb;color:var(--blue);padding:3px 8px;border-radius:5px;font-size:10px;font-weight:800;border:1px solid #c7d2fe}
 .pool-tbl .st-DONE{background:#f0fdf4;color:var(--green);padding:3px 8px;border-radius:5px;font-size:10px;font-weight:800;border:1px solid #bbf7d0}
 
-/* DISTRIBUTE TAB v2 */
+/* DISTRIBUTE TAB v3 — 단순화 (TM 성명 × 수량) */
+.dist3-head{background:#fff;border-bottom:1px solid var(--bdr)}
+.dist3-row1{display:flex;align-items:center;gap:10px;padding:14px 24px 10px;flex-wrap:wrap}
+.dist3-row1 .tg-lbl{font-size:11px;font-weight:800;color:var(--sub);letter-spacing:.04em}
+.dist3-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 24px 16px}
+.dist3-kpi .k-card{background:#fafbfc;border:1.5px solid var(--bdr);border-radius:10px;padding:12px 16px}
+.dist3-kpi .k-lbl{font-size:11px;font-weight:800;color:var(--sub);letter-spacing:.04em;margin-bottom:4px}
+.dist3-kpi .k-num{font-size:28px;font-weight:900;line-height:1.1}
+.dist3-kpi .k-num.blue{color:var(--blue)}
+.dist3-kpi .k-num.green{color:var(--green)}
+.dist3-kpi .k-num.orange{color:var(--orange)}
+.dist3-kpi .k-sub{font-size:11px;color:var(--sub);margin-top:4px;font-weight:700}
+@media(max-width:900px){.dist3-kpi{grid-template-columns:repeat(2,1fr)}}
+.dist3-table-wrap{background:#fff;border:1.5px solid var(--bdr);border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.04)}
+
+/* DISTRIBUTE TAB v2 — 호환용 잔존 */
 .dist2-toolbar{display:flex;align-items:center;gap:10px;padding:14px 24px;background:#fff;border-bottom:1px solid var(--bdr);flex-wrap:wrap}
 .dist2-toolbar .tg-lbl{font-size:11px;font-weight:800;color:var(--sub);letter-spacing:.04em}
 .dist2-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:18px 24px}
@@ -465,64 +480,50 @@ tr.row-sel.row-dl td{background:#cfd8e7 !important}
     </div>
   </section>
 
-  <!-- ===== TAB 3 : DB 분배 (날짜 × 근무표 × 디비풀 → TM 자동분배) ===== -->
+  <!-- ===== TAB 3 : DB 분배 — TM 성명 × 광고 디비 할당 수량 ===== -->
   <section id="tab-distribute" class="tab-pane">
-    <div class="dist2-toolbar">
-      <span class="tg-lbl">분배 기준일</span>
-      <input type="date" class="dt" id="distDate" onchange="loadDist2()">
-      <button class="filter-btn" onclick="distSetDate(0)">오늘</button>
-      <button class="filter-btn" onclick="distSetDate(-1)">어제</button>
-      <button class="filter-btn" onclick="distSetDate(1)">내일</button>
-      <div class="btn-spacer"></div>
-      <button class="btn refresh" onclick="loadDist2()">🔄 다시 불러오기</button>
-    </div>
 
-    <div class="dist2-grid">
-      <!-- 좌상: 그날 들어온 디비 -->
-      <div class="card-box">
-        <div class="card-head"><h3>📥 그날 들어온 신규 디비</h3><span id="distPoolTotal" class="pill-blue">0건</span></div>
-        <div id="distPoolBreak" class="dist2-pool"></div>
+    <!-- 상단: 날짜 + 헤더 KPI -->
+    <div class="dist3-head">
+      <div class="dist3-row1">
+        <span class="tg-lbl">분배 기준일</span>
+        <input type="date" class="dt" id="distDate" onchange="loadDist2()">
+        <button class="filter-btn" onclick="distSetDate(0)">오늘</button>
+        <button class="filter-btn" onclick="distSetDate(-1)">어제</button>
+        <button class="filter-btn" onclick="distSetDate(1)">내일</button>
+        <div class="btn-spacer"></div>
+        <button class="btn refresh" onclick="loadDist2()">🔄 다시 불러오기</button>
       </div>
-
-      <!-- 우상: 가용 TM -->
-      <div class="card-box">
-        <div class="card-head"><h3>👥 가용 TM (근무표 기준)</h3><span id="distEmpTotal" class="pill-blue">0명 · 0.0</span></div>
-        <div id="distEmpList" class="dist2-emp"></div>
-      </div>
-
-      <!-- 좌하: 자동분배 + 합계 -->
-      <div class="card-box">
-        <div class="card-head"><h3>⚙ 자동 분배</h3></div>
-        <div class="dist2-action">
-          <button class="btn-primary-sm" style="width:100%;padding:14px;font-size:15px" onclick="distAutoRun()">⚡ 자동 분배 실행</button>
-          <div style="font-size:11px;color:var(--sub);margin-top:8px;line-height:1.5">
-            그날 들어온 신규 디비를 가용 TM의 근무 가중치(반차 0.5 / 정상 1.0)에 비례하여 자동 배분합니다. 결과는 우측에 표시되며, ± 버튼으로 미세 조정 후 [확정 저장] 누르면 TM에게 푸시됩니다.
-          </div>
-        </div>
-        <div id="distSumBox" class="dist2-sum" style="display:none"></div>
-      </div>
-
-      <!-- 우하: 분배 결과표 -->
-      <div class="card-box dist2-result">
-        <div class="card-head">
-          <h3>📊 분배 결과 (TM별 할당)</h3>
-          <button id="distSaveBtn" class="btn-primary-sm" style="display:none" onclick="distSave()">💾 확정 저장</button>
-        </div>
-        <div id="distAllocHolder" class="dist2-alloc-holder">
-          <div class="empty" style="padding:30px 14px"><div class="ico" style="font-size:36px">⚙</div><div class="msg">자동 분배 실행 버튼을 누르세요</div></div>
-        </div>
+      <div class="dist3-kpi">
+        <div class="k-card"><div class="k-lbl">📥 들어온 디비</div><div class="k-num blue" id="distPoolTotal">0</div><div class="k-sub" id="distPoolBreak">—</div></div>
+        <div class="k-card"><div class="k-lbl">👥 가용 TM</div><div class="k-num green" id="distEmpTotal">0</div><div class="k-sub" id="distWeightSub">가중치 0.0</div></div>
+        <div class="k-card"><div class="k-lbl">📊 할당 합계</div><div class="k-num orange" id="distAllocTotal">0</div><div class="k-sub" id="distAllocPct">0%</div></div>
+        <div class="k-card"><div class="k-lbl">⚡ 자동분배</div><div style="margin-top:6px"><button class="btn-primary-sm" style="width:100%;padding:10px" onclick="distAutoRun()">실행</button></div></div>
       </div>
     </div>
 
-    <!-- 업체 관리 (작은 사이드 카드) -->
+    <!-- 메인: TM 성명 × 할당 수량 -->
+    <div style="padding:0 24px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <h2 style="font-size:17px;font-weight:900;color:#222">TM 성명별 광고 디비 할당</h2>
+      <button id="distSaveBtn" class="btn-primary-sm" style="display:none;padding:10px 22px;font-size:14px" onclick="distSave()">💾 확정 저장</button>
+    </div>
+    <div style="padding:0 24px 24px">
+      <div id="distAllocHolder" class="dist3-table-wrap">
+        <div class="empty" style="padding:50px 14px"><div class="ico" style="font-size:48px">⚙</div><div class="msg">자동 분배 [실행] 버튼을 누르거나, 직접 수량을 입력하세요</div></div>
+      </div>
+    </div>
+
+    <!-- 업체 관리 (접힌 카드, 필요 시 사용) -->
     <div style="padding:0 24px 18px">
-      <div class="card-box">
-        <div class="card-head">
-          <h3>📦 업체(소스) 관리</h3>
-          <button class="btn-mini" onclick="srcAddOpen()">+ 업체 추가</button>
+      <details class="card-box" style="padding:0">
+        <summary style="padding:14px;cursor:pointer;font-weight:900;font-size:13px;color:#444">📦 업체(소스) 관리 (펼치기)</summary>
+        <div style="padding:0 14px 14px">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+            <button class="btn-mini" onclick="srcAddOpen()">+ 업체 추가</button>
+          </div>
+          <div id="srcList" class="src-list"></div>
         </div>
-        <div id="srcList" class="src-list"></div>
-      </div>
+      </details>
     </div>
 
     <!-- 업체 추가 모달 -->
@@ -620,35 +621,37 @@ function loadDist2(){
 
 function renderDist2(){
   if(!_dist2) return;
-  // 1. 풀 카운트
-  var holder = document.getElementById('distPoolBreak');
+  // KPI 카드 4개 갱신
   var total = _dist2.total_pool || 0;
-  document.getElementById('distPoolTotal').textContent = total + '건';
-  if(_dist2.pool.length === 0){
-    holder.innerHTML = '<div style="padding:14px;color:var(--sub);font-size:12px;text-align:center">'+_dist2.date+'에 들어온 신규 디비 없음</div>';
-  } else {
-    holder.innerHTML = _dist2.pool.map(function(p){
-      return '<div class="pi"><div class="swatch" style="background:'+esc(p.color||'#888')+'"></div>'+
-             '<div class="lab">'+esc(p.label)+'</div><div class="cnt">'+p.cnt+'건</div></div>';
-    }).join('');
-  }
+  document.getElementById('distPoolTotal').textContent = total;
+  var poolBreak = (_dist2.pool && _dist2.pool.length)
+    ? _dist2.pool.map(function(p){ return esc(p.label)+' '+p.cnt; }).join(' / ')
+    : '신규 디비 없음';
+  document.getElementById('distPoolBreak').textContent = poolBreak;
 
-  // 2. 가용 TM 칩
   var emps = _dist2.employees || [];
   var availCnt = emps.filter(function(e){ return e.ratio > 0; }).length;
   var w = _dist2.total_weight || 0;
-  document.getElementById('distEmpTotal').textContent = availCnt+'명 · ' + (w.toFixed ? w.toFixed(1) : w);
-  var elist = document.getElementById('distEmpList');
-  if(emps.length === 0){
-    elist.innerHTML = '<div style="padding:14px;color:var(--sub);font-size:12px">대상 부서 직원이 없습니다</div>';
+  document.getElementById('distEmpTotal').textContent = availCnt + '명';
+  document.getElementById('distWeightSub').textContent = '가중치 ' + (w.toFixed ? w.toFixed(1) : w);
+
+  // 자동 분배가 안 돌았으면 _dist2Alloc 비어있음 → 비어있는 테이블만 그림
+  if(Object.keys(_dist2Alloc).length === 0){
+    renderDist2Alloc();
   } else {
-    elist.innerHTML = emps.map(function(e){
-      var cls = e.ratio === 1.0 ? 'r1' : (e.ratio > 0 ? 'r05' : 'r0');
-      var statusLab = _statusLabel(e.status);
-      var lab = e.name + (statusLab ? ' · '+statusLab : '') + ' (' + e.ratio.toFixed(1) + ')';
-      return '<span class="ec '+cls+'">'+esc(lab)+'</span>';
-    }).join('');
+    renderDist2Alloc();
   }
+  _updateDist2Totals();
+}
+
+function _updateDist2Totals(){
+  var allocSum = Object.values(_dist2Alloc).reduce(function(s,n){return s+(n||0);}, 0);
+  var total = _dist2 ? _dist2.total_pool : 0;
+  var pct = total > 0 ? Math.round(allocSum/total*100) : 0;
+  var t1 = document.getElementById('distAllocTotal');
+  var t2 = document.getElementById('distAllocPct');
+  if(t1) t1.textContent = allocSum;
+  if(t2) t2.textContent = pct + '% (풀 ' + total + ')';
 }
 
 function distAutoRun(){
@@ -681,32 +684,43 @@ function distAutoRun(){
 
 function renderDist2Alloc(){
   if(!_dist2) return;
-  var emps = _dist2.employees;
+  var emps = _dist2.employees || [];
   var total = _dist2.total_pool || 0;
   var allocSum = Object.values(_dist2Alloc).reduce(function(s,n){return s+(n||0);}, 0);
 
+  if(emps.length === 0){
+    document.getElementById('distAllocHolder').innerHTML = '<div class="empty" style="padding:50px 14px"><div class="ico" style="font-size:48px">👤</div><div class="msg">대상 직원이 없습니다</div></div>';
+    document.getElementById('distSaveBtn').style.display = 'none';
+    return;
+  }
+
   var html = '<table class="dist2-alloc"><thead><tr>'+
-    '<th>TM 이름</th><th>부서</th><th>근태</th><th>가중치</th><th>할당</th><th>±</th></tr></thead><tbody>';
-  emps.forEach(function(e){
+    '<th style="width:50px">#</th>'+
+    '<th>TM 성명</th>'+
+    '<th>근태</th>'+
+    '<th style="width:80px">가중치</th>'+
+    '<th style="width:120px">할당 수량</th>'+
+    '<th style="width:90px">±</th>'+
+    '</tr></thead><tbody>';
+  emps.forEach(function(e, i){
     var cnt = _dist2Alloc[e.id] || 0;
     var rcls = e.ratio === 1.0 ? 'r1' : (e.ratio > 0 ? 'r05' : 'r0');
+    var stLab = _statusLabel(e.status) || '정상';
     html += '<tr>'+
+      '<td>'+(i+1)+'</td>'+
       '<td class="t-name">'+esc(e.name)+'</td>'+
-      '<td>'+esc(e.dept)+'</td>'+
-      '<td>'+_statusLabel(e.status) || '정상' +'</td>'+
+      '<td>'+esc(stLab)+'</td>'+
       '<td class="t-ratio '+rcls+'">'+e.ratio.toFixed(1)+'</td>'+
       '<td class="t-cnt"><input type="number" class="qinp" min="0" value="'+cnt+'" onchange="distSetAlloc('+e.id+',this.value)"></td>'+
       '<td><button class="qbtn" onclick="distBumpAlloc('+e.id+',-1)">−</button> <button class="qbtn" onclick="distBumpAlloc('+e.id+',1)">+</button></td>'+
     '</tr>';
   });
-  html += '</tbody><tfoot><tr><td colspan="4" style="text-align:right">합계 / 풀</td><td class="t-cnt">'+allocSum+' / '+total+'</td><td>'+(allocSum===total?'✅':(allocSum>total?'⚠️ 초과':'⚠️ 부족'))+'</td></tr></tfoot></table>';
+  var statusIcon = (allocSum===total && total>0) ? '✅' : (allocSum>total ? '⚠️ 초과' : (allocSum<total && allocSum>0 ? '⚠️ 부족' : '—'));
+  html += '</tbody><tfoot><tr><td colspan="4" style="text-align:right;font-size:14px">합계 / 풀</td><td class="t-cnt" style="font-size:16px">'+allocSum+' / '+total+'</td><td>'+statusIcon+'</td></tr></tfoot></table>';
 
   document.getElementById('distAllocHolder').innerHTML = html;
   document.getElementById('distSaveBtn').style.display = (allocSum>0 && allocSum<=total) ? 'inline-block' : 'none';
-
-  var sumBox = document.getElementById('distSumBox');
-  sumBox.style.display = 'block';
-  sumBox.innerHTML = '풀 총 <b>'+total+'건</b> / 가중치 <b>'+(_dist2.total_weight.toFixed(1))+'</b> / 할당 합계 <b>'+allocSum+'건</b> ('+(total>0?Math.round(allocSum/total*100):0)+'%)';
+  _updateDist2Totals();
 }
 
 function distSetAlloc(empId, val){
@@ -819,37 +833,20 @@ function renderAtt(){
   }
 
   var html = '<table class="att-tbl"><thead>';
-  html += '<tr><th rowspan="2" style="min-width:64px">분류</th><th rowspan="2" style="min-width:64px">구분</th><th rowspan="2" style="min-width:90px">직원</th>'+dayHeads+'</tr>';
+  html += '<tr><th rowspan="2" style="min-width:80px">관리직</th><th rowspan="2" style="min-width:100px">직원</th>'+dayHeads+'</tr>';
   html += '<tr>'+dowRow+'</tr>';
   html += '</thead><tbody>';
 
-  // 분류별로 묶어서 rowspan 처리
-  var majorGroups = {};
-  deptOrder.forEach(function(dept){
-    var maj = _attMajorMap[dept] || '기타';
-    if(!majorGroups[maj]){ majorGroups[maj] = []; }
-    majorGroups[maj].push(dept);
-  });
-
-  Object.keys(majorGroups).forEach(function(maj){
-    var depts = majorGroups[maj];
-    var totalEmps = depts.reduce(function(s,dp){ return s + grouped[dp].length; }, 0);
-    var majPlaced = false;
-
-    depts.forEach(function(dept){
-      var deptEmps = grouped[dept];
-      deptEmps.forEach(function(emp, idx){
-        html += '<tr>';
-        // 분류 셀 — 첫 직원에서만, totalEmps만큼 rowspan
-        if(!majPlaced){
-          html += '<td class="col-fixed col-major" rowspan="'+totalEmps+'">'+esc(maj)+'<br><small style="font-size:10px;font-weight:800;writing-mode:horizontal-tb">('+totalEmps+'명)</small></td>';
-          majPlaced = true;
-        }
-        // 구분 셀 — 부서 첫 직원에서만, deptEmps.length만큼 rowspan
-        if(idx === 0){
-          html += '<td class="col-fixed col-dept" rowspan="'+deptEmps.length+'" style="left:64px">'+esc(dept)+'</td>';
-        }
-        html += '<td class="col-fixed col-name" style="left:128px">'+esc(emp.name)+'</td>';
+  // 모든 직원 한 그룹으로 통일 (관리직)
+  var totalEmps = emps.length;
+  var majPlaced = false;
+  emps.forEach(function(emp, idx){
+    html += '<tr>';
+    if(!majPlaced){
+      html += '<td class="col-fixed col-major" rowspan="'+totalEmps+'">관리직<br><small style="font-size:10px;font-weight:800;writing-mode:horizontal-tb">('+totalEmps+'명)</small></td>';
+      majPlaced = true;
+    }
+    html += '<td class="col-fixed col-name" style="left:80px">'+esc(emp.name)+'</td>';
 
         // 31개 셀
         for(var dd=1; dd<=days; dd++){
@@ -873,12 +870,10 @@ function renderAtt(){
           } else {
             status = 'WORK'; label = ''; isAuto = false;
           }
-          var clickable = (status !== 'WEEKEND') ? 'onclick="attOpenPop(this,'+emp.id+",'"+ds+"','"+status+"')\"" : '';
-          html += '<td class="s-'+status+'" '+clickable+'>'+esc(label)+'</td>';
-        }
-        html += '</tr>';
-      });
-    });
+      var clickable = (status !== 'WEEKEND') ? 'onclick="attOpenPop(this,'+emp.id+",'"+ds+"','"+status+"')\"" : '';
+      html += '<td class="s-'+status+'" '+clickable+'>'+esc(label)+'</td>';
+    }
+    html += '</tr>';
   });
   html += '</tbody></table>';
   holder.innerHTML = html;
