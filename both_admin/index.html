@@ -843,7 +843,9 @@ function loadData(){
 }
 
 function refresh(){
-  // 낙관적 삭제/업로드 직후 일시정지 구간이면 스킵
+  // 진행 중 삭제가 있으면 스킵 (되돌이 방지)
+  if(_deleteInFlight > 0){ return Promise.resolve(); }
+  // 낙관적 업로드 직후 일시정지 구간이면 스킵
   if(_suspendRefreshUntil && Date.now() < _suspendRefreshUntil){ return Promise.resolve(); }
   return loadData().then(render);
 }
@@ -1066,16 +1068,17 @@ function markDownloadedBatch(ids){
     .catch(function(e){ console.error('mark batch failed:', e); alert('다운완료 표시 실패: '+e.message+'\n파일은 정상 다운로드되었습니다.'); });
 }
 
-// 자동새로고침 일시 정지 (낙관적 삭제 직후 화면 깜빡임 방지)
+// 작업 중 자동새로고침 완전 차단 (깜빡임/되돌이 방지)
 var _suspendRefreshUntil = 0;
+var _deleteInFlight = 0;   // 현재 진행 중인 삭제 개수 — >0이면 refresh 차단
 function _suspendRefresh(ms){ _suspendRefreshUntil = Date.now() + (ms||5000); }
 
 function delOne(id){
   // 낙관적: 즉시 화면에서 제거
+  _deleteInFlight++;
   _items = _items.filter(function(d){ return d.id !== id; });
   _selected.delete(id);
   render();
-  _suspendRefresh(5000);
   // 백그라운드 전송
   fetch('/api/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:String(id)})})
     .then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t); }); return r.json(); })
@@ -1083,30 +1086,40 @@ function delOne(id){
       alert('삭제 실패: '+e.message+'\n다시 불러옵니다.');
       _suspendRefreshUntil = 0;
       refresh();
-    });
+    })
+    .finally(function(){ _deleteInFlight = Math.max(0, _deleteInFlight - 1); });
 }
 
 function delSelected(){
   var ids = Array.from(_selected);
   if(!ids.length){ alert('선택된 디비가 없습니다'); return; }
   if(!confirm(ids.length+'건 삭제하시겠습니까?')) return;
-  // 낙관적: 즉시 화면에서 모두 제거
+
+  // ⚠️ 자동새로고침 완전 정지 → 깜빡임/되돌이 차단
+  _deleteInFlight += ids.length;
+  if(window._autoRefresh){ clearInterval(window._autoRefresh); window._autoRefresh = null; }
+
+  // 낙관적: 즉시 화면에서 모두 제거 — 한 번에 사라짐
   _items = _items.filter(function(d){ return !_selected.has(d.id); });
   _selected.clear();
   render();
-  _suspendRefresh(8000);
+
   // 병렬 전송 (한 번에 다 쏨)
   Promise.all(ids.map(function(id){
     return fetch('/api/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:String(id)})})
       .then(function(r){ return r.ok; })
       .catch(function(){ return false; });
   })).then(function(results){
+    _deleteInFlight = Math.max(0, _deleteInFlight - ids.length);
     var failed = results.filter(function(ok){ return !ok; }).length;
     if(failed > 0){
-      alert(failed+'건 삭제 실패 — 다시 불러옵니다.');
-      _suspendRefreshUntil = 0;
+      showToast('❌ '+failed+'건 삭제 실패 — 새로고침');
       refresh();
+    } else {
+      showToast('✅ '+ids.length+'건 삭제 완료');
     }
+    // 자동새로고침 재시작
+    if(!window._autoRefresh){ window._autoRefresh = setInterval(refresh, 3000); }
   });
 }
 function clearAll(){
