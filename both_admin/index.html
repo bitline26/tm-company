@@ -753,18 +753,16 @@ function confirmUpload(){
   fetch('/api/pool_upload', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
     .then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t); }); return r.json(); })
     .then(function(j){
-      showToast('✅ '+srcLabel+' '+j.inserted+'건 추가'+(j.skipped?(' · 누락 '+j.skipped):''));
-      // 낙관적 항목 제거하고 서버 데이터로 교체
-      _items = _items.filter(function(d){ return !_optimisticIds.has(d.id); });
+      showToast('✅ '+srcLabel+' '+j.inserted+'건 추가됨');
+      // refresh()가 _items 통째로 교체 → temps 자동으로 사라지고 서버 데이터로 대체 (깜빡임 X)
       tempItems.forEach(function(t){ _optimisticIds.delete(t.id); });
       _suspendRefreshUntil = 0;
       refresh();
       if(document.getElementById('tab-distribute').classList.contains('active')) loadDist();
     })
     .catch(function(e){
-      showToast('❌ 업로드 실패: '+e.message);
+      showToast('❌ 업로드 실패: '+e.message, 'err');
       console.error('[upload]', e);
-      // 실패 시 낙관적 항목 제거
       _items = _items.filter(function(d){ return !_optimisticIds.has(d.id); });
       tempItems.forEach(function(t){ _optimisticIds.delete(t.id); });
       _suspendRefreshUntil = 0;
@@ -773,19 +771,29 @@ function confirmUpload(){
     .finally(function(){ _uploadInFlight = false; });
 }
 
-// 가벼운 토스트 — 모달 막지 않고 우측하단에 잠깐 떴다 사라짐
-function showToast(msg){
+// 큰 알림 배너 — 화면 상단 중앙에 크게 떴다 자동 사라짐 (X로 즉시 닫기 가능)
+function showToast(msg, kind){
   var t = document.getElementById('_toast');
   if(!t){
     t = document.createElement('div');
     t.id = '_toast';
-    t.style.cssText = 'position:fixed;right:20px;bottom:20px;padding:14px 22px;background:#10b981;color:#fff;font-weight:800;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:99999;font-size:14px;transition:opacity .3s;opacity:0;';
+    t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:18px 32px 18px 28px;color:#fff;font-weight:900;border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,.25);z-index:99999;font-size:16px;transition:opacity .25s,top .25s;opacity:0;display:flex;align-items:center;gap:14px;letter-spacing:.02em;min-width:280px';
+    var span = document.createElement('span');
+    span.id = '_toastMsg';
+    var btn = document.createElement('button');
+    btn.textContent = '✕';
+    btn.style.cssText = 'background:rgba(255,255,255,.25);border:none;color:#fff;font-size:14px;font-weight:900;width:24px;height:24px;border-radius:50%;cursor:pointer';
+    btn.onclick = function(){ t.style.opacity='0'; };
+    t.appendChild(span);
+    t.appendChild(btn);
     document.body.appendChild(t);
   }
-  t.textContent = msg;
+  t.style.background = (kind==='err') ? '#ef4444' : '#10b981';
+  document.getElementById('_toastMsg').textContent = msg;
   t.style.opacity = '1';
+  t.style.top = '20px';
   clearTimeout(t._tm);
-  t._tm = setTimeout(function(){ t.style.opacity = '0'; }, 2500);
+  t._tm = setTimeout(function(){ t.style.opacity = '0'; }, 4000);
 }
 </script>
 <script>
