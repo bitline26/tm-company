@@ -263,8 +263,8 @@ tr.row-sel.row-dl td{background:#cfd8e7 !important}
       <div class="tg">
         <span class="tg-lbl">출처</span>
         <button class="filter-btn active" data-src="ALL" onclick="setSrcFilter('ALL')">전체</button>
-        <button class="filter-btn" data-src="A" onclick="setSrcFilter('A')">A · KPI</button>
-        <button class="filter-btn" data-src="B" onclick="setSrcFilter('B')">B · Demand</button>
+        <button class="filter-btn" data-src="SELF" onclick="setSrcFilter('SELF')">자체광고</button>
+        <button class="filter-btn" data-src="VENDOR" onclick="setSrcFilter('VENDOR')">업체광고</button>
       </div>
       <div class="tg">
         <span class="tg-lbl">다운상태</span>
@@ -272,6 +272,7 @@ tr.row-sel.row-dl td{background:#cfd8e7 !important}
         <button class="filter-btn active" data-dl="PENDING" onclick="setDlFilter('PENDING')">미다운로드</button>
         <button class="filter-btn" data-dl="DONE" onclick="setDlFilter('DONE')">다운완료</button>
       </div>
+      <button class="btn" style="border-color:var(--src-a);color:var(--src-a);font-weight:900" onclick="uploadOpen()">📤 업체 엑셀 업로드</button>
       <span class="tip">기본: 미다운로드만 보임 → 다운받으면 자동 사라짐</span>
     </div>
     <div class="toolbar-row">
@@ -297,6 +298,31 @@ tr.row-sel.row-dl td{background:#cfd8e7 !important}
 
   <div class="tbl-wrap">
     <div id="tblHolder"></div>
+  </div>
+
+  <!-- 엑셀 업로드 모달 (Tab 1 전용) -->
+  <div id="uploadModal" class="modal" style="display:none">
+    <div class="modal-card" style="max-width:520px">
+      <h3>📤 업체 엑셀 업로드</h3>
+      <div class="fl-row">
+        <label>업체 선택</label>
+        <select id="upSource" class="dt-full"></select>
+      </div>
+      <div class="fl-row">
+        <label>배치 라벨 (선택)</label>
+        <input type="text" id="upBatch" class="dt-full" placeholder="예: 2026-05-08 오전 / 5월 1차">
+      </div>
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none">
+        <div class="drop-ico">📁</div>
+        <div class="drop-msg"><b>엑셀 파일 드래그</b> 하거나 클릭해서 선택</div>
+        <div class="drop-sub">지원: .xlsx · .xls · .csv (이름·전화·통신사·기종 자동 인식)</div>
+      </div>
+      <div id="upPreview" class="up-preview" style="display:none"></div>
+      <div class="modal-actions">
+        <button class="btn" onclick="uploadClose()">닫기</button>
+      </div>
+    </div>
   </div>
   </section>
   <!-- /TAB 1 -->
@@ -331,25 +357,8 @@ tr.row-sel.row-dl td{background:#cfd8e7 !important}
         </div>
 
         <div class="card-box" style="margin-top:14px">
-          <div class="card-head">
-            <h3>📤 엑셀 업로드</h3>
-          </div>
-          <div class="upload-form">
-            <div class="fl-row">
-              <label>업체 선택</label>
-              <select id="upSource" class="dt-full"></select>
-            </div>
-            <div class="fl-row">
-              <label>배치 라벨 (선택)</label>
-              <input type="text" id="upBatch" class="dt-full" placeholder="예: 2026-05-08 오전">
-            </div>
-            <div class="drop-zone" id="dropZone">
-              <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFile(this.files[0])">
-              <div class="drop-ico">📁</div>
-              <div class="drop-msg"><b>엑셀 파일 드래그</b> 하거나 클릭해서 선택</div>
-              <div class="drop-sub">지원: .xlsx · .xls · .csv (이름·전화·통신사·기종 자동 인식)</div>
-            </div>
-            <div id="upPreview" class="up-preview" style="display:none"></div>
+          <div style="padding:14px;font-size:12px;color:var(--sub);line-height:1.6">
+            💡 엑셀 업로드는 <b style="color:var(--blue)">신청자 DB 탭</b>의 <b>📤 업체 엑셀 업로드</b> 버튼에서 하세요. 업로드된 디비는 자동으로 첫 탭 리스트에 일자별로 박힙니다.
           </div>
         </div>
       </aside>
@@ -493,16 +502,17 @@ function renderUpSource(){
 function renderSrcFilters(){
   var holder = document.getElementById('srcFilters');
   if(!holder) return;
-  var html = '<button class="src-chip '+(_srcFilter==='ALL'?'active':'')+'" style="'+(_srcFilter==='ALL'?'background:var(--blue);border-color:var(--blue)':'')+'" onclick="setSrcF(\\'ALL\\')">전체</button>';
+  // 0 = ALL, 양수 = source.id (string escape 회피)
+  var html = '<button class="src-chip '+(_srcFilter==='ALL'?'active':'')+'" style="'+(_srcFilter==='ALL'?'background:var(--blue);border-color:var(--blue);color:#fff':'')+'" onclick="setSrcF(0)">전체</button>';
   html += _sources.map(function(s){
     var act = (_srcFilter == s.id);
-    var sty = act ? 'background:'+s.color+';border-color:'+s.color : '';
+    var sty = act ? 'background:'+s.color+';border-color:'+s.color+';color:#fff' : '';
     return '<button class="src-chip '+(act?'active':'')+'" style="'+sty+'" onclick="setSrcF('+s.id+')">'+esc(s.label)+'</button>';
   }).join('');
   holder.innerHTML = html;
 }
 
-function setSrcF(f){ _srcFilter = f; renderSrcFilters(); renderPool(); }
+function setSrcF(f){ _srcFilter = (f === 0 || f === '0') ? 'ALL' : f; renderSrcFilters(); renderPool(); }
 
 function renderDistSummary(){
   var holder = document.getElementById('distSummary');
@@ -582,24 +592,40 @@ function srcAddSave(){
     .catch(function(e){ alert('저장 실패: '+e.message); });
 }
 
-// ===== 엑셀 업로드 =====
-(function setupDrop(){
-  document.addEventListener('DOMContentLoaded', function(){
-    var dz = document.getElementById('dropZone');
-    if(!dz) return;
-    dz.addEventListener('click', function(){ document.getElementById('fileInput').click(); });
-    ['dragenter','dragover'].forEach(function(ev){
-      dz.addEventListener(ev, function(e){ e.preventDefault(); e.stopPropagation(); dz.classList.add('dragover'); });
-    });
-    ['dragleave','drop'].forEach(function(ev){
-      dz.addEventListener(ev, function(e){ e.preventDefault(); e.stopPropagation(); dz.classList.remove('dragover'); });
-    });
-    dz.addEventListener('drop', function(e){
-      var f = e.dataTransfer.files && e.dataTransfer.files[0];
-      if(f) handleFile(f);
-    });
+// ===== 엑셀 업로드 모달 =====
+function uploadOpen(){
+  // 업체 목록부터 채우고 모달 표시
+  loadSources().then(function(){
+    renderUpSource();
+    var m = document.getElementById('uploadModal');
+    if(m) m.style.display = 'flex';
+    setupDropZone();
   });
-})();
+}
+function uploadClose(){
+  var m = document.getElementById('uploadModal');
+  if(m) m.style.display = 'none';
+  cancelUpload();
+}
+
+function setupDropZone(){
+  var dz = document.getElementById('dropZone');
+  if(!dz || dz._wired) return;
+  dz._wired = true;
+  var fi = document.getElementById('fileInput');
+  dz.addEventListener('click', function(){ fi.click(); });
+  fi.addEventListener('change', function(){ if(fi.files && fi.files[0]) handleFile(fi.files[0]); });
+  ['dragenter','dragover'].forEach(function(ev){
+    dz.addEventListener(ev, function(e){ e.preventDefault(); e.stopPropagation(); dz.classList.add('dragover'); });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    dz.addEventListener(ev, function(e){ e.preventDefault(); e.stopPropagation(); dz.classList.remove('dragover'); });
+  });
+  dz.addEventListener('drop', function(e){
+    var f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if(f) handleFile(f);
+  });
+}
 
 function handleFile(file){
   if(!file) return;
@@ -682,7 +708,9 @@ function confirmUpload(){
     .then(function(j){
       alert('✅ 업로드 완료: '+j.inserted+'건 추가 ('+j.skipped+'건 누락)');
       cancelUpload();
-      loadDist();
+      uploadClose();
+      refresh();          // 첫 탭(신청자 DB) 즉시 갱신
+      if(document.getElementById('tab-distribute').classList.contains('active')) loadDist();
     })
     .catch(function(e){ alert('업로드 실패: '+e.message); });
 }
@@ -818,7 +846,17 @@ function setDateRange(kind){
 
 function getFilteredData(){
   var data = _items;
-  if(srcFilter !== 'ALL'){
+  if(srcFilter === 'SELF'){
+    data = data.filter(function(d){
+      var c = (d.source_code||'');
+      return c === 'SELF' || c === 'SELF_KPI' || c === 'SELF_DEMAND' || d.source === 'A' || d.source === 'B';
+    });
+  } else if(srcFilter === 'VENDOR'){
+    data = data.filter(function(d){
+      var c = (d.source_code||'');
+      return c.indexOf('VENDOR') === 0;
+    });
+  } else if(srcFilter !== 'ALL'){
     data = data.filter(function(d){ return d.source === srcFilter; });
   }
   if(dlFilter === 'PENDING'){
