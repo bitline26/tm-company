@@ -292,6 +292,7 @@ tr.row-sel.row-dl td{background:#cfd8e7 !important}
       <button class="btn refresh" onclick="refresh()">🔄 새로고침</button>
       <button class="btn xlsx" onclick="exportXLSX()">📊 엑셀(.xlsx)</button>
       <button class="btn csv" onclick="exportCSV()">📥 CSV</button>
+      <button class="btn del" onclick="delSelected()">🗑 선택삭제</button>
       <button class="btn del" onclick="clearAll()">🗑 전체삭제</button>
     </div>
   </div>
@@ -931,9 +932,9 @@ function render(){
       '<td>'+(d.carrier?'<span class="badge '+carClass+'">'+esc(d.carrier)+'</span>':'')+'</td>'+
       '<td>'+esc(d.model||'')+'</td>'+
       '<td>'+(isPool
-              ? '<span class="dl-tag dl-pending" title="업체 업로드 — 분배 탭에서 처리">'+esc(d.status||'NEW')+'</span>'
+              ? '<span class="dl-tag dl-pending" title="업체 업로드">'+esc(d.status||'NEW')+'</span>'
               : '<span class="dl-tag '+dlClass+'" onclick="toggleDl(\''+idStr+'\','+(!!d.downloaded_at)+')" title="클릭하여 토글">'+dlText+'</span>')+'</td>'+
-      '<td class="actions">'+(isPool?'<span style="color:var(--sub);font-size:11px">—</span>':'<button class="del-row" onclick="delOne(\''+idStr+'\')">삭제</button>')+'</td>'+
+      '<td class="actions"><button class="del-row" onclick="delOne(\''+idStr+'\')">삭제</button></td>'+
     '</tr>';
   });
   html += '</tbody></table>';
@@ -1027,11 +1028,37 @@ function markDownloadedBatch(ids){
 }
 
 function delOne(id){
-  if(!confirm('정말 이 신청을 삭제하시겠습니까?')) return;
-  fetch('/api/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:_numId(id)})})
+  if(!confirm('정말 이 디비를 삭제하시겠습니까?')) return;
+  // ID prefix(A/P) 그대로 보내야 서버가 어느 테이블인지 판별
+  fetch('/api/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:String(id)})})
     .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-    .then(function(){ refresh(); })
+    .then(function(){
+      _selected.delete(id);
+      refresh();
+    })
     .catch(function(e){ alert('삭제 실패: '+e.message); });
+}
+
+function delSelected(){
+  var ids = Array.from(_selected);
+  if(!ids.length){ alert('선택된 디비가 없습니다'); return; }
+  if(!confirm('선택한 '+ids.length+'건을 삭제하시겠습니까?')) return;
+  // 순차 삭제 (서버에 ID 1개씩 전송, 백엔드가 prefix 보고 application/pool 분기)
+  var done = 0, failed = 0;
+  function next(){
+    if(!ids.length){
+      alert('✅ '+done+'건 삭제 완료'+(failed?(' / ❌ '+failed+'건 실패'):''));
+      _selected.clear();
+      refresh();
+      return;
+    }
+    var id = ids.shift();
+    fetch('/api/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:String(id)})})
+      .then(function(r){ if(!r.ok) throw new Error(); done++; })
+      .catch(function(){ failed++; })
+      .finally(next);
+  }
+  next();
 }
 function clearAll(){
   if(!confirm('정말 모든 신청 데이터를 삭제하시겠습니까? (KPI + Demand 모두) 복구 불가능합니다.')) return;
