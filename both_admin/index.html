@@ -226,8 +226,8 @@ tr.row-sel.row-dl td{background:#cfd8e7 !important}
     <h1>📋 통합 신청 관리 (KPI + Demand)</h1>
     <div>
       <span class="legend">
-        <span class="dot a">A=실적최대화(KPI)</span>
-        <span class="dot b">B=Demand</span>
+        <span class="dot a">자체광고</span>
+        <span class="dot b">업체광고</span>
       </span>
       <span class="status" id="connStatus"><span class="dot"></span><span id="connText">연결됨</span></span>
       <span class="who" id="whoami"></span>
@@ -251,11 +251,11 @@ tr.row-sel.row-dl td{background:#cfd8e7 !important}
   </div>
 
   <div class="summary">
-    <div class="card total"><div class="lbl">전체 신청</div><div class="num" id="totalCnt">0</div></div>
-    <div class="card src-a"><div class="lbl">A · KPI</div><div class="num" id="cntA">0</div></div>
-    <div class="card src-b"><div class="lbl">B · Demand</div><div class="num" id="cntB">0</div></div>
-    <div class="card pending"><div class="lbl">미다운로드 (신규)</div><div class="num" id="cntPending">0</div></div>
-    <div class="card done"><div class="lbl">다운완료</div><div class="num" id="cntDone">0</div></div>
+    <div class="card total"><div class="lbl">전체 DB</div><div class="num" id="totalCnt">0</div></div>
+    <div class="card src-a"><div class="lbl">자체광고</div><div class="num" id="cntA">0</div></div>
+    <div class="card src-b"><div class="lbl">업체광고</div><div class="num" id="cntB">0</div></div>
+    <div class="card pending"><div class="lbl">미처리 (신규)</div><div class="num" id="cntPending">0</div></div>
+    <div class="card done"><div class="lbl">처리완료</div><div class="num" id="cntDone">0</div></div>
   </div>
 
   <div class="toolbar">
@@ -751,13 +751,19 @@ function loadData(){
       _items = (j.items||[]).map(function(d){
         return {
           id: d.id,
-          source: d.source,
+          origin: d.origin,                          // 'application' | 'pool'
+          source: d.source,                          // legacy A/B
+          source_code: d.source_code,                // 'SELF_KPI' | 'VENDOR_A' ...
+          source_label: d.source_label || (d.source==='A'?'KPI(자체)':'Demand(자체)'),
+          source_color: d.source_color || (d.source==='A'?'#7c3aed':'#0ea5e9'),
           name: d.name,
           phone: d.phone,
           carrier: d.carrier,
           model: d.model,
-          date: d.created_at,
-          downloaded_at: d.downloaded_at
+          date: d.created_at,                        // 유입/업로드 일시
+          downloaded_at: d.downloaded_at,
+          status: d.status,
+          upload_batch: d.upload_batch
         };
       });
       setConnStatus(true, '연결됨 ('+_items.length+'건)');
@@ -842,8 +848,12 @@ function getFilteredData(){
 function render(){
   var all = _items;
   document.getElementById('totalCnt').textContent = all.length;
-  document.getElementById('cntA').textContent = all.filter(function(d){return d.source==='A';}).length;
-  document.getElementById('cntB').textContent = all.filter(function(d){return d.source==='B';}).length;
+  // 자체광고(KPI/Demand 또는 SELF) vs 업체광고
+  var selfCnt = all.filter(function(d){return d.source==='A' || d.source_code==='SELF' || d.source_code==='SELF_KPI' || d.source_code==='SELF_DEMAND' || d.source==='B';}).length;
+  var vendorCnt = all.length - selfCnt;
+  // 헤더 카드 라벨이 'A · KPI' / 'B · Demand' 인데, 의미 변경: 자체/업체 카운트로 활용
+  document.getElementById('cntA').textContent = selfCnt;
+  document.getElementById('cntB').textContent = vendorCnt;
   document.getElementById('cntPending').textContent = all.filter(function(d){return !d.downloaded_at;}).length;
   document.getElementById('cntDone').textContent = all.filter(function(d){return !!d.downloaded_at;}).length;
 
@@ -860,27 +870,32 @@ function render(){
   var allVisChecked = visIds.length>0 && visIds.every(function(id){return _selected.has(id);});
   var html = '<table><thead><tr>'+
     '<th class="col-chk"><input type="checkbox" class="rowchk" id="chkAll" '+(allVisChecked?'checked':'')+' onchange="toggleAllVisible(this.checked)" title="현재 화면 전체 선택"></th>'+
-    '<th>#</th><th>출처</th><th>신청일시</th><th>이름</th><th>연락처</th><th>통신사</th><th>희망기종</th><th>다운상태</th><th></th></tr></thead><tbody>';
+    '<th>#</th><th>출처</th><th>유입일시</th><th>이름</th><th>연락처</th><th>통신사</th><th>희망기종</th><th>다운상태</th><th></th></tr></thead><tbody>';
   data.forEach(function(d, i){
     var carClass = d.carrier === 'SKT' ? 'b-skt' : (d.carrier === 'KT' ? 'b-kt' : 'b-lgu');
-    var srcLabel = d.source === 'A' ? 'A · KPI' : 'B · Demand';
+    var srcLabel = d.source_label || (d.source==='A'?'KPI(자체)':'Demand(자체)');
+    var srcColor = d.source_color || (d.source==='A'?'#7c3aed':'#0ea5e9');
     var dlClass = d.downloaded_at ? 'dl-done' : 'dl-pending';
     var dlText = d.downloaded_at ? ('✓ '+fmtDate(d.downloaded_at)) : '미다운';
     var rowDl = d.downloaded_at ? 'row-dl' : '';
     var rowSel = _selected.has(d.id) ? 'row-sel' : '';
     var rowClass = (rowDl+' '+rowSel).trim();
     var chkAttr = _selected.has(d.id) ? 'checked' : '';
+    var idStr = String(d.id).replace(/'/g, "\\'");
+    var isPool = (d.origin === 'pool');
     html += '<tr class="'+rowClass+'">'+
-      '<td class="col-chk"><input type="checkbox" class="rowchk" '+chkAttr+' onchange="toggleSel('+d.id+', this.checked)"></td>'+
+      '<td class="col-chk"><input type="checkbox" class="rowchk" '+chkAttr+' onchange="toggleSel(\''+idStr+'\', this.checked)"></td>'+
       '<td>'+(i+1)+'</td>'+
-      '<td><span class="src-tag src-'+d.source+'">'+srcLabel+'</span></td>'+
+      '<td><span class="src-tag" style="background:'+esc(srcColor)+'22;color:'+esc(srcColor)+';border:1px solid '+esc(srcColor)+'66">'+esc(srcLabel)+'</span></td>'+
       '<td>'+fmtDate(d.date)+'</td>'+
       '<td><b>'+esc(d.name)+'</b></td>'+
       '<td>'+esc(d.phone)+'</td>'+
-      '<td><span class="badge '+carClass+'">'+esc(d.carrier)+'</span></td>'+
-      '<td>'+esc(d.model)+'</td>'+
-      '<td><span class="dl-tag '+dlClass+'" onclick="toggleDl('+d.id+','+(!!d.downloaded_at)+')" title="클릭하여 토글">'+dlText+'</span></td>'+
-      '<td class="actions"><button class="del-row" onclick="delOne('+d.id+')">삭제</button></td>'+
+      '<td>'+(d.carrier?'<span class="badge '+carClass+'">'+esc(d.carrier)+'</span>':'')+'</td>'+
+      '<td>'+esc(d.model||'')+'</td>'+
+      '<td>'+(isPool
+              ? '<span class="dl-tag dl-pending" title="업체 업로드 — 분배 탭에서 처리">'+esc(d.status||'NEW')+'</span>'
+              : '<span class="dl-tag '+dlClass+'" onclick="toggleDl(\''+idStr+'\','+(!!d.downloaded_at)+')" title="클릭하여 토글">'+dlText+'</span>')+'</td>'+
+      '<td class="actions">'+(isPool?'<span style="color:var(--sub);font-size:11px">—</span>':'<button class="del-row" onclick="delOne(\''+idStr+'\')">삭제</button>')+'</td>'+
     '</tr>';
   });
   html += '</tbody></table>';
@@ -903,13 +918,14 @@ function updateSelInfo(){
 function toggleSel(id, checked){
   if(checked) _selected.add(id);
   else _selected.delete(id);
-  // 행에 시각 표시
+  // 행에 시각 표시 (ID는 문자열: "A123" 또는 "P5")
   var trs = document.querySelectorAll('#tblHolder tbody tr');
   trs.forEach(function(tr){
     var chk = tr.querySelector('input.rowchk[onchange*="toggleSel"]');
     if(!chk) return;
-    var rowId = Number((chk.getAttribute('onchange').match(/toggleSel\((\d+)/)||[])[1]);
-    if(rowId === id){
+    var m = chk.getAttribute('onchange').match(/toggleSel\(['"]([^'"]+)['"]/);
+    var rowId = m ? m[1] : null;
+    if(rowId === String(id)){
       tr.classList.toggle('row-sel', checked);
     }
   });
@@ -950,9 +966,16 @@ function fmtDate(s){
   }catch(x){ return s; }
 }
 
+// ID에서 prefix 제거: "A123" -> 123 (applications 테이블용)
+function _numId(id){
+  var s = String(id);
+  if(s[0] === 'A' || s[0] === 'P') s = s.slice(1);
+  return Number(s);
+}
+
 function toggleDl(id, currentlyDownloaded){
   var newState = !currentlyDownloaded;
-  fetch('/api/mark', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids:[id], downloaded:newState})})
+  fetch('/api/mark', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids:[_numId(id)], downloaded:newState})})
     .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
     .then(function(){ refresh(); })
     .catch(function(e){ alert('상태 변경 실패: '+e.message); });
@@ -967,7 +990,7 @@ function markDownloadedBatch(ids){
 
 function delOne(id){
   if(!confirm('정말 이 신청을 삭제하시겠습니까?')) return;
-  fetch('/api/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:id})})
+  fetch('/api/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:_numId(id)})})
     .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
     .then(function(){ refresh(); })
     .catch(function(e){ alert('삭제 실패: '+e.message); });
