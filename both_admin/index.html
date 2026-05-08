@@ -1028,15 +1028,21 @@ function markDownloadedBatch(ids){
 }
 
 function delOne(id){
-  if(!confirm('정말 이 디비를 삭제하시겠습니까?')) return;
+  if(!confirm('정말 이 디비를 삭제하시겠습니까?\n(ID: '+id+')')) return;
+  console.log('[delOne] sending id:', id, typeof id);
   // ID prefix(A/P) 그대로 보내야 서버가 어느 테이블인지 판별
   fetch('/api/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:String(id)})})
-    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-    .then(function(){
+    .then(function(r){
+      console.log('[delOne] status:', r.status);
+      if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t); });
+      return r.json();
+    })
+    .then(function(j){
+      console.log('[delOne] result:', j);
       _selected.delete(id);
       refresh();
     })
-    .catch(function(e){ alert('삭제 실패: '+e.message); });
+    .catch(function(e){ alert('삭제 실패: '+e.message); console.error('[delOne]', e); });
 }
 
 function delSelected(){
