@@ -748,20 +748,23 @@ function confirmUpload(){
   });
   _items = tempItems.concat(_items);  // 최신이 위로
   render();
-  showToast('⏳ '+srcLabel+' '+payload.rows.length+'건 업로드 중...');
+  // 진행 중 알림(상단 배너) — 사라지지 않게 유지
+  showToast('⏳ '+srcLabel+' '+payload.rows.length+'건 업로드 중...', 'info', true);
 
   fetch('/api/pool_upload', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
     .then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t); }); return r.json(); })
     .then(function(j){
-      showToast('✅ '+srcLabel+' '+j.inserted+'건 추가됨');
-      // refresh()가 _items 통째로 교체 → temps 자동으로 사라지고 서버 데이터로 대체 (깜빡임 X)
+      // ⚡ 확실한 완료 알림 — alert로 100% 표시
+      alert('✅ 업로드 완료\n\n  업체:  '+srcLabel+'\n  추가:  '+j.inserted+'건'+(j.skipped?'\n  누락:  '+j.skipped+'건':''));
+      hideToast();
       tempItems.forEach(function(t){ _optimisticIds.delete(t.id); });
       _suspendRefreshUntil = 0;
       refresh();
       if(document.getElementById('tab-distribute').classList.contains('active')) loadDist();
     })
     .catch(function(e){
-      showToast('❌ 업로드 실패: '+e.message, 'err');
+      alert('❌ 업로드 실패\n\n'+e.message);
+      hideToast();
       console.error('[upload]', e);
       _items = _items.filter(function(d){ return !_optimisticIds.has(d.id); });
       tempItems.forEach(function(t){ _optimisticIds.delete(t.id); });
@@ -771,8 +774,13 @@ function confirmUpload(){
     .finally(function(){ _uploadInFlight = false; });
 }
 
-// 큰 알림 배너 — 화면 상단 중앙에 크게 떴다 자동 사라짐 (X로 즉시 닫기 가능)
-function showToast(msg, kind){
+function hideToast(){
+  var t = document.getElementById('_toast');
+  if(t){ t.style.opacity = '0'; clearTimeout(t._tm); }
+}
+
+// 큰 알림 배너 — 화면 상단 중앙. sticky=true면 자동 사라지지 않음(X로만 닫음)
+function showToast(msg, kind, sticky){
   var t = document.getElementById('_toast');
   if(!t){
     t = document.createElement('div');
@@ -788,12 +796,17 @@ function showToast(msg, kind){
     t.appendChild(btn);
     document.body.appendChild(t);
   }
-  t.style.background = (kind==='err') ? '#ef4444' : '#10b981';
+  var bg = '#10b981';
+  if(kind === 'err') bg = '#ef4444';
+  else if(kind === 'info') bg = '#1428A0';
+  t.style.background = bg;
   document.getElementById('_toastMsg').textContent = msg;
   t.style.opacity = '1';
   t.style.top = '20px';
   clearTimeout(t._tm);
-  t._tm = setTimeout(function(){ t.style.opacity = '0'; }, 4000);
+  if(!sticky){
+    t._tm = setTimeout(function(){ t.style.opacity = '0'; }, 4000);
+  }
 }
 </script>
 <script>
