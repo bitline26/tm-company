@@ -595,13 +595,22 @@ function srcAddSave(){
 
 // ===== 엑셀 업로드 모달 =====
 function uploadOpen(){
-  // 업체 목록부터 채우고 모달 표시
-  loadSources().then(function(){
+  // ⚡ 모달은 무조건 즉시 표시 (1번 클릭으로)
+  var m = document.getElementById('uploadModal');
+  if(m) m.style.display = 'flex';
+  setupDropZone();
+  // 업체 목록은 캐시 사용 + 백그라운드로만 갱신
+  if(_sources && _sources.length){
     renderUpSource();
-    var m = document.getElementById('uploadModal');
-    if(m) m.style.display = 'flex';
-    setupDropZone();
-  });
+  } else {
+    var sel = document.getElementById('upSource');
+    if(sel) sel.innerHTML = '<option>로딩 중...</option>';
+    loadSources().then(renderUpSource).catch(function(e){
+      var s = document.getElementById('upSource');
+      if(s) s.innerHTML = '<option value="">업체 목록 로딩 실패</option>';
+      console.error('[uploadOpen]', e);
+    });
+  }
 }
 function uploadClose(){
   var m = document.getElementById('uploadModal');
@@ -703,23 +712,51 @@ function cancelUpload(){
 }
 
 var _uploadInFlight = false;
+var _optimisticIds = new Set();
 
 function confirmUpload(){
   if(!_pendingUpload) return;
-  if(_uploadInFlight){ return; }                    // 더블클릭 방지
+  if(_uploadInFlight){ return; }
   var payload = _pendingUpload;
-  var srcLabel = (_sources.find(function(s){return s.id===payload.source_id;})||{}).label || '?';
+  var src = _sources.find(function(s){return s.id===payload.source_id;}) || {};
+  var srcLabel = src.label || '?';
+  var srcColor = src.color || '#888';
+  var srcCode = src.code || 'VENDOR';
 
-  // ⚡ 클릭 즉시: 잠금 + 모달 닫고 끝 (확인 다이얼로그 없음)
+  // ⚡ 즉시: 모달 닫음 + 낙관적으로 _items 위쪽에 박기 (서버 응답 안 기다림)
   _uploadInFlight = true;
   cancelUpload();
-  uploadClose();          // 모달 사라짐
-  _suspendRefresh(8000);
+  uploadClose();
+  _suspendRefresh(15000);
+
+  var nowIso = new Date().toISOString();
+  var tempItems = payload.rows.map(function(r, i){
+    var tid = 'TMP_' + Date.now() + '_' + i;
+    _optimisticIds.add(tid);
+    return {
+      id: tid,
+      origin: 'pool',
+      source: 'X',
+      source_code: srcCode,
+      source_label: srcLabel,
+      source_color: srcColor,
+      name: r.name, phone: r.phone, carrier: r.carrier, model: r.model,
+      date: nowIso,
+      downloaded_at: null,
+      status: 'NEW'
+    };
+  });
+  _items = tempItems.concat(_items);  // 최신이 위로
+  render();
+  showToast('⏳ '+srcLabel+' '+payload.rows.length+'건 업로드 중...');
 
   fetch('/api/pool_upload', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
     .then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t); }); return r.json(); })
     .then(function(j){
       showToast('✅ '+srcLabel+' '+j.inserted+'건 추가'+(j.skipped?(' · 누락 '+j.skipped):''));
+      // 낙관적 항목 제거하고 서버 데이터로 교체
+      _items = _items.filter(function(d){ return !_optimisticIds.has(d.id); });
+      tempItems.forEach(function(t){ _optimisticIds.delete(t.id); });
       _suspendRefreshUntil = 0;
       refresh();
       if(document.getElementById('tab-distribute').classList.contains('active')) loadDist();
@@ -727,7 +764,11 @@ function confirmUpload(){
     .catch(function(e){
       showToast('❌ 업로드 실패: '+e.message);
       console.error('[upload]', e);
+      // 실패 시 낙관적 항목 제거
+      _items = _items.filter(function(d){ return !_optimisticIds.has(d.id); });
+      tempItems.forEach(function(t){ _optimisticIds.delete(t.id); });
       _suspendRefreshUntil = 0;
+      render();
     })
     .finally(function(){ _uploadInFlight = false; });
 }
@@ -787,6 +828,8 @@ function showDash(u){
   document.getElementById('dashView').style.display='block';
   document.getElementById('whoami').textContent = u + ' 님';
   refresh();
+  // 업체 목록 미리 로드 (업로드 버튼 누를 때 즉시 사용)
+  if(typeof loadSources === 'function'){ loadSources().catch(function(){}); }
   if(!window._autoRefresh){
     window._autoRefresh = setInterval(refresh, 3000);
   }
