@@ -1,6 +1,6 @@
 import { sql, ensureSchema } from './_db.js';
 
-// 엑셀에서 파싱된 행 배열을 풀에 적재 (병렬 INSERT로 빠르게)
+// 엑셀에서 파싱된 행 배열을 풀에 적재 — 단일 SQL UNNEST batch insert (1번 round-trip)
 // body: { source_id, batch_label, rows: [{name, phone, carrier, model, ...}] }
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -32,7 +32,6 @@ export default async function handler(req, res) {
         phone,
         carrier: r.carrier ? String(r.carrier).trim() : null,
         model: r.model ? String(r.model).trim() : null,
-        extra: r.extra || null
       });
     }
 
@@ -40,14 +39,17 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, batch, inserted: 0, skipped, source: src[0].label });
     }
 
-    // 병렬 INSERT (Promise.all) — 30건이면 ~1초
-    const tasks = valid.map(v =>
-      sql`
-        INSERT INTO db_pool (source_id, upload_batch, name, phone, carrier, model, extra_json)
-        VALUES (${source_id}, ${batch}, ${v.name}, ${v.phone}, ${v.carrier}, ${v.model}, ${v.extra ? JSON.stringify(v.extra) : null})
-      `
-    );
-    await Promise.all(tasks);
+    // 단일 INSERT — UNNEST로 N행을 한 번에 (round-trip 1회)
+    const names = valid.map(v => v.name);
+    const phones = valid.map(v => v.phone);
+    const carriers = valid.map(v => v.carrier);
+    const models = valid.map(v => v.model);
+
+    await sql`
+      INSERT INTO db_pool (source_id, upload_batch, name, phone, carrier, model)
+      SELECT ${source_id}, ${batch}, n, p, c, m
+      FROM unnest(${names}::text[], ${phones}::text[], ${carriers}::text[], ${models}::text[]) AS t(n, p, c, m)
+    `;
 
     return res.status(200).json({
       ok: true, batch,

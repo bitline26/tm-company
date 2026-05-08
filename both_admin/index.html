@@ -751,21 +751,43 @@ function confirmUpload(){
   // 진행 중 알림(상단 배너) — 사라지지 않게 유지
   showToast('⏳ '+srcLabel+' '+payload.rows.length+'건 업로드 중...', 'info', true);
 
-  fetch('/api/pool_upload', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
-    .then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t); }); return r.json(); })
+  // 클라이언트 타임아웃 — 25초 안에 응답 없으면 abort + alert
+  var ctrl = new AbortController();
+  var timer = setTimeout(function(){
+    console.error('[upload] timeout 25s');
+    ctrl.abort();
+  }, 25000);
+
+  console.log('[upload] sending', payload.rows.length, 'rows to source_id', payload.source_id);
+
+  fetch('/api/pool_upload', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload),
+    signal: ctrl.signal
+  })
+    .then(function(r){
+      console.log('[upload] response status:', r.status);
+      if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t); });
+      return r.json();
+    })
     .then(function(j){
+      console.log('[upload] result:', j);
+      clearTimeout(timer);
+      hideToast();
       // ⚡ 확실한 완료 알림 — alert로 100% 표시
       alert('✅ 업로드 완료\n\n  업체:  '+srcLabel+'\n  추가:  '+j.inserted+'건'+(j.skipped?'\n  누락:  '+j.skipped+'건':''));
-      hideToast();
       tempItems.forEach(function(t){ _optimisticIds.delete(t.id); });
       _suspendRefreshUntil = 0;
       refresh();
       if(document.getElementById('tab-distribute').classList.contains('active')) loadDist();
     })
     .catch(function(e){
-      alert('❌ 업로드 실패\n\n'+e.message);
+      clearTimeout(timer);
       hideToast();
-      console.error('[upload]', e);
+      console.error('[upload] FAIL:', e);
+      var msg = e.name === 'AbortError' ? '서버 응답 없음 (25초 타임아웃)' : e.message;
+      alert('❌ 업로드 실패\n\n'+msg+'\n\n네트워크/서버를 확인하고 다시 시도하세요.');
       _items = _items.filter(function(d){ return !_optimisticIds.has(d.id); });
       tempItems.forEach(function(t){ _optimisticIds.delete(t.id); });
       _suspendRefreshUntil = 0;
