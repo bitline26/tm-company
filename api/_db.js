@@ -1,6 +1,16 @@
 import { neon } from '@neondatabase/serverless';
 
-const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+// 환경 분리: production은 운영 DB(neon-cobalt-kettle), 그 외(preview/development)는 테스트 DB(tm-2)
+// VERCEL_ENV 값: 'production' | 'preview' | 'development' | undefined(로컬)
+const isProd = process.env.VERCEL_ENV === 'production';
+
+const url = isProd
+  ? (process.env.DATABASE_URL || process.env.POSTGRES_URL)
+  : (process.env.test2_DATABASE_URL
+     || process.env.test2_POSTGRES_URL
+     || process.env.DATABASE_URL
+     || process.env.POSTGRES_URL);
+
 if (!url) throw new Error('DATABASE_URL not set');
 
 export const sql = neon(url);
