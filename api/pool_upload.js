@@ -1,6 +1,6 @@
 import { sql, ensureSchema } from './_db.js';
 
-// 엑셀에서 파싱된 행 배열을 풀에 적재
+// 엑셀에서 파싱된 행 배열을 풀에 적재 (병렬 INSERT로 빠르게)
 // body: { source_id, batch_label, rows: [{name, phone, carrier, model, ...}] }
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -20,23 +20,40 @@ export default async function handler(req, res) {
 
     const batch = batch_label || ('UPLOAD_' + new Date().toISOString().slice(0, 16).replace(/[T:]/g, '-'));
 
-    let inserted = 0;
+    // 정규화 + 빈 행 필터
+    const valid = [];
     let skipped = 0;
     for (const r of rows) {
       const name = String(r.name || '').trim();
       const phone = String(r.phone || '').trim();
       if (!name || !phone) { skipped++; continue; }
-      const carrier = r.carrier ? String(r.carrier).trim() : null;
-      const model = r.model ? String(r.model).trim() : null;
-      const extra = r.extra ? r.extra : null;
-      await sql`
-        INSERT INTO db_pool (source_id, upload_batch, name, phone, carrier, model, extra_json)
-        VALUES (${source_id}, ${batch}, ${name}, ${phone}, ${carrier}, ${model}, ${extra ? JSON.stringify(extra) : null})
-      `;
-      inserted++;
+      valid.push({
+        name,
+        phone,
+        carrier: r.carrier ? String(r.carrier).trim() : null,
+        model: r.model ? String(r.model).trim() : null,
+        extra: r.extra || null
+      });
     }
 
-    return res.status(200).json({ ok: true, batch, inserted, skipped, source: src[0].label });
+    if (valid.length === 0) {
+      return res.status(200).json({ ok: true, batch, inserted: 0, skipped, source: src[0].label });
+    }
+
+    // 병렬 INSERT (Promise.all) — 30건이면 ~1초
+    const tasks = valid.map(v =>
+      sql`
+        INSERT INTO db_pool (source_id, upload_batch, name, phone, carrier, model, extra_json)
+        VALUES (${source_id}, ${batch}, ${v.name}, ${v.phone}, ${v.carrier}, ${v.model}, ${v.extra ? JSON.stringify(v.extra) : null})
+      `
+    );
+    await Promise.all(tasks);
+
+    return res.status(200).json({
+      ok: true, batch,
+      inserted: valid.length, skipped,
+      source: src[0].label
+    });
   } catch (e) {
     console.error('pool_upload error:', e);
     return res.status(500).json({ error: 'server error', detail: String(e.message || e) });
