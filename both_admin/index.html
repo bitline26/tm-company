@@ -196,6 +196,65 @@ tr.row-sel.row-dl td{background:#cfd8e7 !important}
 .pool-tbl .st-ASSIGNED{background:#eef1fb;color:var(--blue);padding:3px 8px;border-radius:5px;font-size:10px;font-weight:800;border:1px solid #c7d2fe}
 .pool-tbl .st-DONE{background:#f0fdf4;color:var(--green);padding:3px 8px;border-radius:5px;font-size:10px;font-weight:800;border:1px solid #bbf7d0}
 
+/* ATTENDANCE TAB */
+.att-toolbar{display:flex;align-items:center;gap:10px;padding:14px 24px;background:#fff;border-bottom:1px solid var(--bdr);flex-wrap:wrap}
+.att-mv{padding:6px 14px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:900;cursor:pointer}
+.att-mv:hover{background:#0e1f7a}
+.att-ym{padding:7px 12px;border:1.5px solid var(--bdr);border-radius:8px;font-size:14px;font-weight:800;font-family:inherit;outline:none;color:#222}
+.att-ym:focus{border-color:var(--blue)}
+.att-legend{display:inline-flex;gap:6px;flex-wrap:wrap;margin-left:8px}
+.att-legend .lg{padding:4px 10px;border-radius:5px;font-size:11px;font-weight:800;border:1.5px solid var(--bdr)}
+.att-spacer{flex:1}
+.att-stat{font-size:13px;font-weight:800;color:var(--blue);background:var(--blue-l);padding:8px 14px;border-radius:8px}
+
+.att-wrap{padding:14px 24px;overflow-x:auto;overflow-y:visible}
+.att-tbl{border-collapse:separate;border-spacing:0;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.04);font-size:11px}
+.att-tbl th,.att-tbl td{border-right:1px solid var(--bdr);border-bottom:1px solid var(--bdr);padding:0;text-align:center;vertical-align:middle}
+.att-tbl th{background:#fafbfc;font-weight:800;color:#444;font-size:10px;letter-spacing:0;padding:5px 4px;white-space:nowrap}
+.att-tbl th.day-num{font-size:12px;font-weight:900;color:#222}
+.att-tbl th.dow-토,.att-tbl th.dow-일{color:#dc2626}
+.att-tbl th.holiday{color:#dc2626;background:#fef2f2}
+.att-tbl td{height:30px;min-width:38px;width:38px;background:#fff;cursor:pointer;font-weight:800;font-size:10px}
+.att-tbl td.col-fixed{cursor:default;background:#fafbfc;font-weight:800;color:#222;padding:4px 8px;text-align:left;white-space:nowrap;position:sticky;left:0;z-index:1}
+.att-tbl td.col-major{background:#e9e8ff;color:#5b21b6;font-weight:900;font-size:13px;text-align:center;padding:0 6px;min-width:64px;width:64px;border-right:2px solid #c4b5fd;writing-mode:vertical-rl;text-orientation:mixed;white-space:nowrap;position:sticky;left:0;z-index:2}
+.att-tbl td.col-dept{background:#f0e7ff;color:#5b21b6;font-weight:900;font-size:12px;min-width:64px;width:64px;border-right:1.5px solid #c4b5fd;position:sticky;z-index:1}
+.att-tbl td.col-name{background:#fff;color:#222;font-weight:800;min-width:90px;width:90px;border-right:2px solid #c4b5fd;text-align:center;position:sticky;z-index:1}
+.att-tbl tr:hover td.col-name{background:#fafbfc}
+
+/* 색상별 상태 셀 */
+.att-tbl td.s-WORK{background:#fff}
+.att-tbl td.s-MONTHLY_OFF{background:#d4edda;color:#155724}
+.att-tbl td.s-HALF_AM,.att-tbl td.s-HALF_PM{background:#fff3cd;color:#856404}
+.att-tbl td.s-ANNUAL{background:#cce5ff;color:#004085}
+.att-tbl td.s-SICK{background:#fce5e5;color:#9a2c2c}
+.att-tbl td.s-OFF{background:#d6d8db;color:#383d41}
+.att-tbl td.s-HOLIDAY{background:#fde2e4;color:#9a2c2c;font-weight:900}
+.att-tbl td.s-WEEKEND{background:#fde2e4;color:#9a2c2c;font-size:9px;cursor:default}
+
+/* 범례 색상 */
+.att-legend .lg.s-WORK{background:#fff}
+.att-legend .lg.s-MONTHLY_OFF{background:#d4edda;color:#155724;border-color:#c3e6cb}
+.att-legend .lg.s-HALF_AM,.att-legend .lg.s-HALF_PM{background:#fff3cd;color:#856404;border-color:#ffeeba}
+.att-legend .lg.s-ANNUAL{background:#cce5ff;color:#004085;border-color:#b8daff}
+.att-legend .lg.s-SICK{background:#fce5e5;color:#9a2c2c;border-color:#f5c6cb}
+.att-legend .lg.s-OFF{background:#d6d8db;color:#383d41;border-color:#c6c8ca}
+.att-legend .lg.s-HOLIDAY{background:#fde2e4;color:#9a2c2c;border-color:#f5c6cb}
+.att-legend .lg.s-WEEKEND{background:#fde2e4;color:#9a2c2c;border-color:#f5c6cb}
+
+/* 팝오버 */
+.att-pop{position:absolute;background:#fff;border:1.5px solid var(--bdr);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.15);padding:10px;z-index:99999;min-width:160px;display:flex;flex-direction:column;gap:4px}
+.att-pop-head{font-size:11px;font-weight:900;color:var(--sub);padding:4px 6px;border-bottom:1px solid var(--bdr);margin-bottom:4px}
+.ap-btn{padding:8px 12px;border:1.5px solid var(--bdr);border-radius:6px;font-size:12px;font-weight:800;cursor:pointer;background:#fff;text-align:left;font-family:inherit}
+.ap-btn:hover{filter:brightness(0.95)}
+.ap-btn.s-WORK{background:#fff;color:#222}
+.ap-btn.s-MONTHLY_OFF{background:#d4edda;color:#155724;border-color:#c3e6cb}
+.ap-btn.s-HALF_AM,.ap-btn.s-HALF_PM{background:#fff3cd;color:#856404;border-color:#ffeeba}
+.ap-btn.s-ANNUAL{background:#cce5ff;color:#004085;border-color:#b8daff}
+.ap-btn.s-SICK{background:#fce5e5;color:#9a2c2c;border-color:#f5c6cb}
+.ap-btn.s-OFF{background:#d6d8db;color:#383d41;border-color:#c6c8ca}
+.ap-btn.s-HOLIDAY{background:#fde2e4;color:#9a2c2c;border-color:#f5c6cb}
+.ap-btn.ap-cancel{background:#f1f3f5;color:#555;text-align:center;margin-top:4px}
+
 /* MODAL */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px}
 .modal-card{background:#fff;border-radius:14px;padding:24px;width:100%;max-width:420px;box-shadow:0 12px 48px rgba(0,0,0,.2)}
@@ -330,17 +389,40 @@ tr.row-sel.row-dl td{background:#cfd8e7 !important}
 
   <!-- ===== TAB 2 : 근무표 ===== -->
   <section id="tab-att" class="tab-pane">
-    <div class="placeholder">
-      <div class="ico">🗓️</div>
-      <h2>근무표 (월간 캘린더)</h2>
-      <p>부서(배송/개통/해피콜/민원/1차) × 직원 × 1~31일 그리드를 어드민 안에 그대로 옮긴 화면입니다. 셀 클릭으로 정상/월차/반차/연차/휴무를 입력하고, 각 날짜의 가용 TM과 가중치 합계가 자동 계산됩니다.</p>
-      <div style="margin-top:18px">
-        <span class="feat">월 선택 ◀ 2026-05 ▶</span>
-        <span class="feat">부서 필터</span>
-        <span class="feat">셀 드롭다운 입력</span>
-        <span class="feat">주말/공휴일 자동 음영</span>
-        <span class="feat">우측 사이드: 오늘 가용 TM N명</span>
-      </div>
+    <div class="att-toolbar">
+      <button class="att-mv" onclick="attShiftMonth(-1)">◀</button>
+      <input type="month" id="attYM" class="att-ym" onchange="loadAtt()">
+      <button class="att-mv" onclick="attShiftMonth(1)">▶</button>
+      <span class="att-legend">
+        <span class="lg s-WORK">정상</span>
+        <span class="lg s-MONTHLY_OFF">월차</span>
+        <span class="lg s-HALF_AM">반차오전</span>
+        <span class="lg s-HALF_PM">반차오후</span>
+        <span class="lg s-ANNUAL">연차</span>
+        <span class="lg s-SICK">병가</span>
+        <span class="lg s-OFF">휴무</span>
+        <span class="lg s-HOLIDAY">공휴일</span>
+        <span class="lg s-WEEKEND">주말</span>
+      </span>
+      <div class="att-spacer"></div>
+      <span class="att-stat" id="attStat">— 직원 0명</span>
+    </div>
+    <div class="att-wrap">
+      <div id="attHolder"></div>
+    </div>
+
+    <!-- 셀 상태 변경 팝오버 -->
+    <div id="attPop" class="att-pop" style="display:none">
+      <div class="att-pop-head" id="attPopHead">선택</div>
+      <button onclick="attSetCell('WORK')" class="ap-btn s-WORK">정상</button>
+      <button onclick="attSetCell('MONTHLY_OFF')" class="ap-btn s-MONTHLY_OFF">월차</button>
+      <button onclick="attSetCell('HALF_AM')" class="ap-btn s-HALF_AM">반차(오전)</button>
+      <button onclick="attSetCell('HALF_PM')" class="ap-btn s-HALF_PM">반차(오후)</button>
+      <button onclick="attSetCell('ANNUAL')" class="ap-btn s-ANNUAL">연차</button>
+      <button onclick="attSetCell('SICK')" class="ap-btn s-SICK">병가</button>
+      <button onclick="attSetCell('OFF')" class="ap-btn s-OFF">휴무</button>
+      <button onclick="attSetCell('HOLIDAY')" class="ap-btn s-HOLIDAY">공휴일</button>
+      <button onclick="attClosePop()" class="ap-btn ap-cancel">취소</button>
     </div>
   </section>
 
@@ -443,6 +525,210 @@ function switchTab(name){
     p.classList.toggle('active', p.id === 'tab-'+name);
   });
   if(name === 'distribute'){ loadDist(); }
+  if(name === 'att'){ loadAtt(); }
+}
+
+// =================================================================
+// ===== TAB 2 : 근무표 =====
+// =================================================================
+var _attData = null;
+var _attCellSel = null;  // {employee_id, work_date}
+var _attMajorMap = { '배송':'관리', '개통':'관리', '해피콜':'관리', '민원':'관리', '1차':'영업' };
+// 한국 주요 공휴일 (간단 매핑) — 필요 시 어드민에서 셀 직접 HOLIDAY로 마킹 가능
+var _kHolidays = {
+  '2026-01-01':'신정','2026-02-16':'설날','2026-02-17':'설날','2026-02-18':'설날',
+  '2026-03-01':'삼일절','2026-05-05':'어린이날','2026-05-25':'석가탄신일',
+  '2026-06-06':'현충일','2026-08-15':'광복절','2026-09-25':'추석','2026-09-26':'추석','2026-09-27':'추석',
+  '2026-10-03':'개천절','2026-10-09':'한글날','2026-12-25':'성탄절'
+};
+
+function _ymToday(){
+  var d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+
+function attShiftMonth(diff){
+  var ym = document.getElementById('attYM').value || _ymToday();
+  var p = ym.split('-'); var y = Number(p[0]); var m = Number(p[1]);
+  m += diff; if(m<1){m=12;y--;} if(m>12){m=1;y++;}
+  document.getElementById('attYM').value = y+'-'+String(m).padStart(2,'0');
+  loadAtt();
+}
+
+function loadAtt(){
+  var ym = document.getElementById('attYM').value;
+  if(!ym){ document.getElementById('attYM').value = _ymToday(); ym = _ymToday(); }
+  return fetch('/api/att_month?ym='+encodeURIComponent(ym), {cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(j){ _attData = j; renderAtt(); })
+    .catch(function(e){
+      console.error('[att]', e);
+      document.getElementById('attHolder').innerHTML = '<div class="empty"><div class="ico">⚠️</div><div class="msg">근무표 로딩 실패</div><div class="sub2">'+esc(e.message)+'</div></div>';
+    });
+}
+
+function renderAtt(){
+  var holder = document.getElementById('attHolder');
+  if(!_attData){ holder.innerHTML = ''; return; }
+  var emps = _attData.employees || [];
+  var days = _attData.days;
+  var year = _attData.year;
+  var month = _attData.month;
+  var cells = _attData.cells || {};
+
+  // 부서별 그룹핑 (관리/영업)
+  var grouped = {}; var deptOrder = [];
+  emps.forEach(function(e){
+    if(!grouped[e.dept]){ grouped[e.dept] = []; deptOrder.push(e.dept); }
+    grouped[e.dept].push(e);
+  });
+
+  // 헤더 (날짜 + 요일)
+  var dowKor = ['일','월','화','수','목','금','토'];
+  var dayHeads = '';
+  for(var d=1; d<=days; d++){
+    var dateObj = new Date(year, month-1, d);
+    var dow = dowKor[dateObj.getDay()];
+    var dateStr = year+'-'+String(month).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    var isHoliday = !!_kHolidays[dateStr];
+    var dowClass = 'dow-'+dow + (isHoliday?' holiday':'');
+    dayHeads += '<th class="day-num '+dowClass+'">'+d+'</th>';
+  }
+  var dowRow = '';
+  for(var d2=1; d2<=days; d2++){
+    var dateObj2 = new Date(year, month-1, d2);
+    var dow2 = dowKor[dateObj2.getDay()];
+    var dateStr2 = year+'-'+String(month).padStart(2,'0')+'-'+String(d2).padStart(2,'0');
+    var isHoliday2 = !!_kHolidays[dateStr2];
+    var dowClass2 = 'dow-'+dow2 + (isHoliday2?' holiday':'');
+    dowRow += '<th class="'+dowClass2+'">'+dow2+'</th>';
+  }
+
+  var html = '<table class="att-tbl"><thead>';
+  html += '<tr><th rowspan="2" style="min-width:64px">분류</th><th rowspan="2" style="min-width:64px">구분</th><th rowspan="2" style="min-width:90px">직원</th>'+dayHeads+'</tr>';
+  html += '<tr>'+dowRow+'</tr>';
+  html += '</thead><tbody>';
+
+  // 분류별로 묶어서 rowspan 처리
+  var majorGroups = {};
+  deptOrder.forEach(function(dept){
+    var maj = _attMajorMap[dept] || '기타';
+    if(!majorGroups[maj]){ majorGroups[maj] = []; }
+    majorGroups[maj].push(dept);
+  });
+
+  Object.keys(majorGroups).forEach(function(maj){
+    var depts = majorGroups[maj];
+    var totalEmps = depts.reduce(function(s,dp){ return s + grouped[dp].length; }, 0);
+    var majPlaced = false;
+
+    depts.forEach(function(dept){
+      var deptEmps = grouped[dept];
+      deptEmps.forEach(function(emp, idx){
+        html += '<tr>';
+        // 분류 셀 — 첫 직원에서만, totalEmps만큼 rowspan
+        if(!majPlaced){
+          html += '<td class="col-fixed col-major" rowspan="'+totalEmps+'">'+esc(maj)+'<br><small style="font-size:10px;font-weight:800;writing-mode:horizontal-tb">('+totalEmps+'명)</small></td>';
+          majPlaced = true;
+        }
+        // 구분 셀 — 부서 첫 직원에서만, deptEmps.length만큼 rowspan
+        if(idx === 0){
+          html += '<td class="col-fixed col-dept" rowspan="'+deptEmps.length+'" style="left:64px">'+esc(dept)+'</td>';
+        }
+        html += '<td class="col-fixed col-name" style="left:128px">'+esc(emp.name)+'</td>';
+
+        // 31개 셀
+        for(var dd=1; dd<=days; dd++){
+          var dateO = new Date(year, month-1, dd);
+          var dowI = dateO.getDay();
+          var ds = year+'-'+String(month).padStart(2,'0')+'-'+String(dd).padStart(2,'0');
+          var hol = !!_kHolidays[ds];
+          var key = emp.id + '|' + ds;
+          var cell = cells[key];
+          var status, label, isAuto;
+          if(cell){
+            status = cell.status;
+            label = _statusLabel(status);
+            isAuto = false;
+          } else if(hol){
+            status = 'HOLIDAY'; label = '공휴일'; isAuto = true;
+          } else if(dowI === 0){
+            status = 'WEEKEND'; label = '주말(일)'; isAuto = true;
+          } else if(dowI === 6){
+            status = 'WEEKEND'; label = '주말(토)'; isAuto = true;
+          } else {
+            status = 'WORK'; label = ''; isAuto = false;
+          }
+          var clickable = (status !== 'WEEKEND') ? 'onclick="attOpenPop(this,'+emp.id+",'"+ds+"','"+status+"')\"" : '';
+          html += '<td class="s-'+status+'" '+clickable+'>'+esc(label)+'</td>';
+        }
+        html += '</tr>';
+      });
+    });
+  });
+  html += '</tbody></table>';
+  holder.innerHTML = html;
+
+  // 우측 상단 가용 통계 (오늘 기준)
+  _updateAttStat(emps, cells);
+}
+
+function _statusLabel(s){
+  return ({
+    'WORK':'', 'MONTHLY_OFF':'월차', 'HALF_AM':'반차오전', 'HALF_PM':'반차오후',
+    'ANNUAL':'연차', 'SICK':'병가', 'OFF':'휴무', 'HOLIDAY':'공휴일'
+  })[s] || '';
+}
+
+function _updateAttStat(emps, cells){
+  var today = new Date();
+  var ds = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  var dow = today.getDay();
+  var avail = 0; var weight = 0;
+  if(dow !== 0 && dow !== 6 && !_kHolidays[ds]){
+    emps.forEach(function(e){
+      var c = cells[e.id+'|'+ds];
+      if(!c){ avail++; weight += 1.0; return; }
+      if(c.status === 'WORK'){ avail++; weight += 1.0; }
+      else if(c.status === 'HALF_AM' || c.status === 'HALF_PM'){ avail++; weight += 0.5; }
+    });
+  }
+  document.getElementById('attStat').textContent = '오늘 가용 TM: '+avail+'명 · 가중치 '+weight.toFixed(1);
+}
+
+function attOpenPop(td, empId, dateStr, currentStatus){
+  _attCellSel = { employee_id: empId, work_date: dateStr };
+  var pop = document.getElementById('attPop');
+  document.getElementById('attPopHead').textContent = dateStr + ' · ' + (_attData.employees.find(function(e){return e.id===empId;})||{}).name;
+  // 위치 — 셀 옆
+  var rect = td.getBoundingClientRect();
+  pop.style.left = (rect.right + window.scrollX + 6) + 'px';
+  pop.style.top = (rect.top + window.scrollY) + 'px';
+  pop.style.display = 'flex';
+  // 외부 클릭 닫힘
+  setTimeout(function(){ document.addEventListener('click', _attPopOutside, {once:true}); }, 50);
+}
+function _attPopOutside(e){
+  var pop = document.getElementById('attPop');
+  if(pop && !pop.contains(e.target)){ attClosePop(); }
+  else { document.addEventListener('click', _attPopOutside, {once:true}); }
+}
+function attClosePop(){
+  document.getElementById('attPop').style.display = 'none';
+  _attCellSel = null;
+}
+function attSetCell(status){
+  if(!_attCellSel) return;
+  var sel = _attCellSel;
+  attClosePop();
+  // status='WORK' → CLEAR로 행 제거
+  var saveStatus = (status === 'WORK') ? 'CLEAR' : status;
+  fetch('/api/att_save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+    employee_id: sel.employee_id, work_date: sel.work_date, status: saveStatus
+  })})
+    .then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t); }); return r.json(); })
+    .then(function(){ loadAtt(); })
+    .catch(function(e){ alert('저장 실패: '+e.message); });
 }
 
 // ===== TAB 3 : DB 분배 =====
