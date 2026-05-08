@@ -132,6 +132,76 @@ tr.row-sel.row-dl td{background:#cfd8e7 !important}
 .placeholder h2{font-size:20px;font-weight:900;color:#333;margin-bottom:8px}
 .placeholder p{font-size:14px;line-height:1.7;max-width:560px;margin:0 auto 6px}
 .placeholder .feat{display:inline-block;margin:4px 4px 0;padding:6px 12px;background:#fff;border:1.5px solid var(--bdr);border-radius:999px;font-size:12px;font-weight:700;color:#555}
+
+/* DISTRIBUTE TAB */
+.dist-wrap{display:grid;grid-template-columns:340px 1fr;gap:16px;padding:18px 24px}
+@media(max-width:1100px){.dist-wrap{grid-template-columns:1fr}}
+.card-box{background:#fff;border:1.5px solid var(--bdr);border-radius:12px;padding:14px}
+.card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.card-head h3{font-size:14px;font-weight:900;color:#333}
+.btn-mini{padding:5px 10px;border:1.5px solid var(--blue);background:#fff;color:var(--blue);border-radius:6px;font-size:11px;font-weight:800;cursor:pointer}
+.btn-mini:hover{background:var(--blue);color:#fff}
+.btn-primary-sm{padding:8px 16px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer}
+.src-list{display:flex;flex-direction:column;gap:8px}
+.src-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fafbfc;border:1.5px solid var(--bdr);border-radius:8px;font-size:13px}
+.src-item .swatch{width:14px;height:14px;border-radius:4px;flex-shrink:0}
+.src-item .info{flex:1;min-width:0}
+.src-item .info b{display:block;font-size:13px;font-weight:800;color:#222}
+.src-item .info small{color:var(--sub);font-size:11px}
+.src-item .cnt{font-size:11px;font-weight:900;color:var(--blue);background:var(--blue-l);padding:3px 8px;border-radius:999px}
+
+.upload-form .fl-row{margin-bottom:10px}
+.fl-row label{display:block;font-size:11px;font-weight:800;color:var(--sub);margin-bottom:4px;letter-spacing:.04em;text-transform:uppercase}
+.dt-full{width:100%;padding:9px 12px;border:1.5px solid var(--bdr);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fff}
+.dt-full:focus{border-color:var(--blue)}
+
+.drop-zone{margin-top:6px;padding:24px 14px;border:2px dashed var(--bdr);border-radius:10px;text-align:center;cursor:pointer;transition:all .15s;background:#fafbfc}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--blue);background:var(--blue-l)}
+.drop-ico{font-size:36px;opacity:.5;margin-bottom:6px}
+.drop-msg{font-size:13px;color:#333;margin-bottom:4px}
+.drop-msg b{color:var(--blue)}
+.drop-sub{font-size:11px;color:var(--sub)}
+
+.up-preview{margin-top:10px;padding:12px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:8px;font-size:12px}
+.up-preview .pv-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.up-preview .pv-head b{font-size:13px;color:#9a3412}
+.up-preview .pv-table{max-height:180px;overflow:auto;background:#fff;border:1px solid var(--bdr);border-radius:6px}
+.up-preview .pv-table table{width:100%;border-collapse:collapse;font-size:11px;min-width:auto}
+.up-preview .pv-table th,.up-preview .pv-table td{padding:5px 8px;border-bottom:1px solid var(--bdr);text-align:left}
+.up-preview .pv-table th{background:#fafbfc;font-weight:800;color:#555;font-size:10px;text-transform:uppercase}
+.up-preview .pv-actions{display:flex;gap:8px;margin-top:8px}
+.up-preview .pv-actions button{flex:1;padding:8px;font-size:12px;font-weight:800;border-radius:6px;cursor:pointer;border:1.5px solid var(--bdr);background:#fff}
+.up-preview .pv-actions .pv-confirm{border-color:var(--green);color:#fff;background:var(--green)}
+.up-preview .pv-actions .pv-cancel{border-color:var(--bdr)}
+
+.dist-summary{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.dist-summary .ds-card{flex:1;min-width:120px;padding:12px 14px;background:#fff;border:1.5px solid var(--bdr);border-radius:10px}
+.dist-summary .ds-card .lbl{font-size:11px;font-weight:800;color:var(--sub);letter-spacing:.04em;margin-bottom:3px}
+.dist-summary .ds-card .num{font-size:22px;font-weight:900;color:var(--blue);line-height:1}
+
+.dist-toolbar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+#srcFilters{display:inline-flex;gap:5px;flex-wrap:wrap}
+.src-chip{padding:6px 11px;border-radius:999px;font-size:11px;font-weight:800;border:1.5px solid var(--bdr);background:#fff;cursor:pointer;color:#555}
+.src-chip.active{color:#fff}
+
+.pool-tbl{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.04)}
+.pool-tbl th,.pool-tbl td{padding:10px 12px;text-align:left;font-size:13px;border-bottom:1px solid var(--bdr)}
+.pool-tbl th{background:#fafbfc;font-weight:800;color:#555;font-size:11px;letter-spacing:.02em;text-transform:uppercase}
+.pool-tbl tr:hover td{background:#fafbfc}
+.pool-tbl .src-pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:900;color:#fff;letter-spacing:.04em}
+.pool-tbl .b-skt{background:#fee2e2;color:#dc2626;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:800}
+.pool-tbl .b-kt{background:#fef3c7;color:#d97706;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:800}
+.pool-tbl .b-lgu{background:#fce7f3;color:#db2777;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:800}
+.pool-tbl .st-NEW{background:#fff7ed;color:var(--orange);padding:3px 8px;border-radius:5px;font-size:10px;font-weight:800;border:1px solid #fed7aa}
+.pool-tbl .st-ASSIGNED{background:#eef1fb;color:var(--blue);padding:3px 8px;border-radius:5px;font-size:10px;font-weight:800;border:1px solid #c7d2fe}
+.pool-tbl .st-DONE{background:#f0fdf4;color:var(--green);padding:3px 8px;border-radius:5px;font-size:10px;font-weight:800;border:1px solid #bbf7d0}
+
+/* MODAL */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px}
+.modal-card{background:#fff;border-radius:14px;padding:24px;width:100%;max-width:420px;box-shadow:0 12px 48px rgba(0,0,0,.2)}
+.modal-card h3{font-size:16px;font-weight:900;margin-bottom:14px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.modal-actions .btn{padding:8px 16px;font-size:13px;font-weight:800}
 </style>
 </head>
 <body>
@@ -247,19 +317,73 @@ tr.row-sel.row-dl td{background:#cfd8e7 !important}
     </div>
   </section>
 
-  <!-- ===== TAB 3 : DB 분배 ===== -->
+  <!-- ===== TAB 3 : DB 분배 (업체 + 풀 + 업로드) ===== -->
   <section id="tab-distribute" class="tab-pane">
-    <div class="placeholder">
-      <div class="ico">🎯</div>
-      <h2>DB 분배 (자체 광고 + 외부 업체 엑셀)</h2>
-      <p>업체 엑셀 파일을 드래그 업로드 → 자체 광고 DB와 합쳐서 같은 풀에 소스 태그(A-A·A-B·B-B·B-C·C-B·TM-A)로 저장. 그날 출근한 TM의 가중치(반차 0.5, 월차 0)에 비례해 자동 분배하고, 매니저가 ±버튼으로 미세 조정 가능합니다.</p>
-      <div style="margin-top:18px">
-        <span class="feat">엑셀 업로드 + 컬럼 매핑</span>
-        <span class="feat">소스별 색깔 칩</span>
-        <span class="feat">자동 분배 실행</span>
-        <span class="feat">TM별 할당표</span>
-        <span class="feat">수량 ± 수동 조정</span>
-        <span class="feat">확정 → TM 워크보드로 푸시</span>
+    <div class="dist-wrap">
+      <!-- 좌측: 업체 마스터 -->
+      <aside class="dist-left">
+        <div class="card-box">
+          <div class="card-head">
+            <h3>📦 업체(소스) 관리</h3>
+            <button class="btn-mini" onclick="srcAddOpen()">+ 추가</button>
+          </div>
+          <div id="srcList" class="src-list"></div>
+        </div>
+
+        <div class="card-box" style="margin-top:14px">
+          <div class="card-head">
+            <h3>📤 엑셀 업로드</h3>
+          </div>
+          <div class="upload-form">
+            <div class="fl-row">
+              <label>업체 선택</label>
+              <select id="upSource" class="dt-full"></select>
+            </div>
+            <div class="fl-row">
+              <label>배치 라벨 (선택)</label>
+              <input type="text" id="upBatch" class="dt-full" placeholder="예: 2026-05-08 오전">
+            </div>
+            <div class="drop-zone" id="dropZone">
+              <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFile(this.files[0])">
+              <div class="drop-ico">📁</div>
+              <div class="drop-msg"><b>엑셀 파일 드래그</b> 하거나 클릭해서 선택</div>
+              <div class="drop-sub">지원: .xlsx · .xls · .csv (이름·전화·통신사·기종 자동 인식)</div>
+            </div>
+            <div id="upPreview" class="up-preview" style="display:none"></div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 우측: 풀 리스트 -->
+      <main class="dist-main">
+        <div class="dist-summary" id="distSummary"></div>
+        <div class="dist-toolbar">
+          <div class="tg">
+            <span class="tg-lbl">업체 필터</span>
+            <span id="srcFilters"></span>
+          </div>
+          <input type="text" class="search" id="poolSearch" placeholder="이름·전화·통신사·기종 검색" oninput="renderPool()">
+          <div class="btn-spacer"></div>
+          <button class="btn refresh" onclick="loadDist()">🔄 새로고침</button>
+        </div>
+        <div class="tbl-wrap" style="padding:0">
+          <div id="poolHolder"></div>
+        </div>
+      </main>
+    </div>
+
+    <!-- 업체 추가 모달 -->
+    <div id="srcModal" class="modal" style="display:none">
+      <div class="modal-card">
+        <h3>업체(소스) 추가</h3>
+        <div class="fl-row"><label>코드 (영문)</label><input type="text" id="srcCode" class="dt-full" placeholder="예: VENDOR_D"></div>
+        <div class="fl-row"><label>표시명</label><input type="text" id="srcLabel" class="dt-full" placeholder="예: D업체"></div>
+        <div class="fl-row"><label>업체 정식명 (선택)</label><input type="text" id="srcVendor" class="dt-full" placeholder="예: D사 마케팅"></div>
+        <div class="fl-row"><label>색상</label><input type="color" id="srcColor" value="#f59e0b"></div>
+        <div class="modal-actions">
+          <button class="btn" onclick="srcAddClose()">취소</button>
+          <button class="btn btn-primary-sm" onclick="srcAddSave()">저장</button>
+        </div>
       </div>
     </div>
   </section>
@@ -308,6 +432,259 @@ function switchTab(name){
   document.querySelectorAll('.tab-pane').forEach(function(p){
     p.classList.toggle('active', p.id === 'tab-'+name);
   });
+  if(name === 'distribute'){ loadDist(); }
+}
+
+// ===== TAB 3 : DB 분배 =====
+var _sources = [];
+var _pool = [];
+var _srcFilter = 'ALL';
+var _pendingUpload = null; // {source_id, batch_label, rows}
+
+function loadDist(){
+  return Promise.all([loadSources(), loadPool()]).then(function(){
+    renderSources();
+    renderSrcFilters();
+    renderUpSource();
+    renderPool();
+    renderDistSummary();
+  });
+}
+
+function loadSources(){
+  return fetch('/api/src_list', {cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw new Error('src HTTP '+r.status); return r.json(); })
+    .then(function(j){ _sources = j.items || []; })
+    .catch(function(e){ console.error('src load:', e); _sources = []; });
+}
+
+function loadPool(){
+  return fetch('/api/pool_list', {cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw new Error('pool HTTP '+r.status); return r.json(); })
+    .then(function(j){ _pool = j.items || []; })
+    .catch(function(e){ console.error('pool load:', e); _pool = []; });
+}
+
+function renderSources(){
+  var holder = document.getElementById('srcList');
+  if(!holder) return;
+  if(!_sources.length){
+    holder.innerHTML = '<div style="padding:14px;color:var(--sub);font-size:12px;text-align:center">업체가 없습니다. 우측 상단 + 추가</div>';
+    return;
+  }
+  holder.innerHTML = _sources.map(function(s){
+    return '<div class="src-item">'+
+      '<div class="swatch" style="background:'+esc(s.color||'#888')+'"></div>'+
+      '<div class="info"><b>'+esc(s.label)+'</b><small>'+esc(s.code)+(s.vendor?' · '+esc(s.vendor):'')+'</small></div>'+
+      '<span class="cnt">'+(s.pool_count||0)+'건</span>'+
+    '</div>';
+  }).join('');
+}
+
+function renderUpSource(){
+  var sel = document.getElementById('upSource');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">— 업체 선택 —</option>' +
+    _sources.filter(function(s){return s.active!==false;}).map(function(s){
+      return '<option value="'+s.id+'">'+esc(s.label)+'</option>';
+    }).join('');
+}
+
+function renderSrcFilters(){
+  var holder = document.getElementById('srcFilters');
+  if(!holder) return;
+  var html = '<button class="src-chip '+(_srcFilter==='ALL'?'active':'')+'" style="'+(_srcFilter==='ALL'?'background:var(--blue);border-color:var(--blue)':'')+'" onclick="setSrcF(\\'ALL\\')">전체</button>';
+  html += _sources.map(function(s){
+    var act = (_srcFilter == s.id);
+    var sty = act ? 'background:'+s.color+';border-color:'+s.color : '';
+    return '<button class="src-chip '+(act?'active':'')+'" style="'+sty+'" onclick="setSrcF('+s.id+')">'+esc(s.label)+'</button>';
+  }).join('');
+  holder.innerHTML = html;
+}
+
+function setSrcF(f){ _srcFilter = f; renderSrcFilters(); renderPool(); }
+
+function renderDistSummary(){
+  var holder = document.getElementById('distSummary');
+  if(!holder) return;
+  var total = _pool.length;
+  var newCnt = _pool.filter(function(p){return p.status==='NEW';}).length;
+  var assigned = _pool.filter(function(p){return p.status==='ASSIGNED';}).length;
+  var done = _pool.filter(function(p){return p.status==='DONE';}).length;
+  holder.innerHTML =
+    '<div class="ds-card"><div class="lbl">전체 풀</div><div class="num">'+total+'</div></div>'+
+    '<div class="ds-card"><div class="lbl">신규 (미분배)</div><div class="num" style="color:var(--orange)">'+newCnt+'</div></div>'+
+    '<div class="ds-card"><div class="lbl">분배 완료</div><div class="num" style="color:var(--blue)">'+assigned+'</div></div>'+
+    '<div class="ds-card"><div class="lbl">통화 완료</div><div class="num" style="color:var(--green)">'+done+'</div></div>';
+}
+
+function renderPool(){
+  var holder = document.getElementById('poolHolder');
+  if(!holder) return;
+  var data = _pool;
+  if(_srcFilter !== 'ALL'){
+    data = data.filter(function(p){return p.source_code && _sources.find(function(s){return s.id===_srcFilter && s.code===p.source_code;});});
+    // 안전: id로 다시 한 번
+    data = _pool.filter(function(p){
+      var matched = _sources.find(function(s){return s.id===_srcFilter;});
+      return matched && p.source_code === matched.code;
+    });
+  }
+  var q = (document.getElementById('poolSearch')?.value||'').trim().toLowerCase();
+  if(q){
+    data = data.filter(function(p){
+      return ((p.name||'')+(p.phone||'')+(p.carrier||'')+(p.model||'')+(p.source_label||'')).toLowerCase().indexOf(q)>=0;
+    });
+  }
+  if(!data.length){
+    holder.innerHTML = '<div class="empty"><div class="ico">📭</div><div class="msg">데이터 없음</div><div class="sub2">업체 엑셀을 업로드하면 여기에 쌓입니다</div></div>';
+    return;
+  }
+  var html = '<table class="pool-tbl"><thead><tr>'+
+    '<th>#</th><th>업체</th><th>유입일시</th><th>이름</th><th>연락처</th><th>통신사</th><th>희망기종</th><th>담당TM</th><th>상태</th>'+
+    '</tr></thead><tbody>';
+  data.forEach(function(p, i){
+    var carClass = p.carrier === 'SKT' ? 'b-skt' : (p.carrier === 'KT' ? 'b-kt' : 'b-lgu');
+    html += '<tr>'+
+      '<td>'+(i+1)+'</td>'+
+      '<td><span class="src-pill" style="background:'+esc(p.source_color||'#888')+'">'+esc(p.source_label||p.source_code)+'</span></td>'+
+      '<td>'+fmtDate(p.inflow_at)+'</td>'+
+      '<td><b>'+esc(p.name)+'</b></td>'+
+      '<td>'+esc(p.phone)+'</td>'+
+      '<td>'+(p.carrier?'<span class="'+carClass+'">'+esc(p.carrier)+'</span>':'')+'</td>'+
+      '<td>'+esc(p.model||'')+'</td>'+
+      '<td>'+(p.assigned_name?esc(p.assigned_name):'<span style="color:var(--sub)">미배정</span>')+'</td>'+
+      '<td><span class="st-'+esc(p.status)+'">'+esc(p.status)+'</span></td>'+
+    '</tr>';
+  });
+  html += '</tbody></table>';
+  holder.innerHTML = html;
+}
+
+// ===== 업체 추가 모달 =====
+function srcAddOpen(){ document.getElementById('srcModal').style.display='flex'; }
+function srcAddClose(){ document.getElementById('srcModal').style.display='none'; }
+function srcAddSave(){
+  var code = document.getElementById('srcCode').value.trim();
+  var label = document.getElementById('srcLabel').value.trim();
+  var vendor = document.getElementById('srcVendor').value.trim();
+  var color = document.getElementById('srcColor').value;
+  if(!code || !label){ alert('코드/표시명 필수'); return; }
+  fetch('/api/src_save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:code, label:label, vendor:vendor, color:color})})
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(){
+      srcAddClose();
+      document.getElementById('srcCode').value='';
+      document.getElementById('srcLabel').value='';
+      document.getElementById('srcVendor').value='';
+      loadDist();
+    })
+    .catch(function(e){ alert('저장 실패: '+e.message); });
+}
+
+// ===== 엑셀 업로드 =====
+(function setupDrop(){
+  document.addEventListener('DOMContentLoaded', function(){
+    var dz = document.getElementById('dropZone');
+    if(!dz) return;
+    dz.addEventListener('click', function(){ document.getElementById('fileInput').click(); });
+    ['dragenter','dragover'].forEach(function(ev){
+      dz.addEventListener(ev, function(e){ e.preventDefault(); e.stopPropagation(); dz.classList.add('dragover'); });
+    });
+    ['dragleave','drop'].forEach(function(ev){
+      dz.addEventListener(ev, function(e){ e.preventDefault(); e.stopPropagation(); dz.classList.remove('dragover'); });
+    });
+    dz.addEventListener('drop', function(e){
+      var f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if(f) handleFile(f);
+    });
+  });
+})();
+
+function handleFile(file){
+  if(!file) return;
+  var srcId = document.getElementById('upSource').value;
+  if(!srcId){ alert('업체를 먼저 선택하세요'); return; }
+  if(typeof XLSX === 'undefined'){ alert('엑셀 라이브러리 로드 실패'); return; }
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      var data = new Uint8Array(e.target.result);
+      var wb = XLSX.read(data, {type:'array'});
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      if(!rows.length){ alert('빈 파일이거나 헤더만 있음'); return; }
+      var mapped = autoMap(rows);
+      _pendingUpload = {
+        source_id: Number(srcId),
+        batch_label: document.getElementById('upBatch').value.trim() || null,
+        rows: mapped,
+        fileName: file.name
+      };
+      showUploadPreview();
+    } catch(err){
+      console.error(err);
+      alert('파일 파싱 실패: '+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// 컬럼 자동 매핑 — 한글/영문 헤더 모두 인식
+function autoMap(rows){
+  return rows.map(function(r){
+    var keys = Object.keys(r);
+    function find(patterns){
+      for(var i=0;i<keys.length;i++){
+        var k = keys[i].toLowerCase().replace(/\s/g,'');
+        for(var j=0;j<patterns.length;j++){
+          if(k.indexOf(patterns[j])>=0) return r[keys[i]];
+        }
+      }
+      return '';
+    }
+    return {
+      name: String(find(['이름','고객명','성함','name','customer'])||'').trim(),
+      phone: String(find(['전화','연락처','휴대','폰','phone','mobile','tel'])||'').trim(),
+      carrier: String(find(['통신사','이통사','carrier'])||'').trim().toUpperCase().replace(/\s/g,''),
+      model: String(find(['기종','단말','모델','희망','model'])||'').trim()
+    };
+  }).filter(function(r){ return r.name && r.phone; });
+}
+
+function showUploadPreview(){
+  var box = document.getElementById('upPreview');
+  if(!_pendingUpload){ box.style.display='none'; return; }
+  var rows = _pendingUpload.rows;
+  var srcLabel = (_sources.find(function(s){return s.id===_pendingUpload.source_id;})||{}).label || '?';
+  var html = '<div class="pv-head"><b>📋 미리보기 — '+esc(_pendingUpload.fileName)+'</b><span style="color:#9a3412;font-weight:800">'+rows.length+'건 인식</span></div>';
+  html += '<div style="font-size:11px;color:#9a3412;margin-bottom:6px">업체: <b>'+esc(srcLabel)+'</b> · 처음 5건 미리보기</div>';
+  html += '<div class="pv-table"><table><thead><tr><th>#</th><th>이름</th><th>전화</th><th>통신사</th><th>기종</th></tr></thead><tbody>';
+  rows.slice(0,5).forEach(function(r,i){
+    html += '<tr><td>'+(i+1)+'</td><td>'+esc(r.name)+'</td><td>'+esc(r.phone)+'</td><td>'+esc(r.carrier)+'</td><td>'+esc(r.model)+'</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  html += '<div class="pv-actions"><button class="pv-cancel" onclick="cancelUpload()">취소</button><button class="pv-confirm" onclick="confirmUpload()">'+rows.length+'건 업로드 확정</button></div>';
+  box.innerHTML = html;
+  box.style.display = 'block';
+}
+
+function cancelUpload(){
+  _pendingUpload = null;
+  document.getElementById('upPreview').style.display='none';
+  document.getElementById('fileInput').value = '';
+}
+
+function confirmUpload(){
+  if(!_pendingUpload) return;
+  fetch('/api/pool_upload', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(_pendingUpload)})
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(j){
+      alert('✅ 업로드 완료: '+j.inserted+'건 추가 ('+j.skipped+'건 누락)');
+      cancelUpload();
+      loadDist();
+    })
+    .catch(function(e){ alert('업로드 실패: '+e.message); });
 }
 </script>
 <script>
