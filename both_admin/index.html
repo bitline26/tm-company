@@ -702,18 +702,37 @@ function cancelUpload(){
   document.getElementById('fileInput').value = '';
 }
 
+var _uploadInFlight = false;
+
 function confirmUpload(){
   if(!_pendingUpload) return;
+  if(_uploadInFlight){ return; }                    // 더블클릭 방지
+  var n = _pendingUpload.rows.length;
+  var srcLabel = (_sources.find(function(s){return s.id===_pendingUpload.source_id;})||{}).label || '?';
+  // 업로드 직전 한 번 더 확인
+  if(!confirm('업로드 확정\n\n  업체:  '+srcLabel+'\n  건수:  '+n+'개\n\n'+n+'개가 맞으면 [확인] 누르세요.\n중복 업로드 방지를 위해 한 번만 누르세요.')){
+    return;
+  }
+
+  _uploadInFlight = true;
+  // 확정 버튼 즉시 비활성화 (중복 클릭 차단)
+  var btn = document.querySelector('#upPreview .pv-confirm');
+  if(btn){ btn.disabled = true; btn.textContent = '업로드 중...'; btn.style.opacity = '0.6'; btn.style.cursor = 'not-allowed'; }
+
   fetch('/api/pool_upload', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(_pendingUpload)})
-    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t); }); return r.json(); })
     .then(function(j){
-      alert('✅ 업로드 완료: '+j.inserted+'건 추가 ('+j.skipped+'건 누락)');
+      alert('✅ 업로드 완료\n\n  추가:  '+j.inserted+'건\n  누락:  '+j.skipped+'건');
       cancelUpload();
-      uploadClose();
-      refresh();          // 첫 탭(신청자 DB) 즉시 갱신
+      uploadClose();      // 모달 닫기
+      refresh();          // 첫 탭 즉시 갱신
       if(document.getElementById('tab-distribute').classList.contains('active')) loadDist();
     })
-    .catch(function(e){ alert('업로드 실패: '+e.message); });
+    .catch(function(e){ alert('업로드 실패: '+e.message); console.error('[upload]', e); })
+    .finally(function(){
+      _uploadInFlight = false;
+      if(btn){ btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; }
+    });
 }
 </script>
 <script>
