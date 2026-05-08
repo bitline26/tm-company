@@ -710,29 +710,47 @@ function confirmUpload(){
   var n = _pendingUpload.rows.length;
   var srcLabel = (_sources.find(function(s){return s.id===_pendingUpload.source_id;})||{}).label || '?';
   // 업로드 직전 한 번 더 확인
-  if(!confirm('업로드 확정\n\n  업체:  '+srcLabel+'\n  건수:  '+n+'개\n\n'+n+'개가 맞으면 [확인] 누르세요.\n중복 업로드 방지를 위해 한 번만 누르세요.')){
+  if(!confirm('업로드 확정\n\n  업체:  '+srcLabel+'\n  건수:  '+n+'개\n\n'+n+'개가 맞으면 [확인] 누르세요.')){
     return;
   }
 
+  // 확인 누르는 즉시 모달 닫고 페이로드만 백그라운드로 전송
+  var payload = _pendingUpload;
   _uploadInFlight = true;
-  // 확정 버튼 즉시 비활성화 (중복 클릭 차단)
-  var btn = document.querySelector('#upPreview .pv-confirm');
-  if(btn){ btn.disabled = true; btn.textContent = '업로드 중...'; btn.style.opacity = '0.6'; btn.style.cursor = 'not-allowed'; }
+  cancelUpload();
+  uploadClose();          // 모달 즉시 사라짐
+  _suspendRefresh(8000);   // 잠시 자동새로고침 일시정지
 
-  fetch('/api/pool_upload', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(_pendingUpload)})
+  fetch('/api/pool_upload', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
     .then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t); }); return r.json(); })
     .then(function(j){
-      alert('✅ 업로드 완료\n\n  추가:  '+j.inserted+'건\n  누락:  '+j.skipped+'건');
-      cancelUpload();
-      uploadClose();      // 모달 닫기
-      refresh();          // 첫 탭 즉시 갱신
+      // 백그라운드 토스트 (방해 안 됨)
+      showToast('✅ '+srcLabel+' '+j.inserted+'건 추가됨'+(j.skipped?(' · 누락 '+j.skipped):''));
+      _suspendRefreshUntil = 0;
+      refresh();
       if(document.getElementById('tab-distribute').classList.contains('active')) loadDist();
     })
-    .catch(function(e){ alert('업로드 실패: '+e.message); console.error('[upload]', e); })
-    .finally(function(){
-      _uploadInFlight = false;
-      if(btn){ btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; }
-    });
+    .catch(function(e){
+      alert('업로드 실패: '+e.message);
+      console.error('[upload]', e);
+      _suspendRefreshUntil = 0;
+    })
+    .finally(function(){ _uploadInFlight = false; });
+}
+
+// 가벼운 토스트 — 모달 막지 않고 우측하단에 잠깐 떴다 사라짐
+function showToast(msg){
+  var t = document.getElementById('_toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = '_toast';
+    t.style.cssText = 'position:fixed;right:20px;bottom:20px;padding:14px 22px;background:#10b981;color:#fff;font-weight:800;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:99999;font-size:14px;transition:opacity .3s;opacity:0;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._tm);
+  t._tm = setTimeout(function(){ t.style.opacity = '0'; }, 2500);
 }
 </script>
 <script>
@@ -825,6 +843,8 @@ function loadData(){
 }
 
 function refresh(){
+  // 낙관적 삭제/업로드 직후 일시정지 구간이면 스킵
+  if(_suspendRefreshUntil && Date.now() < _suspendRefreshUntil){ return Promise.resolve(); }
   return loadData().then(render);
 }
 
@@ -1046,44 +1066,48 @@ function markDownloadedBatch(ids){
     .catch(function(e){ console.error('mark batch failed:', e); alert('다운완료 표시 실패: '+e.message+'\n파일은 정상 다운로드되었습니다.'); });
 }
 
+// 자동새로고침 일시 정지 (낙관적 삭제 직후 화면 깜빡임 방지)
+var _suspendRefreshUntil = 0;
+function _suspendRefresh(ms){ _suspendRefreshUntil = Date.now() + (ms||5000); }
+
 function delOne(id){
-  if(!confirm('정말 이 디비를 삭제하시겠습니까?\n(ID: '+id+')')) return;
-  console.log('[delOne] sending id:', id, typeof id);
-  // ID prefix(A/P) 그대로 보내야 서버가 어느 테이블인지 판별
+  // 낙관적: 즉시 화면에서 제거
+  _items = _items.filter(function(d){ return d.id !== id; });
+  _selected.delete(id);
+  render();
+  _suspendRefresh(5000);
+  // 백그라운드 전송
   fetch('/api/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:String(id)})})
-    .then(function(r){
-      console.log('[delOne] status:', r.status);
-      if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t); });
-      return r.json();
-    })
-    .then(function(j){
-      console.log('[delOne] result:', j);
-      _selected.delete(id);
+    .then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t); }); return r.json(); })
+    .catch(function(e){
+      alert('삭제 실패: '+e.message+'\n다시 불러옵니다.');
+      _suspendRefreshUntil = 0;
       refresh();
-    })
-    .catch(function(e){ alert('삭제 실패: '+e.message); console.error('[delOne]', e); });
+    });
 }
 
 function delSelected(){
   var ids = Array.from(_selected);
   if(!ids.length){ alert('선택된 디비가 없습니다'); return; }
-  if(!confirm('선택한 '+ids.length+'건을 삭제하시겠습니까?')) return;
-  // 순차 삭제 (서버에 ID 1개씩 전송, 백엔드가 prefix 보고 application/pool 분기)
-  var done = 0, failed = 0;
-  function next(){
-    if(!ids.length){
-      alert('✅ '+done+'건 삭제 완료'+(failed?(' / ❌ '+failed+'건 실패'):''));
-      _selected.clear();
+  if(!confirm(ids.length+'건 삭제하시겠습니까?')) return;
+  // 낙관적: 즉시 화면에서 모두 제거
+  _items = _items.filter(function(d){ return !_selected.has(d.id); });
+  _selected.clear();
+  render();
+  _suspendRefresh(8000);
+  // 병렬 전송 (한 번에 다 쏨)
+  Promise.all(ids.map(function(id){
+    return fetch('/api/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:String(id)})})
+      .then(function(r){ return r.ok; })
+      .catch(function(){ return false; });
+  })).then(function(results){
+    var failed = results.filter(function(ok){ return !ok; }).length;
+    if(failed > 0){
+      alert(failed+'건 삭제 실패 — 다시 불러옵니다.');
+      _suspendRefreshUntil = 0;
       refresh();
-      return;
     }
-    var id = ids.shift();
-    fetch('/api/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:String(id)})})
-      .then(function(r){ if(!r.ok) throw new Error(); done++; })
-      .catch(function(){ failed++; })
-      .finally(next);
-  }
-  next();
+  });
 }
 function clearAll(){
   if(!confirm('정말 모든 신청 데이터를 삭제하시겠습니까? (KPI + Demand 모두) 복구 불가능합니다.')) return;
