@@ -707,31 +707,25 @@ var _uploadInFlight = false;
 function confirmUpload(){
   if(!_pendingUpload) return;
   if(_uploadInFlight){ return; }                    // 더블클릭 방지
-  var n = _pendingUpload.rows.length;
-  var srcLabel = (_sources.find(function(s){return s.id===_pendingUpload.source_id;})||{}).label || '?';
-  // 업로드 직전 한 번 더 확인
-  if(!confirm('업로드 확정\n\n  업체:  '+srcLabel+'\n  건수:  '+n+'개\n\n'+n+'개가 맞으면 [확인] 누르세요.')){
-    return;
-  }
-
-  // 확인 누르는 즉시 모달 닫고 페이로드만 백그라운드로 전송
   var payload = _pendingUpload;
+  var srcLabel = (_sources.find(function(s){return s.id===payload.source_id;})||{}).label || '?';
+
+  // ⚡ 클릭 즉시: 잠금 + 모달 닫고 끝 (확인 다이얼로그 없음)
   _uploadInFlight = true;
   cancelUpload();
-  uploadClose();          // 모달 즉시 사라짐
-  _suspendRefresh(8000);   // 잠시 자동새로고침 일시정지
+  uploadClose();          // 모달 사라짐
+  _suspendRefresh(8000);
 
   fetch('/api/pool_upload', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
     .then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t); }); return r.json(); })
     .then(function(j){
-      // 백그라운드 토스트 (방해 안 됨)
-      showToast('✅ '+srcLabel+' '+j.inserted+'건 추가됨'+(j.skipped?(' · 누락 '+j.skipped):''));
+      showToast('✅ '+srcLabel+' '+j.inserted+'건 추가'+(j.skipped?(' · 누락 '+j.skipped):''));
       _suspendRefreshUntil = 0;
       refresh();
       if(document.getElementById('tab-distribute').classList.contains('active')) loadDist();
     })
     .catch(function(e){
-      alert('업로드 실패: '+e.message);
+      showToast('❌ 업로드 실패: '+e.message);
       console.error('[upload]', e);
       _suspendRefreshUntil = 0;
     })
