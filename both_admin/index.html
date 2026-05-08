@@ -196,6 +196,45 @@ tr.row-sel.row-dl td{background:#cfd8e7 !important}
 .pool-tbl .st-ASSIGNED{background:#eef1fb;color:var(--blue);padding:3px 8px;border-radius:5px;font-size:10px;font-weight:800;border:1px solid #c7d2fe}
 .pool-tbl .st-DONE{background:#f0fdf4;color:var(--green);padding:3px 8px;border-radius:5px;font-size:10px;font-weight:800;border:1px solid #bbf7d0}
 
+/* DISTRIBUTE TAB v2 */
+.dist2-toolbar{display:flex;align-items:center;gap:10px;padding:14px 24px;background:#fff;border-bottom:1px solid var(--bdr);flex-wrap:wrap}
+.dist2-toolbar .tg-lbl{font-size:11px;font-weight:800;color:var(--sub);letter-spacing:.04em}
+.dist2-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:18px 24px}
+.dist2-grid .card-box.dist2-result{grid-column:1 / -1}
+@media(max-width:900px){.dist2-grid{grid-template-columns:1fr}}
+.pill-blue{display:inline-block;padding:4px 12px;background:var(--blue);color:#fff;font-size:11px;font-weight:900;border-radius:999px}
+.dist2-pool{display:flex;flex-direction:column;gap:8px;max-height:240px;overflow-y:auto}
+.dist2-pool .pi{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fafbfc;border:1.5px solid var(--bdr);border-radius:8px}
+.dist2-pool .pi .swatch{width:14px;height:14px;border-radius:4px;flex-shrink:0}
+.dist2-pool .pi .lab{flex:1;font-size:13px;font-weight:800;color:#222}
+.dist2-pool .pi .cnt{font-size:13px;font-weight:900;color:var(--blue);background:var(--blue-l);padding:3px 10px;border-radius:999px;min-width:50px;text-align:center}
+
+.dist2-emp{display:flex;flex-wrap:wrap;gap:6px;max-height:260px;overflow-y:auto;padding:4px}
+.dist2-emp .ec{padding:6px 10px;border-radius:6px;font-size:12px;font-weight:800;border:1.5px solid var(--bdr);background:#fff}
+.dist2-emp .ec.r1{background:#d4edda;color:#155724;border-color:#c3e6cb}
+.dist2-emp .ec.r05{background:#fff3cd;color:#856404;border-color:#ffeeba}
+.dist2-emp .ec.r0{background:#f1f3f5;color:#999;border-color:var(--bdr);text-decoration:line-through}
+
+.dist2-action{padding:6px 0}
+.dist2-sum{margin-top:14px;padding:12px;background:var(--blue-l);border:1.5px solid #c7d2fe;border-radius:8px;font-size:13px;line-height:1.7}
+.dist2-sum b{color:var(--blue)}
+
+.dist2-alloc-holder{max-height:520px;overflow-y:auto}
+.dist2-alloc{width:100%;border-collapse:collapse}
+.dist2-alloc th,.dist2-alloc td{padding:9px 12px;font-size:13px;border-bottom:1px solid var(--bdr);text-align:center}
+.dist2-alloc th{background:#fafbfc;font-weight:800;color:#555;font-size:11px;letter-spacing:.04em;text-transform:uppercase;position:sticky;top:0;z-index:1}
+.dist2-alloc tr:hover td{background:#fafbfc}
+.dist2-alloc td.t-name{text-align:left;font-weight:800}
+.dist2-alloc td.t-ratio{font-weight:900}
+.dist2-alloc td.t-ratio.r1{color:var(--green)}
+.dist2-alloc td.t-ratio.r05{color:var(--orange)}
+.dist2-alloc td.t-ratio.r0{color:#999;text-decoration:line-through}
+.dist2-alloc td.t-cnt{font-weight:900;color:var(--blue);font-size:14px}
+.dist2-alloc .qbtn{width:24px;height:24px;border:1.5px solid var(--bdr);background:#fff;border-radius:6px;font-size:13px;font-weight:900;cursor:pointer;color:#444}
+.dist2-alloc .qbtn:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
+.dist2-alloc .qinp{width:54px;padding:4px 6px;border:1.5px solid var(--bdr);border-radius:6px;font-size:13px;font-weight:900;text-align:center;font-family:inherit}
+.dist2-alloc tfoot td{background:#eef1fb;font-weight:900;font-size:13px;color:var(--blue)}
+
 /* ATTENDANCE TAB */
 .att-toolbar{display:flex;align-items:center;gap:10px;padding:14px 24px;background:#fff;border-bottom:1px solid var(--bdr);flex-wrap:wrap}
 .att-mv{padding:6px 14px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:900;cursor:pointer}
@@ -426,42 +465,64 @@ tr.row-sel.row-dl td{background:#cfd8e7 !important}
     </div>
   </section>
 
-  <!-- ===== TAB 3 : DB 분배 (업체 + 풀 + 업로드) ===== -->
+  <!-- ===== TAB 3 : DB 분배 (날짜 × 근무표 × 디비풀 → TM 자동분배) ===== -->
   <section id="tab-distribute" class="tab-pane">
-    <div class="dist-wrap">
-      <!-- 좌측: 업체 마스터 -->
-      <aside class="dist-left">
-        <div class="card-box">
-          <div class="card-head">
-            <h3>📦 업체(소스) 관리</h3>
-            <button class="btn-mini" onclick="srcAddOpen()">+ 추가</button>
-          </div>
-          <div id="srcList" class="src-list"></div>
-        </div>
+    <div class="dist2-toolbar">
+      <span class="tg-lbl">분배 기준일</span>
+      <input type="date" class="dt" id="distDate" onchange="loadDist2()">
+      <button class="filter-btn" onclick="distSetDate(0)">오늘</button>
+      <button class="filter-btn" onclick="distSetDate(-1)">어제</button>
+      <button class="filter-btn" onclick="distSetDate(1)">내일</button>
+      <div class="btn-spacer"></div>
+      <button class="btn refresh" onclick="loadDist2()">🔄 다시 불러오기</button>
+    </div>
 
-        <div class="card-box" style="margin-top:14px">
-          <div style="padding:14px;font-size:12px;color:var(--sub);line-height:1.6">
-            💡 엑셀 업로드는 <b style="color:var(--blue)">신청자 DB 탭</b>의 <b>📤 업체 엑셀 업로드</b> 버튼에서 하세요. 업로드된 디비는 자동으로 첫 탭 리스트에 일자별로 박힙니다.
-          </div>
-        </div>
-      </aside>
+    <div class="dist2-grid">
+      <!-- 좌상: 그날 들어온 디비 -->
+      <div class="card-box">
+        <div class="card-head"><h3>📥 그날 들어온 신규 디비</h3><span id="distPoolTotal" class="pill-blue">0건</span></div>
+        <div id="distPoolBreak" class="dist2-pool"></div>
+      </div>
 
-      <!-- 우측: 풀 리스트 -->
-      <main class="dist-main">
-        <div class="dist-summary" id="distSummary"></div>
-        <div class="dist-toolbar">
-          <div class="tg">
-            <span class="tg-lbl">업체 필터</span>
-            <span id="srcFilters"></span>
+      <!-- 우상: 가용 TM -->
+      <div class="card-box">
+        <div class="card-head"><h3>👥 가용 TM (근무표 기준)</h3><span id="distEmpTotal" class="pill-blue">0명 · 0.0</span></div>
+        <div id="distEmpList" class="dist2-emp"></div>
+      </div>
+
+      <!-- 좌하: 자동분배 + 합계 -->
+      <div class="card-box">
+        <div class="card-head"><h3>⚙ 자동 분배</h3></div>
+        <div class="dist2-action">
+          <button class="btn-primary-sm" style="width:100%;padding:14px;font-size:15px" onclick="distAutoRun()">⚡ 자동 분배 실행</button>
+          <div style="font-size:11px;color:var(--sub);margin-top:8px;line-height:1.5">
+            그날 들어온 신규 디비를 가용 TM의 근무 가중치(반차 0.5 / 정상 1.0)에 비례하여 자동 배분합니다. 결과는 우측에 표시되며, ± 버튼으로 미세 조정 후 [확정 저장] 누르면 TM에게 푸시됩니다.
           </div>
-          <input type="text" class="search" id="poolSearch" placeholder="이름·전화·통신사·기종 검색" oninput="renderPool()">
-          <div class="btn-spacer"></div>
-          <button class="btn refresh" onclick="loadDist()">🔄 새로고침</button>
         </div>
-        <div class="tbl-wrap" style="padding:0">
-          <div id="poolHolder"></div>
+        <div id="distSumBox" class="dist2-sum" style="display:none"></div>
+      </div>
+
+      <!-- 우하: 분배 결과표 -->
+      <div class="card-box dist2-result">
+        <div class="card-head">
+          <h3>📊 분배 결과 (TM별 할당)</h3>
+          <button id="distSaveBtn" class="btn-primary-sm" style="display:none" onclick="distSave()">💾 확정 저장</button>
         </div>
-      </main>
+        <div id="distAllocHolder" class="dist2-alloc-holder">
+          <div class="empty" style="padding:30px 14px"><div class="ico" style="font-size:36px">⚙</div><div class="msg">자동 분배 실행 버튼을 누르세요</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 업체 관리 (작은 사이드 카드) -->
+    <div style="padding:0 24px 18px">
+      <div class="card-box">
+        <div class="card-head">
+          <h3>📦 업체(소스) 관리</h3>
+          <button class="btn-mini" onclick="srcAddOpen()">+ 업체 추가</button>
+        </div>
+        <div id="srcList" class="src-list"></div>
+      </div>
     </div>
 
     <!-- 업체 추가 모달 -->
@@ -524,8 +585,161 @@ function switchTab(name){
   document.querySelectorAll('.tab-pane').forEach(function(p){
     p.classList.toggle('active', p.id === 'tab-'+name);
   });
-  if(name === 'distribute'){ loadDist(); }
+  if(name === 'distribute'){ loadDist2(); loadSources().then(renderSources); }
   if(name === 'att'){ loadAtt(); }
+}
+
+// =================================================================
+// ===== TAB 3 : DB 분배 v2 — 날짜 × 근무표 × 풀 =====
+// =================================================================
+var _dist2 = null;
+var _dist2Alloc = {};   // employee_id → 할당량
+
+function _ymdToday(){
+  var d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function distSetDate(diff){
+  var ip = document.getElementById('distDate');
+  var base = ip.value || _ymdToday();
+  var d = new Date(base+'T00:00:00');
+  d.setDate(d.getDate() + diff);
+  ip.value = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  loadDist2();
+}
+
+function loadDist2(){
+  var dateIp = document.getElementById('distDate');
+  if(!dateIp.value){ dateIp.value = _ymdToday(); }
+  var date = dateIp.value;
+  return fetch('/api/distribute_preview?date='+encodeURIComponent(date), {cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(j){ _dist2 = j; _dist2Alloc = {}; renderDist2(); })
+    .catch(function(e){ console.error('[dist2]', e); alert('분배 데이터 로드 실패: '+e.message); });
+}
+
+function renderDist2(){
+  if(!_dist2) return;
+  // 1. 풀 카운트
+  var holder = document.getElementById('distPoolBreak');
+  var total = _dist2.total_pool || 0;
+  document.getElementById('distPoolTotal').textContent = total + '건';
+  if(_dist2.pool.length === 0){
+    holder.innerHTML = '<div style="padding:14px;color:var(--sub);font-size:12px;text-align:center">'+_dist2.date+'에 들어온 신규 디비 없음</div>';
+  } else {
+    holder.innerHTML = _dist2.pool.map(function(p){
+      return '<div class="pi"><div class="swatch" style="background:'+esc(p.color||'#888')+'"></div>'+
+             '<div class="lab">'+esc(p.label)+'</div><div class="cnt">'+p.cnt+'건</div></div>';
+    }).join('');
+  }
+
+  // 2. 가용 TM 칩
+  var emps = _dist2.employees || [];
+  var availCnt = emps.filter(function(e){ return e.ratio > 0; }).length;
+  var w = _dist2.total_weight || 0;
+  document.getElementById('distEmpTotal').textContent = availCnt+'명 · ' + (w.toFixed ? w.toFixed(1) : w);
+  var elist = document.getElementById('distEmpList');
+  if(emps.length === 0){
+    elist.innerHTML = '<div style="padding:14px;color:var(--sub);font-size:12px">대상 부서 직원이 없습니다</div>';
+  } else {
+    elist.innerHTML = emps.map(function(e){
+      var cls = e.ratio === 1.0 ? 'r1' : (e.ratio > 0 ? 'r05' : 'r0');
+      var statusLab = _statusLabel(e.status);
+      var lab = e.name + (statusLab ? ' · '+statusLab : '') + ' (' + e.ratio.toFixed(1) + ')';
+      return '<span class="ec '+cls+'">'+esc(lab)+'</span>';
+    }).join('');
+  }
+}
+
+function distAutoRun(){
+  if(!_dist2){ alert('데이터 로딩 대기'); return; }
+  var total = _dist2.total_pool || 0;
+  if(total === 0){ alert('이 날짜에 분배할 신규 디비가 없습니다'); return; }
+  var w = _dist2.total_weight || 0;
+  if(w <= 0){ alert('근무 가능한 TM이 없습니다 (근무표 확인)'); return; }
+
+  // 가중치 비례 분배 + 정수 라운드 + 잔여 보정
+  var allocs = _dist2.employees.map(function(e){
+    var raw = total * (e.ratio / w);
+    return { employee_id: e.id, ratio: e.ratio, raw: raw, count: Math.floor(raw) };
+  }).filter(function(a){ return a.ratio > 0; });
+
+  var assigned = allocs.reduce(function(s,a){return s+a.count;}, 0);
+  var leftover = total - assigned;
+  // 소수점 큰 순으로 +1 (가중치 큰 사람 우선)
+  var sorted = allocs.slice().sort(function(a,b){
+    var da = a.raw - Math.floor(a.raw);
+    var db = b.raw - Math.floor(b.raw);
+    return db - da;
+  });
+  for(var i=0; i<leftover && i<sorted.length; i++){ sorted[i].count++; }
+
+  _dist2Alloc = {};
+  allocs.forEach(function(a){ _dist2Alloc[a.employee_id] = a.count; });
+  renderDist2Alloc();
+}
+
+function renderDist2Alloc(){
+  if(!_dist2) return;
+  var emps = _dist2.employees;
+  var total = _dist2.total_pool || 0;
+  var allocSum = Object.values(_dist2Alloc).reduce(function(s,n){return s+(n||0);}, 0);
+
+  var html = '<table class="dist2-alloc"><thead><tr>'+
+    '<th>TM 이름</th><th>부서</th><th>근태</th><th>가중치</th><th>할당</th><th>±</th></tr></thead><tbody>';
+  emps.forEach(function(e){
+    var cnt = _dist2Alloc[e.id] || 0;
+    var rcls = e.ratio === 1.0 ? 'r1' : (e.ratio > 0 ? 'r05' : 'r0');
+    html += '<tr>'+
+      '<td class="t-name">'+esc(e.name)+'</td>'+
+      '<td>'+esc(e.dept)+'</td>'+
+      '<td>'+_statusLabel(e.status) || '정상' +'</td>'+
+      '<td class="t-ratio '+rcls+'">'+e.ratio.toFixed(1)+'</td>'+
+      '<td class="t-cnt"><input type="number" class="qinp" min="0" value="'+cnt+'" onchange="distSetAlloc('+e.id+',this.value)"></td>'+
+      '<td><button class="qbtn" onclick="distBumpAlloc('+e.id+',-1)">−</button> <button class="qbtn" onclick="distBumpAlloc('+e.id+',1)">+</button></td>'+
+    '</tr>';
+  });
+  html += '</tbody><tfoot><tr><td colspan="4" style="text-align:right">합계 / 풀</td><td class="t-cnt">'+allocSum+' / '+total+'</td><td>'+(allocSum===total?'✅':(allocSum>total?'⚠️ 초과':'⚠️ 부족'))+'</td></tr></tfoot></table>';
+
+  document.getElementById('distAllocHolder').innerHTML = html;
+  document.getElementById('distSaveBtn').style.display = (allocSum>0 && allocSum<=total) ? 'inline-block' : 'none';
+
+  var sumBox = document.getElementById('distSumBox');
+  sumBox.style.display = 'block';
+  sumBox.innerHTML = '풀 총 <b>'+total+'건</b> / 가중치 <b>'+(_dist2.total_weight.toFixed(1))+'</b> / 할당 합계 <b>'+allocSum+'건</b> ('+(total>0?Math.round(allocSum/total*100):0)+'%)';
+}
+
+function distSetAlloc(empId, val){
+  var n = Math.max(0, Number(val) || 0);
+  _dist2Alloc[empId] = n;
+  renderDist2Alloc();
+}
+function distBumpAlloc(empId, diff){
+  var n = Math.max(0, (_dist2Alloc[empId] || 0) + diff);
+  _dist2Alloc[empId] = n;
+  renderDist2Alloc();
+}
+
+function distSave(){
+  if(!_dist2) return;
+  var allocations = Object.keys(_dist2Alloc).filter(function(k){return _dist2Alloc[k]>0;}).map(function(k){
+    return { employee_id: Number(k), count: _dist2Alloc[k] };
+  });
+  if(allocations.length === 0){ alert('할당량이 0입니다'); return; }
+  var total = allocations.reduce(function(s,a){return s+a.count;}, 0);
+  if(total > _dist2.total_pool){ alert('할당 합계가 풀 보다 많습니다'); return; }
+  if(!confirm('확정 저장\n\n  날짜: '+_dist2.date+'\n  배정: '+total+'건\n  TM: '+allocations.length+'명\n\n저장하시겠습니까?')) return;
+
+  fetch('/api/distribute_save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+    date: _dist2.date, allocations: allocations
+  })})
+    .then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t); }); return r.json(); })
+    .then(function(j){
+      alert('✅ 분배 확정\n\n  배정: '+j.assigned+'건\n  대상: '+allocations.length+'명');
+      loadDist2();
+      refresh();
+    })
+    .catch(function(e){ alert('저장 실패: '+e.message); console.error('[dist2 save]', e); });
 }
 
 // =================================================================
