@@ -120,48 +120,56 @@
 
   .content{padding:18px 24px 60px;flex:1;overflow:auto}
 
-  .grid-wrap{border:1px solid var(--border);border-radius:8px;background:#fff;overflow:auto;max-width:100%}
-  table.grid{border-collapse:collapse;font-size:13px;table-layout:fixed}
-  table.grid th,table.grid td{border-right:1px solid var(--border-soft);border-bottom:1px solid var(--border-soft);padding:0;text-align:center;height:34px;vertical-align:middle}
-  table.grid thead th{background:var(--bg-soft);font-weight:600;color:var(--text-soft);font-size:11.5px;position:sticky;top:0;z-index:2;height:30px}
-  table.grid thead th.weekend{color:var(--red)}
-  table.grid thead th.sat{color:var(--blue)}
-  table.grid .col-name{position:sticky;left:0;background:#fff;z-index:3;text-align:left;padding:0 12px;font-weight:600;min-width:110px;border-right:1px solid var(--border)}
-  table.grid thead .col-name{background:var(--bg-soft);z-index:4}
-  table.grid tr:hover .col-name{background:var(--bg-soft)}
-  table.grid td.day{width:32px;cursor:pointer;font-size:11.5px;font-weight:600;color:var(--text-soft);position:relative;user-select:none}
-  table.grid td.day:hover{outline:2px solid var(--accent);outline-offset:-2px;z-index:1}
-  table.grid td.day.weekend{background:var(--bg-soft);cursor:default}
-  table.grid td.day.weekend:hover{outline:none}
-  table.grid td.day.today{box-shadow:inset 0 0 0 2px var(--accent)}
-  /* 셀 타입 색상 (Linear/Notion 톤 — 채도 낮고 선명) */
-  td.type-WORK{background:#fff}
-  td.type-OFF{background:#f1f1ef;color:#5b5750}
-  td.type-HALF_AM{background:linear-gradient(180deg,#fde8c8 50%,#fff 50%);color:#a96400}
-  td.type-HALF_PM{background:linear-gradient(180deg,#fff 50%,#fde8c8 50%);color:#a96400}
-  td.type-MONTHLY{background:#dee9f5;color:#175594}
-  td.type-ANNUAL{background:#dbe5f8;color:#1d4ed8}
-  td.type-SICK{background:#fde0dd;color:#b91c1c}
-  td.type-HOLIDAY{background:#ebe3f5;color:#6940a5}
-  td.day.requested::after{content:"";position:absolute;inset:2px;border:1.5px dashed #d49426;border-radius:3px;pointer-events:none}
-  td.day.rejected{text-decoration:line-through;color:#b91c1c!important;background:#fde0dd!important}
+  /* ───── 그리드 (노션 DB 캘린더 + 트렐로 보드 톤) ───── */
+  .grid-wrap{border:1px solid var(--border);border-radius:10px;background:#fff;overflow:auto;max-width:100%}
+  table.grid{border-collapse:separate;border-spacing:0;font-size:13px;table-layout:fixed;width:100%}
+  table.grid th,table.grid td{border-right:1px solid var(--border-soft);border-bottom:1px solid var(--border-soft);padding:0;text-align:center;vertical-align:middle}
+  table.grid thead th{background:#fbfaf8;font-weight:600;color:var(--text-soft);font-size:11px;letter-spacing:0.02em;position:sticky;top:0;z-index:2;height:32px;text-transform:uppercase}
+  table.grid thead th.weekend{color:#cf4b4b}
+  table.grid thead th.sat{color:#3271b6}
+  table.grid .col-name{position:sticky;left:0;background:#fff;z-index:3;text-align:left;padding:8px 14px;font-weight:600;width:140px;min-width:140px;border-right:1px solid var(--border)}
+  table.grid thead .col-name{background:#fbfaf8;z-index:4;font-weight:600}
+  table.grid tbody tr:hover .col-name{background:#faf9f6}
+  table.grid td.day{width:46px;height:42px;padding:4px;cursor:pointer;background:#fff;position:relative;user-select:none}
+  table.grid td.day:hover{background:#f7f7f5}
+  table.grid td.day.weekend{background:#fafaf8;cursor:default}
+  table.grid td.day.weekend:hover{background:#fafaf8}
+  table.grid td.day.today{background:#fff8e7}
+  table.grid td.day.today.weekend{background:#fdf3d8}
 
-  /* 본인 행 강조 — 좌측 액센트 바 + 행 배경 미세 톤다운 */
-  table.grid tr.row-self .col-name{
-    background:#f6f1e9;color:#37352f;
-    box-shadow:inset 3px 0 0 #0f0f0f;
-    padding-left:14px;
+  /* 셀 안 칩 (노션 DB 태그 스타일) */
+  .chip{
+    display:inline-flex;align-items:center;justify-content:center;
+    padding:3px 8px;border-radius:5px;
+    font-size:11px;font-weight:600;letter-spacing:-0.005em;
+    line-height:1.35;white-space:nowrap;
+    transition:transform .08s;
   }
-  table.grid tr.row-self td.day:not(.weekend){background-color:#fdfbf7}
-  table.grid tr.row-self td.day.type-OFF{background:#ecebe9}
-  table.grid tr.row-self td.day.type-MONTHLY{background:#d4e2f1}
-  table.grid tr.row-self td.day.type-ANNUAL{background:#cfdcf6}
-  table.grid tr.row-self td.day.type-SICK{background:#fcd6d2}
-  table.grid tr.row-self td.day.type-HOLIDAY{background:#e1d6f1}
+  .chip-WORK{background:transparent;color:#a3a29e;font-weight:500}
+  .chip-OFF{background:#ebebe9;color:#5b5750}
+  .chip-MONTHLY{background:#d3e5ef;color:#0b6e99}
+  .chip-ANNUAL{background:#dbe5f8;color:#1d4ed8}
+  .chip-HALF_AM,.chip-HALF_PM{background:#fde8c8;color:#a96400}
+  .chip-SICK{background:#ffe2dd;color:#b91c1c}
+  .chip-HOLIDAY{background:#e8deee;color:#6940a5}
+  .chip.is-requested{background:#fff;border:1px dashed #d49426;color:#a96400;padding:2px 7px}
+  .chip.is-rejected{text-decoration:line-through;opacity:.55}
+  td.day:hover .chip{transform:scale(1.04)}
+  td.day.empty:hover::after{
+    content:"+";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:#c2c0bc;font-size:18px;font-weight:300;
+  }
 
-  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;font-size:12px;color:var(--text-soft)}
-  .legend-item{display:inline-flex;align-items:center;gap:5px}
-  .legend-sw{display:inline-block;width:14px;height:14px;border-radius:3px;border:1px solid var(--border)}
+  /* 오늘 표시: 일자 헤더 강조 */
+  table.grid thead th.today-h{color:#0f0f0f;font-weight:800;background:#fff8e7}
+
+  /* 본인 행 강조 — 좌측 검정 바 + 살짝 다른 BG */
+  table.grid tr.row-self .col-name{box-shadow:inset 3px 0 0 #0f0f0f;background:#fbf9f3}
+  table.grid tr.row-self td.day:not(.weekend){background:#fdfcf8}
+  table.grid tr.row-self td.day:not(.weekend):hover{background:#f7f4ec}
+
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .legend-item{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-soft)}
 
   /* 헤더 위젯 (오늘 부재 / 본인 사용량) */
   .stat-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
@@ -183,24 +191,48 @@
   }
   .out-today .num{color:#7a4f00}
 
-  .modal-bg{position:fixed;inset:0;background:rgba(15,15,15,.42);display:flex;align-items:center;justify-content:center;z-index:50;backdrop-filter:blur(2px)}
-  .modal{background:#fff;border-radius:14px;width:440px;max-width:92vw;padding:24px;box-shadow:0 20px 50px rgba(15,15,15,.18),0 4px 12px rgba(15,15,15,.06);border:1px solid rgba(15,15,15,.05)}
-  .modal h3{margin:0 0 4px;font-size:16px;font-weight:700;letter-spacing:-0.01em}
-  .modal .modal-sub{font-size:12.5px;color:var(--text-soft);margin-bottom:16px}
-  .type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px}
+  /* ───── 우측 슬라이드 드로어 (트렐로 카드 상세 + 노션 페이지 톤) ───── */
+  .modal-bg{position:fixed;inset:0;background:rgba(15,15,15,.30);z-index:50;animation:fadeIn .15s ease-out}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes slideR{from{transform:translateX(100%)}to{transform:translateX(0)}}
+  .drawer{
+    position:fixed;top:0;right:0;bottom:0;width:440px;max-width:96vw;background:#fff;
+    box-shadow:-12px 0 40px rgba(15,15,15,.10),-1px 0 0 var(--border-soft);
+    padding:0;display:flex;flex-direction:column;
+    animation:slideR .22s cubic-bezier(.2,.7,.2,1);
+  }
+  .drawer-head{padding:20px 24px 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;border-bottom:1px solid var(--border-soft)}
+  .drawer-eyebrow{font-size:11px;color:var(--text-soft);font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:4px}
+  .drawer-title{font-size:18px;font-weight:700;letter-spacing:-0.01em;line-height:1.3}
+  .drawer-close{background:transparent;border:none;color:var(--text-soft);font-size:18px;cursor:pointer;padding:6px;border-radius:6px;line-height:1}
+  .drawer-close:hover{background:var(--hover);color:var(--text)}
+  .drawer-body{padding:18px 24px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:16px}
+  .drawer-prop{display:flex;align-items:flex-start;gap:10px;font-size:13px}
+  .drawer-prop .key{flex:0 0 84px;color:var(--text-soft);font-weight:500;font-size:12.5px;padding-top:4px}
+  .drawer-prop .val{flex:1}
+  .drawer-foot{padding:14px 20px;border-top:1px solid var(--border-soft);display:flex;gap:8px;justify-content:flex-end;background:#fafaf8;border-radius:0}
+
+  .type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
   .type-btn{padding:9px 6px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:12.5px;font-weight:600;text-align:center;color:var(--text-soft);transition:all .1s}
   .type-btn:hover{background:var(--hover)}
   .type-btn.on{border-color:#0f0f0f;background:#0f0f0f;color:#fff}
-  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+
   .audit-box{
-    margin:6px 0 14px;padding:10px 12px;border-radius:8px;background:#f7f6f3;
-    font-size:11.5px;color:var(--text-soft);line-height:1.55;
+    padding:12px 14px;border-radius:9px;background:#fafaf8;
+    font-size:12px;color:var(--text-soft);line-height:1.6;
+    display:flex;flex-direction:column;gap:4px;
   }
   .audit-box .audit-line{display:flex;justify-content:space-between;gap:8px}
   .audit-box .audit-key{color:#9b9a97;font-weight:500}
   .audit-box .audit-val{color:var(--text);font-weight:500}
   .audit-box .audit-val.ok{color:#0f7b6c}
   .audit-box .audit-val.no{color:#b91c1c}
+
+  /* 정통 모달 (반려 사유 등) */
+  .modal{background:#fff;border-radius:12px;width:420px;max-width:92vw;padding:22px;box-shadow:0 20px 50px rgba(15,15,15,.18);border:1px solid rgba(15,15,15,.05);position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:60}
+  .modal h3{margin:0 0 4px;font-size:15px;font-weight:700;letter-spacing:-0.01em}
+  .modal .modal-sub{font-size:12.5px;color:var(--text-soft);margin-bottom:14px}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
 
   .approval-list{display:flex;flex-direction:column;gap:8px}
   .approval-card{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid var(--border);border-radius:8px;background:#fff}
@@ -210,12 +242,93 @@
   .approval-actions{display:flex;gap:6px}
   .empty{padding:40px;text-align:center;color:var(--text-soft);font-size:13px}
 
-  .emp-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
-  .emp-card{padding:12px 14px;border:1px solid var(--border);border-radius:8px;background:#fff}
-  .emp-name{font-weight:700}
-  .emp-state{font-size:11.5px;color:var(--text-soft);margin-top:4px}
-  .emp-state .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gray);margin-right:4px;vertical-align:middle}
-  .emp-state.reg .dot{background:#4caf50}
+  /* ───── 직원 디렉토리 (메인 — 직원 중심) ───── */
+  .people-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .search-box{flex:1;position:relative;max-width:480px}
+  .search-box input{
+    width:100%;padding:11px 12px 11px 38px;border:1px solid var(--border);border-radius:10px;
+    background:#fff;font-size:14px;outline:none;transition:border-color .12s,box-shadow .12s;
+  }
+  .search-box input:focus{border-color:#0f0f0f;box-shadow:0 0 0 3px rgba(15,15,15,.06)}
+  .search-box::before{
+    content:"";position:absolute;left:13px;top:50%;width:14px;height:14px;
+    transform:translateY(-50%);
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239b9a97' stroke-width='2.2' stroke-linecap='round'><circle cx='11' cy='11' r='7'/><path d='m20 20-3.5-3.5'/></svg>");
+    background-size:contain;background-repeat:no-repeat;
+  }
+  .view-toggle{display:flex;gap:2px;background:#f1f1ef;padding:3px;border-radius:8px}
+  .view-toggle button{padding:6px 12px;border:none;background:transparent;border-radius:6px;font-size:12.5px;font-weight:600;color:var(--text-soft);cursor:pointer}
+  .view-toggle button.on{background:#fff;color:var(--text);box-shadow:0 1px 2px rgba(15,15,15,.06)}
+
+  .people-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+  .person-card{
+    padding:16px;border:1px solid var(--border);border-radius:12px;background:#fff;
+    cursor:pointer;transition:transform .1s,box-shadow .1s,border-color .1s;
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .person-card:hover{transform:translateY(-2px);border-color:#d8d8d4;box-shadow:0 6px 16px rgba(15,15,15,.06)}
+  .person-head{display:flex;align-items:center;gap:10px}
+  .avatar{
+    width:38px;height:38px;border-radius:50%;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:14px;color:#fff;letter-spacing:0.01em;
+  }
+  .person-name{font-weight:700;font-size:14.5px;letter-spacing:-0.005em}
+  .person-meta{font-size:11.5px;color:var(--text-soft);margin-top:1px;display:flex;align-items:center;gap:6px}
+  .person-meta .dot{width:6px;height:6px;border-radius:50%;background:var(--gray)}
+  .person-meta .dot.on{background:#4caf50}
+  .person-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:2px}
+  .person-stat{padding:6px 8px;background:#fafaf8;border-radius:7px;text-align:center}
+  .person-stat .lbl{font-size:10px;color:var(--text-soft);font-weight:500;letter-spacing:0.02em}
+  .person-stat .val{font-size:14px;font-weight:700;color:var(--text);margin-top:1px}
+  .person-today{font-size:11.5px;font-weight:600;padding:4px 8px;border-radius:5px;display:inline-flex;align-items:center;gap:5px;width:fit-content}
+  .person-today.t-WORK{background:#f0f9f0;color:#0f7b6c}
+  .person-today.t-OFF{background:#ebebe9;color:#5b5750}
+  .person-today.t-MONTHLY{background:#d3e5ef;color:#0b6e99}
+  .person-today.t-ANNUAL{background:#dbe5f8;color:#1d4ed8}
+  .person-today.t-HALF_AM,.person-today.t-HALF_PM{background:#fde8c8;color:#a96400}
+  .person-today.t-SICK{background:#ffe2dd;color:#b91c1c}
+
+  /* ───── 직원 상세 (프로필 페이지) ───── */
+  .person-detail{display:grid;grid-template-columns:300px 1fr;gap:24px;align-items:flex-start}
+  .pd-side{position:sticky;top:14px}
+  .pd-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:22px}
+  .pd-avatar{width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:28px;color:#fff;margin-bottom:14px}
+  .pd-name{font-size:20px;font-weight:700;letter-spacing:-0.01em}
+  .pd-role{font-size:12.5px;color:var(--text-soft);margin-top:2px}
+  .pd-props{margin-top:16px;border-top:1px solid var(--border-soft);padding-top:14px;display:flex;flex-direction:column;gap:10px}
+  .pd-prop{display:flex;justify-content:space-between;font-size:12.5px}
+  .pd-prop .k{color:var(--text-soft)}
+  .pd-prop .v{font-weight:600}
+  .pd-section{background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px}
+  .pd-section h3{margin:0 0 14px;font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px;letter-spacing:-0.005em}
+  .pd-stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  .pd-stat{padding:14px;background:#fafaf8;border-radius:10px;text-align:center}
+  .pd-stat .v{font-size:22px;font-weight:700;color:var(--text)}
+  .pd-stat .l{font-size:11.5px;color:var(--text-soft);font-weight:500;margin-top:2px;letter-spacing:0.02em}
+  .pd-mini-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .pd-mini-cal .pmh{text-align:center;font-size:10px;color:var(--text-soft);font-weight:600;padding:4px 0;letter-spacing:0.04em}
+  .pd-mini-cal .pmd{aspect-ratio:1;border-radius:7px;background:#fafaf8;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:11px;color:var(--text-soft);font-weight:600;border:1px solid transparent}
+  .pd-mini-cal .pmd.empty{visibility:hidden}
+  .pd-mini-cal .pmd:hover{background:#f1f1ef;border-color:var(--border)}
+  .pd-mini-cal .pmd.weekend{background:transparent}
+  .pd-mini-cal .pmd.today{box-shadow:inset 0 0 0 2px #0f0f0f}
+  .pd-mini-cal .pmd .chip{font-size:9.5px;padding:1px 5px;margin-top:2px}
+  .pd-history-list{display:flex;flex-direction:column;gap:8px}
+  .pd-hist{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:9px;background:#fafaf8;font-size:12.5px}
+  .pd-hist .hi-left{display:flex;align-items:center;gap:10px}
+  .pd-hist .hi-date{font-weight:600;min-width:70px}
+  .pd-hist .hi-status{font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px}
+  .pd-hist .s-APPROVED{background:#e2efea;color:#0f7b6c}
+  .pd-hist .s-REQUESTED{background:#fff5d9;color:#a96400}
+  .pd-hist .s-REJECTED{background:#ffe2dd;color:#b91c1c}
+  .pd-back{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;color:var(--text-soft);font-weight:600;cursor:pointer;padding:4px 8px;border-radius:6px;background:transparent;border:none}
+  .pd-back:hover{background:var(--hover);color:var(--text)}
+
+  @media (max-width:900px){
+    .person-detail{grid-template-columns:1fr}
+    .pd-stat-row{grid-template-columns:repeat(3,1fr)}
+  }
 
   .toast{position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#37352f;color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;z-index:80;box-shadow:var(--shadow-md);max-width:90vw}
 </style>
@@ -230,11 +343,20 @@ const State = {
   user: null,
   availableNames: [],
   presetNames: [],
-  page: 'grid',
+  page: 'people',          // 직원 디렉토리 = 메인 (직원 중심 어드민)
   ym: null,
   users: [],
   records: [],
+  search: '',              // 직원 검색어
+  selectedPersonId: null,  // 직원 상세 보기 대상
 };
+
+// 이름 → HSL 색상 (아바타 일관성)
+function nameColor(name){
+  let h=0; for(const ch of name) h=(h*31+ch.charCodeAt(0))%360;
+  return `hsl(${h}, 38%, 52%)`;
+}
+function initial(name){ return (name||'?').slice(0,1); }
 
 const $ = (sel,el=document)=>el.querySelector(sel);
 const h = (tag,attrs,...children)=>{
@@ -265,6 +387,16 @@ const TYPE_LABELS={
 const TYPE_SHORT={
   WORK:'', OFF:'휴', HALF_AM:'반', HALF_PM:'반',
   MONTHLY:'월', ANNUAL:'연', SICK:'병', HOLIDAY:'공',
+};
+// 셀 칩에 표시할 짧은 라벨 (노션 DB 태그 톤)
+const TYPE_SHORT_FULL={
+  WORK:'정상', OFF:'휴무', HALF_AM:'오전반차', HALF_PM:'오후반차',
+  MONTHLY:'월차', ANNUAL:'연차', SICK:'병가', HOLIDAY:'공가',
+};
+// 더 짧은 라벨(좁은 셀용)
+const TYPE_TINY={
+  WORK:'', OFF:'휴무', HALF_AM:'오반', HALF_PM:'오반',
+  MONTHLY:'월차', ANNUAL:'연차', SICK:'병가', HOLIDAY:'공가',
 };
 const REQUESTABLE_TYPES=['OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK'];
 
@@ -400,34 +532,45 @@ function renderApp(){
   const isPriv=State.user.role==='admin'||State.user.role==='manager';
   const pendingCount=State.records.filter(r=>r.status==='REQUESTED').length;
 
-  const navItem=(key,label,count)=>h('button',{
+  const navItem=(key,label,icon,count)=>h('button',{
     class:'nav-item '+(State.page===key?'on':''),
-    onClick:()=>{State.page=key;renderApp();}
-  }, label, count?h('span',{class:'nav-count'},count):null);
+    onClick:()=>{State.page=key;State.selectedPersonId=null;renderApp();}
+  },
+    h('span',{style:'display:inline-flex;align-items:center;gap:8px'},
+      h('span',{style:'font-size:14px;width:18px;display:inline-flex;justify-content:center'},icon),
+      label),
+    count?h('span',{class:'nav-count'},count):null
+  );
 
   const sidebar=h('aside',{class:'sidebar'},
     h('div',{class:'side-user'},
-      h('div',{class:'side-user-name'}, State.user.name,
+      h('div',{class:'side-user-name'},
+        h('span',{class:'avatar',style:`width:24px;height:24px;font-size:11px;background:${nameColor(State.user.name)}`}, initial(State.user.name)),
+        State.user.name,
         State.user.role==='admin'?h('span',{class:'role-badge role-admin'},'대표'):
         State.user.role==='manager'?h('span',{class:'role-badge role-manager'},'차장'):
         h('span',{class:'role-badge'},'직원')
       ),
-      h('div',{class:'side-user-meta'},'근태관리 시스템')
+      h('div',{class:'side-user-meta'},'티엠컴퍼니')
     ),
     h('nav',{class:'side-nav'},
-      navItem('grid','월간 근태'),
-      isPriv?navItem('approval','승인 대기',pendingCount||null):null,
-      navItem('employees','직원 목록'),
+      navItem('people','직원','👥'),
+      isPriv?navItem('approval','승인 대기','✔︎',pendingCount||null):null,
+      navItem('grid','팀 캘린더','📅'),
     ),
     h('div',{class:'side-foot'},
-      h('button',{class:'nav-item',onClick:logout},'로그아웃')
+      h('button',{class:'nav-item',onClick:logout},
+        h('span',{style:'display:inline-flex;align-items:center;gap:8px'},
+          h('span',{style:'font-size:14px;width:18px;display:inline-flex;justify-content:center'},'⎋'),
+          '로그아웃'))
     )
   );
 
   let content;
-  if(State.page==='grid') content=renderGrid();
+  if(State.selectedPersonId) content=renderPersonDetail();
+  else if(State.page==='people') content=renderPeople();
+  else if(State.page==='grid') content=renderGrid();
   else if(State.page==='approval') content=renderApproval();
-  else if(State.page==='employees') content=renderEmployees();
 
   const main=h('section',{class:'main'},
     renderTopbar(),
@@ -437,10 +580,14 @@ function renderApp(){
 }
 
 function renderTopbar(){
-  const titleMap={grid:'월간 근태',approval:'승인 대기',employees:'직원 목록'};
-  const title=titleMap[State.page]||'';
+  const titleMap={people:'직원',approval:'승인 대기',grid:'팀 캘린더'};
+  let title=titleMap[State.page]||'';
+  if(State.selectedPersonId){
+    const u=State.users.find(u=>u.id===State.selectedPersonId);
+    title=u?u.name:'직원';
+  }
   const actions=h('div',{class:'top-actions'});
-  if(State.page==='grid'){
+  if(State.page==='grid' && !State.selectedPersonId){
     const [y,m]=State.ym.split('-').map(Number);
     const change=(delta)=>{
       const d=new Date(y,m-1+delta,1);
@@ -457,10 +604,11 @@ function renderTopbar(){
       h('button',{class:'btn',onClick:()=>{State.ym=todayYm();loadMonth().then(renderApp);}},'오늘')
     );
   }
+  const crumb=State.selectedPersonId?'티엠컴퍼니 · 직원':'티엠컴퍼니';
   return h('header',{class:'topbar'},
     h('div',null,
-      h('div',{class:'crumbs'},'티엠컴퍼니'),
-      h('h1',{class:'page-title'},title)
+      h('div',{class:'crumbs'}, crumb),
+      h('h1',{class:'page-title'}, title)
     ),
     actions
   );
@@ -533,25 +681,29 @@ function renderGrid(){
   const headRow=[h('th',{class:'col-name'},'이름')];
   for(let d=1;d<=dim;d++){
     const dow=new Date(y,m-1,d).getDay();
+    const ymd=fmtYmd(y,m,d);
     const cls=[];
     if(dow===0) cls.push('weekend');
     if(dow===6) cls.push('sat');
-    headRow.push(h('th',{class:cls.join(' ')}, d));
-  }
-  const headRow2=[h('th',{class:'col-name'},'요일')];
-  for(let d=1;d<=dim;d++){
-    const dow=new Date(y,m-1,d).getDay();
+    if(ymd===todayYmd) cls.push('today-h');
     const labels=['일','월','화','수','목','금','토'];
-    const cls=[]; if(dow===0) cls.push('weekend'); if(dow===6) cls.push('sat');
-    headRow2.push(h('th',{class:cls.join(' ')}, labels[dow]));
+    headRow.push(h('th',{class:cls.join(' ')},
+      h('div',{style:'font-size:13px;font-weight:700;color:'+(ymd===todayYmd?'#0f0f0f':'inherit')}, d),
+      h('div',{style:'font-size:9.5px;font-weight:500;opacity:.7'}, labels[dow])
+    ));
   }
 
   const tbody=h('tbody');
   for(const u of State.users){
     const isSelf=u.id===State.user.id;
     const tr=h('tr',{class:isSelf?'row-self':''});
-    tr.append(h('td',{class:'col-name'}, u.name,
-      u.role==='manager'?h('span',{class:'role-badge role-manager',style:'margin-left:6px'},'차장'):null
+    tr.append(h('td',{class:'col-name'},
+      h('div',{style:'display:flex;align-items:center;gap:8px;cursor:pointer',
+        onClick:()=>{State.selectedPersonId=u.id; renderApp();}},
+        h('span',{class:'avatar',style:`width:24px;height:24px;font-size:11px;background:${nameColor(u.name)}`}, initial(u.name)),
+        h('span',{style:'font-weight:600'}, u.name),
+        u.role==='manager'?h('span',{class:'role-badge role-manager',style:'margin-left:auto'},'차장'):null
+      )
     ));
     for(let d=1;d<=dim;d++){
       const dow=new Date(y,m-1,d).getDay();
@@ -561,18 +713,19 @@ function renderGrid(){
       const cls=['day'];
       if(isWeekend) cls.push('weekend');
       if(ymd===todayYmd) cls.push('today');
-      let label='';
+      if(!rec) cls.push('empty');
+      let inner=null;
       if(rec){
-        cls.push(`type-${rec.type}`);
-        if(rec.status==='REQUESTED') cls.push('requested');
-        if(rec.status==='REJECTED') cls.push('rejected');
-        label=TYPE_SHORT[rec.type]||'';
+        const chipCls=['chip', `chip-${rec.type}`];
+        if(rec.status==='REQUESTED') chipCls.push('is-requested');
+        if(rec.status==='REJECTED') chipCls.push('is-rejected');
+        inner=h('span',{class:chipCls.join(' ')}, TYPE_TINY[rec.type]||'');
       }
       const td=h('td',{
         class:cls.join(' '),
         title:rec?`${TYPE_LABELS[rec.type]} (${statusLabel(rec.status)})${rec.note?' · '+rec.note:''}`:'',
-        onClick:isWeekend?null:()=>openCellModal(u,ymd,rec),
-      }, label);
+        onClick:isWeekend?null:()=>openCellDrawer(u,ymd,rec),
+      }, inner);
       tr.append(td);
     }
     tbody.append(tr);
@@ -585,23 +738,18 @@ function renderGrid(){
   const wrap=h('div',{class:'grid-wrap'},table);
 
   const legend=h('div',{class:'legend'},
-    legendItem('정상','#fff'),
-    legendItem('휴무','#f1f1ef'),
-    legendItem('월차','#dee9f5'),
-    legendItem('연차','#dbe5f8'),
-    legendItem('반차','#fde8c8'),
-    legendItem('병가','#fde0dd'),
-    legendItem('공가','#ebe3f5'),
-    h('span',{class:'legend-item',style:'margin-left:auto'},'· 점선 = 승인대기 · 빨강 취소선 = 반려')
+    chipLegend('OFF','휴무'), chipLegend('MONTHLY','월차'), chipLegend('ANNUAL','연차'),
+    chipLegend('HALF_AM','반차'), chipLegend('SICK','병가'), chipLegend('HOLIDAY','공가'),
+    h('span',{class:'legend-item',style:'margin-left:auto'},'점선 = 승인대기 · 취소선 = 반려')
   );
   return h('div',null, renderStatChips(), wrap, legend);
 }
-function legendItem(label,color){
-  return h('span',{class:'legend-item'},h('span',{class:'legend-sw',style:`background:${color}`}),label);
+function chipLegend(type,label){
+  return h('span',{class:'legend-item'}, h('span',{class:`chip chip-${type}`}, label));
 }
 function statusLabel(s){return s==='APPROVED'?'승인':s==='REJECTED'?'반려':'요청'}
 
-function openCellModal(target,ymd,rec){
+function openCellDrawer(target,ymd,rec){
   const me=State.user;
   const isPriv=me.role==='admin'||me.role==='manager';
   const isSelf=target.id===me.id;
@@ -625,10 +773,11 @@ function openCellModal(target,ymd,rec){
   typeGrid=h('div',{class:'type-grid'});
   REQUESTABLE_TYPES.forEach(t=>typeGrid.append(typeBtn(t)));
 
-  const noteI=h('input',{type:'text',value:rec?rec.note||'':'',placeholder:'메모 (선택)'});
+  const noteI=h('input',{type:'text',value:rec?rec.note||'':'',placeholder:'메모 (선택)',
+    style:'width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;outline:none;font-size:13.5px'});
   const msg=h('div',{class:'auth-msg'});
 
-  // 승인 이력 박스 (기존 레코드가 있을 때만)
+  // 승인 이력 박스
   let auditBox=null;
   if(rec){
     const reqAt=rec.requested_at?new Date(rec.requested_at).toLocaleString('ko-KR',{dateStyle:'medium',timeStyle:'short'}):'';
@@ -679,24 +828,219 @@ function openCellModal(target,ymd,rec){
     }catch(e){ alert(e.message); }
   };
 
-  const modal=h('div',{class:'modal'},
-    h('h3',null, isSelf?`${ymd} — 내 일정`:`${target.name} · ${ymd}`),
-    h('div',{class:'modal-sub'}, isSelf
-      ? (isPriv?'등록 즉시 자동 승인됩니다':'등록 시 차장/대표 승인 후 반영됩니다')
-      : `${target.name} 일정을 직접 등록 (자동 승인)`),
-    auditBox,
-    typeGrid,
-    h('div',{class:'field'},noteI),
-    msg,
-    h('div',{class:'modal-actions'},
+  const dateLabel=new Date(ymd+'T00:00:00').toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+
+  const drawer=h('aside',{class:'drawer',onClick:e=>e.stopPropagation()},
+    h('div',{class:'drawer-head'},
+      h('div',null,
+        h('div',{class:'drawer-eyebrow'}, isSelf?'내 일정':target.name),
+        h('div',{class:'drawer-title'}, dateLabel)
+      ),
+      h('button',{class:'drawer-close',onClick:close,title:'Esc'},'✕')
+    ),
+    h('div',{class:'drawer-body'},
+      auditBox,
+      h('div',{style:'font-size:11.5px;font-weight:600;color:var(--text-soft);margin-bottom:6px;letter-spacing:0.02em'},'유형'),
+      typeGrid,
+      h('div',{style:'font-size:11.5px;font-weight:600;color:var(--text-soft);margin:6px 0 6px;letter-spacing:0.02em'},'메모'),
+      noteI,
+      msg,
+      h('div',{style:'font-size:11.5px;color:var(--text-soft);line-height:1.5'}, isSelf
+        ? (isPriv?'등록 즉시 자동 승인됩니다':'등록 시 차장/대표 승인 후 반영됩니다')
+        : `${target.name} 일정을 직접 등록 (자동 승인)`)
+    ),
+    h('div',{class:'drawer-foot'},
       rec?h('button',{class:'btn btn-danger',onClick:cancel},'삭제'):null,
       h('button',{class:'btn',onClick:close},'취소'),
       h('button',{class:'btn btn-primary',onClick:save}, rec?'수정':'등록')
     )
   );
-  const bg=h('div',{class:'modal-bg'}, modal);
+  const bg=h('div',{class:'modal-bg'}, drawer);
   bg.addEventListener('click',(e)=>{if(e.target===bg) close();});
   document.body.append(bg);
+  setTimeout(()=>{ try{ noteI.focus(); }catch(_){}; },80);
+}
+
+// ─────────────── 직원 디렉토리 (메인 — 직원 중심) ───────────────
+function renderPeople(){
+  const wrap=h('div');
+  const me=State.user;
+
+  // 검색 + 뷰 토글
+  const searchI=h('input',{type:'text',placeholder:'직원 이름 검색…',value:State.search});
+  searchI.addEventListener('input',()=>{ State.search=searchI.value; refresh(); });
+  const toolbar=h('div',{class:'people-toolbar'},
+    h('div',{class:'search-box'}, searchI)
+  );
+  wrap.append(renderStatChips(), toolbar);
+
+  const grid=h('div',{class:'people-grid'});
+  const todayYmd=fmtYmd(new Date().getFullYear(),new Date().getMonth()+1,new Date().getDate());
+
+  function refresh(){
+    grid.innerHTML='';
+    const q=(State.search||'').trim();
+    const filtered=State.users.filter(u=>!q||u.name.includes(q));
+    if(!filtered.length){
+      grid.append(h('div',{class:'empty'},'일치하는 직원이 없습니다'));
+      return;
+    }
+    for(const u of filtered){
+      const recs=State.records.filter(r=>r.user_id===u.id && r.status==='APPROVED');
+      const cnt={ANNUAL:0,MONTHLY:0,HALF:0,SICK:0};
+      recs.forEach(r=>{
+        if(r.type==='ANNUAL') cnt.ANNUAL++;
+        else if(r.type==='MONTHLY') cnt.MONTHLY++;
+        else if(r.type==='HALF_AM'||r.type==='HALF_PM') cnt.HALF++;
+        else if(r.type==='SICK') cnt.SICK++;
+      });
+      const todayRec=State.records.find(r=>r.user_id===u.id && String(r.work_date).slice(0,10)===todayYmd);
+      const todayType=todayRec?todayRec.type:'WORK';
+      const todayLabel=todayRec?TYPE_LABELS[todayRec.type]:'정상출근 예정';
+
+      const card=h('div',{class:'person-card',onClick:()=>{State.selectedPersonId=u.id;renderApp();}},
+        h('div',{class:'person-head'},
+          h('span',{class:'avatar',style:`background:${nameColor(u.name)}`}, initial(u.name)),
+          h('div',{style:'min-width:0;flex:1'},
+            h('div',{class:'person-name'}, u.name),
+            h('div',{class:'person-meta'},
+              h('span',{class:'dot '+(u.registered?'on':'')}),
+              u.role==='manager'?'차장':'직원',
+              ' · ',
+              u.registered?'가입':'미가입'
+            )
+          )
+        ),
+        h('div',{class:`person-today t-${todayType}`}, '오늘 · ', todayLabel),
+        h('div',{class:'person-stats'},
+          h('div',{class:'person-stat'}, h('div',{class:'lbl'},'연차'), h('div',{class:'val'}, cnt.ANNUAL)),
+          h('div',{class:'person-stat'}, h('div',{class:'lbl'},'월차'), h('div',{class:'val'}, cnt.MONTHLY)),
+          h('div',{class:'person-stat'}, h('div',{class:'lbl'},'반차'), h('div',{class:'val'}, cnt.HALF)),
+          h('div',{class:'person-stat'}, h('div',{class:'lbl'},'병가'), h('div',{class:'val'}, cnt.SICK)),
+        )
+      );
+      grid.append(card);
+    }
+  }
+  refresh();
+  wrap.append(grid);
+  // 검색창 자동 포커스
+  setTimeout(()=>{ try{ searchI.focus(); searchI.setSelectionRange(searchI.value.length,searchI.value.length); }catch(_){}; },30);
+  return wrap;
+}
+
+// ─────────────── 직원 상세 (BambooHR/Notion People 톤) ───────────────
+function renderPersonDetail(){
+  const u=State.users.find(x=>x.id===State.selectedPersonId);
+  if(!u){
+    State.selectedPersonId=null;
+    return renderPeople();
+  }
+  const wrap=h('div');
+  // 뒤로가기
+  wrap.append(h('button',{class:'pd-back',style:'margin-bottom:14px',
+    onClick:()=>{State.selectedPersonId=null;renderApp();}},'← 직원 목록'));
+
+  const recs=State.records.filter(r=>r.user_id===u.id);
+  const cntApproved={ANNUAL:0,MONTHLY:0,HALF:0,SICK:0,OFF:0};
+  recs.forEach(r=>{
+    if(r.status!=='APPROVED') return;
+    if(r.type==='ANNUAL') cntApproved.ANNUAL++;
+    else if(r.type==='MONTHLY') cntApproved.MONTHLY++;
+    else if(r.type==='HALF_AM'||r.type==='HALF_PM') cntApproved.HALF++;
+    else if(r.type==='SICK') cntApproved.SICK++;
+    else if(r.type==='OFF') cntApproved.OFF++;
+  });
+
+  // ── 좌측 프로필 카드
+  const sideCard=h('div',{class:'pd-card'},
+    h('div',{class:'pd-avatar',style:`background:${nameColor(u.name)}`}, initial(u.name)),
+    h('div',{class:'pd-name'}, u.name),
+    h('div',{class:'pd-role'},
+      u.role==='manager'?'차장 (월차 승인 권한)':u.role==='admin'?'대표':'직원'),
+    h('div',{class:'pd-props'},
+      h('div',{class:'pd-prop'}, h('span',{class:'k'},'역할'), h('span',{class:'v'}, u.role==='manager'?'차장':u.role==='admin'?'대표':'직원')),
+      h('div',{class:'pd-prop'}, h('span',{class:'k'},'가입'), h('span',{class:'v'}, u.registered?'완료':'미가입')),
+      h('div',{class:'pd-prop'}, h('span',{class:'k'},'전체 신청'), h('span',{class:'v'}, recs.length+'건')),
+      h('div',{class:'pd-prop'}, h('span',{class:'k'},'대기'), h('span',{class:'v'}, recs.filter(r=>r.status==='REQUESTED').length+'건')),
+    )
+  );
+
+  // ── 우측 본문: 통계 / 미니 캘린더 / 이력
+  // 1) 누적 통계 (이번 달 기준)
+  const statSection=h('section',{class:'pd-section'},
+    h('h3',null,'📊 ',`${State.ym} 사용 현황`),
+    h('div',{class:'pd-stat-row'},
+      h('div',{class:'pd-stat'}, h('div',{class:'v'},cntApproved.ANNUAL), h('div',{class:'l'},'연차')),
+      h('div',{class:'pd-stat'}, h('div',{class:'v'},cntApproved.MONTHLY), h('div',{class:'l'},'월차')),
+      h('div',{class:'pd-stat'}, h('div',{class:'v'},cntApproved.HALF), h('div',{class:'l'},'반차')),
+      h('div',{class:'pd-stat'}, h('div',{class:'v'},cntApproved.SICK), h('div',{class:'l'},'병가')),
+      h('div',{class:'pd-stat'}, h('div',{class:'v'},cntApproved.OFF), h('div',{class:'l'},'휴무')),
+    )
+  );
+
+  // 2) 미니 캘린더
+  const [y,m]=State.ym.split('-').map(Number);
+  const dim=daysInMonth(y,m);
+  const firstDow=new Date(y,m-1,1).getDay();
+  const recIdx={};
+  recs.forEach(r=>{ recIdx[String(r.work_date).slice(0,10)]=r; });
+  const todayYmd=fmtYmd(new Date().getFullYear(),new Date().getMonth()+1,new Date().getDate());
+  const cal=h('div',{class:'pd-mini-cal'});
+  ['일','월','화','수','목','금','토'].forEach(d=>cal.append(h('div',{class:'pmh'},d)));
+  for(let i=0;i<firstDow;i++) cal.append(h('div',{class:'pmd empty'}));
+  for(let d=1;d<=dim;d++){
+    const dow=new Date(y,m-1,d).getDay();
+    const ymd=fmtYmd(y,m,d);
+    const rec=recIdx[ymd];
+    const cls=['pmd'];
+    if(dow===0||dow===6) cls.push('weekend');
+    if(ymd===todayYmd) cls.push('today');
+    let inner=[h('div',null,d)];
+    if(rec){
+      const cc=['chip',`chip-${rec.type}`];
+      if(rec.status==='REQUESTED') cc.push('is-requested');
+      if(rec.status==='REJECTED') cc.push('is-rejected');
+      inner.push(h('span',{class:cc.join(' ')}, TYPE_TINY[rec.type]||''));
+    }
+    cal.append(h('div',{class:cls.join(' '),
+      onClick:(dow===0||dow===6)?null:()=>openCellDrawer(u,ymd,rec)
+    }, ...inner));
+  }
+  const calSection=h('section',{class:'pd-section'},
+    h('h3',null,'🗓 미니 캘린더'),
+    cal
+  );
+
+  // 3) 신청 이력
+  const sortedRecs=recs.slice().sort((a,b)=>String(b.work_date).localeCompare(String(a.work_date)));
+  const histList=h('div',{class:'pd-history-list'});
+  if(!sortedRecs.length){
+    histList.append(h('div',{class:'empty',style:'padding:24px'},'아직 신청 이력이 없습니다'));
+  } else {
+    for(const r of sortedRecs){
+      const dateStr=String(r.work_date).slice(0,10);
+      histList.append(h('div',{class:'pd-hist'},
+        h('div',{class:'hi-left'},
+          h('span',{class:'hi-date'}, dateStr.slice(5)),
+          h('span',{class:`chip chip-${r.type}`}, TYPE_LABELS[r.type]),
+          r.note?h('span',{style:'color:var(--text-soft);font-size:11.5px'}, '· '+r.note):null,
+        ),
+        h('span',{class:`hi-status s-${r.status}`}, statusLabel(r.status))
+      ));
+    }
+  }
+  const histSection=h('section',{class:'pd-section'},
+    h('h3',null,'🕘 신청 이력'),
+    histList
+  );
+
+  const detail=h('div',{class:'person-detail'},
+    h('div',{class:'pd-side'}, sideCard),
+    h('div',null, statSection, calSection, histSection)
+  );
+  wrap.append(detail);
+  return wrap;
 }
 
 function renderApproval(){
@@ -756,21 +1100,6 @@ function renderApproval(){
   return list;
 }
 
-function renderEmployees(){
-  if(!State.users.length) return h('div',{class:'empty'},'직원이 없습니다');
-  const grid=h('div',{class:'emp-list'});
-  for(const u of State.users){
-    grid.append(h('div',{class:'emp-card'},
-      h('div',{class:'emp-name'}, u.name,
-        u.role==='manager'?h('span',{class:'role-badge role-manager',style:'margin-left:6px'},'차장'):null
-      ),
-      h('div',{class:'emp-state '+(u.registered?'reg':'')},
-        h('span',{class:'dot'}), u.registered?'가입 완료':'미가입')
-    ));
-  }
-  return grid;
-}
-
 async function logout(){
   try{ await api('/api/auth/logout',{method:'POST'}); }catch(_){}
   State.user=null; State.users=[]; State.records=[];
@@ -817,15 +1146,22 @@ function exportCsv(){
 // ───────── 단축키 ─────────
 document.addEventListener('keydown',(e)=>{
   if(!State.user) return;
-  // 입력 필드에서는 단축키 무시
   const tag=(e.target&&e.target.tagName)||'';
-  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return;
+  // Esc — 드로어/모달 닫기 (입력 필드에서도 동작)
   if(e.key==='Escape'){
     const m=$('.modal-bg'); if(m){ m.remove(); e.preventDefault(); }
     return;
   }
-  if(State.page!=='grid') return;
+  // / — 검색창 포커스 (직원 페이지에서)
+  if(e.key==='/'&&State.page==='people'&&!State.selectedPersonId&&tag!=='INPUT'&&tag!=='TEXTAREA'){
+    const i=document.querySelector('.search-box input');
+    if(i){ i.focus(); e.preventDefault(); }
+    return;
+  }
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return;
+  // ←/→ — 월 이동 (팀 캘린더 / 직원 상세)
   if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
+    if(State.page!=='grid'&&!State.selectedPersonId) return;
     const [y,m]=State.ym.split('-').map(Number);
     const d=new Date(y, m-1+(e.key==='ArrowLeft'?-1:1), 1);
     State.ym=fmtYm(d);
