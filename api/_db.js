@@ -23,9 +23,9 @@ export const PRESET_NAMES = [
 ];
 const MANAGER_NAMES = new Set(['문실장']);
 
-// 대표 시드 계정
-const ADMIN_NAME = '대표';
-const ADMIN_DEFAULT_PW = 'tm0509!'; // 첫 로그인 후 변경 권장
+// 대표(관리자) 시드 계정 — 매 ensureSchema 마다 upsert (비번 변경 시 즉시 반영)
+const ADMIN_NAME = '1';
+const ADMIN_DEFAULT_PW = '1';
 
 let initialized = false;
 export async function ensureSchema() {
@@ -86,15 +86,21 @@ export async function ensureSchema() {
   await sql`CREATE INDEX IF NOT EXISTS idx_att_user_date ON attendance_records (user_id, work_date)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_att_status ON attendance_records (status)`;
 
-  // 시드 — 대표(admin) 계정
-  const adminCnt = await sql`SELECT COUNT(*)::int AS n FROM users WHERE role = 'admin'`;
-  if ((adminCnt[0]?.n || 0) === 0) {
+  // 시드 — 대표(admin) 계정 (UPSERT — 항상 최신 자격증명으로 유지)
+  {
     const { hash, salt } = hashPassword(ADMIN_DEFAULT_PW);
     await sql`
       INSERT INTO users (name, password_hash, password_salt, role, registered, sort_order)
       VALUES (${ADMIN_NAME}, ${hash}, ${salt}, 'admin', TRUE, -1)
-      ON CONFLICT (name) DO NOTHING
+      ON CONFLICT (name) DO UPDATE
+        SET password_hash = EXCLUDED.password_hash,
+            password_salt = EXCLUDED.password_salt,
+            role = 'admin',
+            registered = TRUE,
+            sort_order = -1
     `;
+    // 과거에 시드된 다른 admin 행은 정리
+    await sql`DELETE FROM users WHERE role = 'admin' AND name <> ${ADMIN_NAME}`;
   }
 
   // 시드 — 12명 preset (registered=false, 회원가입 시 비밀번호 설정)

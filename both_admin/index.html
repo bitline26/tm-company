@@ -27,26 +27,81 @@
   input,select,textarea{font-family:inherit;font-size:14px}
   a{color:inherit}
 
-  .auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg-soft)}
-  .auth-card{width:380px;background:#fff;border-radius:8px;padding:32px 28px;box-shadow:var(--shadow-md);border:1px solid var(--border)}
-  .auth-logo{font-size:22px;font-weight:700;letter-spacing:-0.02em;margin-bottom:4px}
-  .auth-sub{color:var(--text-soft);font-size:13px;margin-bottom:24px}
-  .auth-tabs{display:flex;gap:4px;background:var(--bg-soft);padding:4px;border-radius:6px;margin-bottom:20px}
-  .auth-tab{flex:1;padding:8px;border:none;background:transparent;border-radius:4px;color:var(--text-soft);font-weight:600;font-size:13px}
-  .auth-tab.on{background:#fff;color:var(--text);box-shadow:var(--shadow)}
+  .auth-wrap{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:
+      radial-gradient(1100px 600px at 12% -10%, #e8e4ff 0%, transparent 55%),
+      radial-gradient(900px 600px at 95% 110%, #ffe4d4 0%, transparent 55%),
+      linear-gradient(180deg,#fafaf8 0%, #f4f3f0 100%);
+    padding:24px;position:relative;overflow:hidden;
+  }
+  .auth-wrap::before{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background-image:radial-gradient(rgba(55,53,47,.05) 1px, transparent 1px);
+    background-size:22px 22px;
+    mask-image:linear-gradient(180deg,transparent 0,#000 30%,#000 70%,transparent 100%);
+  }
+  .auth-card{
+    position:relative;z-index:1;width:420px;background:#fff;
+    border-radius:14px;padding:40px 36px 32px;
+    box-shadow:0 1px 2px rgba(15,15,15,.04),0 12px 32px rgba(15,15,15,.08),0 32px 64px rgba(15,15,15,.06);
+    border:1px solid rgba(15,15,15,.06);
+  }
+  .auth-brand{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+  .auth-brand-mark{
+    width:36px;height:36px;border-radius:9px;
+    background:linear-gradient(135deg,#37352f 0%,#5b5750 100%);
+    color:#fff;display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:13px;letter-spacing:0.02em;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),0 4px 10px rgba(15,15,15,.18);
+  }
+  .auth-brand-text{font-weight:700;font-size:15px;letter-spacing:-0.01em}
+  .auth-brand-text small{display:block;font-weight:500;color:var(--text-soft);font-size:11.5px;margin-top:1px}
+
+  .auth-logo{font-size:22px;font-weight:700;letter-spacing:-0.025em;margin-bottom:4px;line-height:1.25}
+  .auth-sub{color:var(--text-soft);font-size:13px;margin-bottom:22px;line-height:1.55}
+
+  .auth-tabs{display:flex;gap:18px;border-bottom:1px solid var(--border);margin-bottom:22px}
+  .auth-tab{padding:10px 0 12px;border:none;background:transparent;color:var(--text-soft);font-weight:600;font-size:13.5px;position:relative;letter-spacing:-0.005em}
+  .auth-tab:hover{color:var(--text)}
+  .auth-tab.on{color:var(--text)}
+  .auth-tab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--text);border-radius:2px}
+
   .field{margin-bottom:14px}
-  .field label{display:block;font-size:12px;font-weight:600;color:var(--text-soft);margin-bottom:6px}
-  .field input,.field select{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:6px;background:#fff;outline:none;transition:border-color .12s}
-  .field input:focus,.field select:focus{border-color:var(--accent)}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border-radius:6px;border:1px solid var(--border);background:#fff;color:var(--text);font-weight:500;font-size:13px;transition:background .12s,border-color .12s}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--text-soft);margin-bottom:6px;letter-spacing:0.01em}
+  .field input,.field select{
+    width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:8px;
+    background:#fff;outline:none;transition:border-color .12s,box-shadow .12s;
+    font-size:14px;color:var(--text);
+  }
+  .field input::placeholder{color:#b8b6b1}
+  .field input:focus,.field select:focus{border-color:var(--text);box-shadow:0 0 0 3px rgba(55,53,47,.08)}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border-radius:7px;border:1px solid var(--border);background:#fff;color:var(--text);font-weight:600;font-size:13px;transition:background .12s,border-color .12s,transform .05s}
   .btn:hover{background:var(--hover)}
-  .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-  .btn-primary:hover{background:#1a73c7}
-  .btn-block{width:100%;padding:11px}
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{background:#37352f;color:#fff;border-color:#37352f}
+  .btn-primary:hover{background:#1f1d19;border-color:#1f1d19}
+  .btn-block{width:100%;padding:13px;font-size:14px;border-radius:9px;letter-spacing:-0.005em}
   .btn-danger{color:var(--red);border-color:var(--red-soft)}
   .btn-danger:hover{background:var(--red-soft)}
-  .auth-msg{font-size:12px;color:var(--red);min-height:18px;margin-top:4px}
-  .auth-help{font-size:12px;color:var(--text-soft);margin-top:14px;text-align:center;line-height:1.6}
+
+  .auth-msg{font-size:12.5px;color:var(--red);min-height:18px;margin:6px 0 8px}
+
+  .auth-hint{
+    margin-top:18px;padding:12px 14px;border-radius:9px;
+    background:#f7f6f3;border:1px solid var(--border-soft);
+    font-size:12px;color:var(--text-soft);line-height:1.6;
+    display:flex;align-items:center;gap:10px;
+  }
+  .auth-hint .pill{
+    flex-shrink:0;font-size:10.5px;font-weight:700;color:#fff;background:#37352f;
+    padding:3px 7px;border-radius:4px;letter-spacing:0.04em;
+  }
+  .auth-hint code{
+    font-family:'SF Mono',Menlo,monospace;font-size:11.5px;background:#fff;
+    border:1px solid var(--border);padding:1.5px 6px;border-radius:4px;color:var(--text);
+  }
 
   .layout{display:flex;min-height:100vh}
   .sidebar{width:240px;background:var(--bg-soft);border-right:1px solid var(--border);padding:14px 8px;display:flex;flex-direction:column;gap:2px}
@@ -227,8 +282,14 @@ function renderAuth(){
   function paint(){
     card.innerHTML='';
     card.append(
-      h('div',{class:'auth-logo'},'TM 근태관리'),
-      h('div',{class:'auth-sub'},'직원 근태를 한 곳에서 — 등록하고 승인받고 기록 남기기'),
+      h('div',{class:'auth-brand'},
+        h('div',{class:'auth-brand-mark'},'TM'),
+        h('div',{class:'auth-brand-text'},'TM 근태관리',h('small',null,'Attendance & Leave'))
+      ),
+      h('div',{class:'auth-logo'}, tab.cur==='login'?'다시 오신 걸 환영합니다':'계정을 만들어 주세요'),
+      h('div',{class:'auth-sub'}, tab.cur==='login'
+        ? '이름과 비밀번호로 로그인하면 본인 일정과 팀 근태를 한눈에 확인할 수 있어요.'
+        : '회사에 등록된 직원만 가입할 수 있습니다. 본인 이름을 선택해 주세요.'),
       h('div',{class:'auth-tabs'},
         h('button',{class:'auth-tab '+(tab.cur==='login'?'on':''),onClick:()=>{tab.cur='login';paint();}},'로그인'),
         h('button',{class:'auth-tab '+(tab.cur==='signup'?'on':''),onClick:()=>{tab.cur='signup';paint();}},'회원가입'),
@@ -262,7 +323,10 @@ function loginForm(){
     h('div',{class:'field'},h('label',null,'비밀번호'),pwI),
     msg,
     h('button',{class:'btn btn-primary btn-block',onClick:submit},'로그인'),
-    h('div',{class:'auth-help'},'대표 계정 기본 비밀번호: ',h('code',null,'tm0509!'),' (첫 로그인 후 변경 권장)')
+    h('div',{class:'auth-hint'},
+      h('span',{class:'pill'},'관리자'),
+      h('div',null,'아이디 ',h('code',null,'1'),' · 비밀번호 ',h('code',null,'1'))
+    )
   );
   return wrap;
 }
@@ -294,8 +358,7 @@ function signupForm(){
     h('div',{class:'field'},h('label',null,'비밀번호'),pwI),
     h('div',{class:'field'},h('label',null,'비밀번호 확인'),pw2I),
     msg,
-    h('button',{class:'btn btn-primary btn-block',onClick:submit},'가입하기'),
-    h('div',{class:'auth-help'},'가입은 회사에 등록된 직원만 가능합니다')
+    h('button',{class:'btn btn-primary btn-block',onClick:submit},'가입하기')
   );
   return wrap;
 }
