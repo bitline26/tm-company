@@ -1,7 +1,7 @@
 import { neon } from '@neondatabase/serverless';
+import crypto from 'node:crypto';
 
-// 환경 분리: production은 운영 DB(neon-cobalt-kettle), 그 외(preview/development)는 테스트 DB(tm-2)
-// VERCEL_ENV 값: 'production' | 'preview' | 'development' | undefined(로컬)
+// 환경 분리: production은 운영 DB, 그 외(preview/development)는 테스트 DB(test2_*)
 const isProd = process.env.VERCEL_ENV === 'production';
 
 const url = isProd
@@ -15,49 +15,23 @@ if (!url) throw new Error('DATABASE_URL not set');
 
 export const sql = neon(url);
 
-// 디비 소스 시드 (업체) — 테스트 DB 비었을 때 1회 주입
-const SEED_SOURCES = [
-  // code, label, vendor, color
-  ['SELF',   '자체광고',  'INTERNAL', '#1428A0'],
-  ['VENDOR_A', 'A업체',   'A업체',    '#7c3aed'],
-  ['VENDOR_B', 'B업체',   'B업체',    '#0ea5e9'],
-  ['VENDOR_C', 'C업체',   'C업체',    '#10b981'],
+// 직원 12명 (이미지 근무표 기준) — 회원가입 시 이 이름들 중에서만 선택 가능
+// 문실장 = 차장권한(manager, 월차 승인 가능)
+export const PRESET_NAMES = [
+  '문실장','김상현','이경민','임세인','양정연','장영인',
+  '안다혜','지성훈','이기성','고윤호','박철우','최은정',
 ];
+const MANAGER_NAMES = new Set(['문실장']);
 
-// 가짜 DB 10개 (업로드 화면 미리보기용 — 테스트 DB 비었을 때 1회 주입)
-const SEED_POOL = [
-  // source_code, name, phone, carrier, model
-  ['VENDOR_A', '김민수', '010-1234-5678', 'SKT', '갤럭시 S26'],
-  ['VENDOR_A', '이지은', '010-2345-6789', 'KT',  '갤럭시 S26 Ultra'],
-  ['VENDOR_A', '박철수', '010-3456-7890', 'LGU', '갤럭시 Z Flip7'],
-  ['VENDOR_B', '최영희', '010-4567-8901', 'SKT', '갤럭시 Z Fold7'],
-  ['VENDOR_B', '정민호', '010-5678-9012', 'KT',  '갤럭시 S26+'],
-  ['VENDOR_B', '강수정', '010-6789-0123', 'SKT', '갤럭시 S26 FE'],
-  ['VENDOR_C', '윤서연', '010-7890-1234', 'LGU', '갤럭시 S26 Ultra'],
-  ['VENDOR_C', '조현우', '010-8901-2345', 'KT',  '갤럭시 S26'],
-  ['SELF',     '한지민', '010-9012-3456', 'SKT', '갤럭시 S26 Ultra'],
-  ['SELF',     '오태식', '010-0123-4567', 'KT',  '갤럭시 Z Flip7'],
-];
-
-// 이미지3 근무표 기준 부서별 직원 시드 (테스트 DB가 비었을 때만 1회 자동 주입)
-const SEED_EMPLOYEES = [
-  ['배송',   '권용훈'], ['배송',   '김민정'], ['배송',   '정민지'],
-  ['개통',   '국나래'], ['개통',   '강보람'], ['개통',   '이지윤'],
-  ['해피콜', '전은용'], ['해피콜', '이준형'],
-  ['민원',   '김대현'], ['민원',   '심영규'], ['민원',   '이예진'],
-  ['민원',   '김선화'], ['민원',   '심재범'], ['민원',   '이주필'],
-  ['1차',    '문경자'], ['1차',    '김상현'], ['1차',    '이경민'],
-  ['1차',    '임세인'], ['1차',    '양정연'], ['1차',    '장영인'],
-  ['1차',    '안다혜'], ['1차',    '지성훈'], ['1차',    '이기성'],
-  ['1차',    '고윤호'], ['1차',    '박철우'], ['1차',    '남선영'],
-  ['1차',    '최은정'],
-];
+// 대표 시드 계정
+const ADMIN_NAME = '대표';
+const ADMIN_DEFAULT_PW = 'tm0509!'; // 첫 로그인 후 변경 권장
 
 let initialized = false;
 export async function ensureSchema() {
   if (initialized) return;
 
-  // 1. 신청자 (기존)
+  // applications (광고 랜딩 신청자) — 유지: api/submit.js가 사용
   await sql`
     CREATE TABLE IF NOT EXISTS applications (
       id SERIAL PRIMARY KEY,
@@ -71,154 +45,169 @@ export async function ensureSchema() {
   `;
   await sql`ALTER TABLE applications ADD COLUMN IF NOT EXISTS downloaded_at TIMESTAMPTZ NULL`;
   await sql`CREATE INDEX IF NOT EXISTS idx_apps_created ON applications (created_at DESC)`;
-  await sql`CREATE INDEX IF NOT EXISTS idx_apps_source ON applications (source)`;
-  await sql`CREATE INDEX IF NOT EXISTS idx_apps_downloaded ON applications (downloaded_at)`;
 
-  // 2. 직원 마스터
+  // users — 직원/관리자 계정
+  // role: 'admin'(대표) / 'manager'(차장) / 'employee'(직원)
+  // registered: 회원가입 여부 (preset 12명은 시드 시 false, 가입 후 true)
   await sql`
-    CREATE TABLE IF NOT EXISTS employees (
+    CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
-      name TEXT NOT NULL,
-      dept TEXT NOT NULL,
+      name TEXT UNIQUE NOT NULL,
+      password_hash TEXT,
+      password_salt TEXT,
+      role TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('admin','manager','employee')),
+      registered BOOLEAN NOT NULL DEFAULT FALSE,
       sort_order INT NOT NULL DEFAULT 0,
-      active BOOLEAN NOT NULL DEFAULT TRUE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
-  await sql`CREATE INDEX IF NOT EXISTS idx_emp_dept ON employees (dept, sort_order)`;
-  await sql`CREATE INDEX IF NOT EXISTS idx_emp_active ON employees (active)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_users_name ON users (name)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_users_role ON users (role)`;
 
-  // 3. 근태
-  // status: WORK(정상)/HALF_AM/HALF_PM(반차)/MONTHLY_OFF(월차)/ANNUAL(연차)/SICK(병가)/OFF(휴무)/HOLIDAY(공휴일)/WEEKEND(주말)
-  // ratio: 분배 가중치 (정상 1.0, 반차 0.5, 그 외 0.0)
+  // attendance_records — 근태 요청/승인 기록
+  // type: WORK(정상)/OFF(휴무)/HALF_AM(오전반차)/HALF_PM(오후반차)/MONTHLY(월차)/ANNUAL(연차)/SICK(병가)/HOLIDAY(공휴일)
+  // status: REQUESTED(요청) / APPROVED(승인) / REJECTED(반려)
   await sql`
-    CREATE TABLE IF NOT EXISTS attendance (
+    CREATE TABLE IF NOT EXISTS attendance_records (
       id SERIAL PRIMARY KEY,
-      employee_id INT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       work_date DATE NOT NULL,
-      status TEXT NOT NULL DEFAULT 'WORK',
-      ratio REAL NOT NULL DEFAULT 1.0,
+      type TEXT NOT NULL CHECK (type IN ('WORK','OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK','HOLIDAY')),
+      status TEXT NOT NULL DEFAULT 'REQUESTED' CHECK (status IN ('REQUESTED','APPROVED','REJECTED')),
       note TEXT,
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      UNIQUE(employee_id, work_date)
+      requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      approved_by INT REFERENCES users(id),
+      approved_at TIMESTAMPTZ,
+      reject_reason TEXT,
+      UNIQUE(user_id, work_date)
     )
   `;
-  await sql`CREATE INDEX IF NOT EXISTS idx_att_date ON attendance (work_date)`;
-  await sql`CREATE INDEX IF NOT EXISTS idx_att_emp_date ON attendance (employee_id, work_date)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_att_date ON attendance_records (work_date)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_att_user_date ON attendance_records (user_id, work_date)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_att_status ON attendance_records (status)`;
 
-  // 4. 디비 소스 (업체)
-  await sql`
-    CREATE TABLE IF NOT EXISTS db_sources (
-      id SERIAL PRIMARY KEY,
-      code TEXT UNIQUE NOT NULL,
-      label TEXT NOT NULL,
-      vendor TEXT,
-      color TEXT DEFAULT '#888',
-      active BOOLEAN NOT NULL DEFAULT TRUE,
-      sort_order INT NOT NULL DEFAULT 0,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `;
-  await sql`CREATE INDEX IF NOT EXISTS idx_src_active ON db_sources (active, sort_order)`;
-
-  // 5. 디비 풀 (자체광고 + 외부업체 통합)
-  // status: NEW(신규) / ASSIGNED(분배완료) / CALLING(통화중) / DONE(완료) / DELETED(삭제)
-  await sql`
-    CREATE TABLE IF NOT EXISTS db_pool (
-      id SERIAL PRIMARY KEY,
-      source_id INT NOT NULL REFERENCES db_sources(id),
-      upload_batch TEXT,
-      name TEXT NOT NULL,
-      phone TEXT NOT NULL,
-      carrier TEXT,
-      model TEXT,
-      extra_json JSONB,
-      inflow_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      assigned_to INT REFERENCES employees(id),
-      assigned_at TIMESTAMPTZ,
-      status TEXT NOT NULL DEFAULT 'NEW',
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `;
-  await sql`CREATE INDEX IF NOT EXISTS idx_pool_source ON db_pool (source_id, inflow_at DESC)`;
-  await sql`CREATE INDEX IF NOT EXISTS idx_pool_status ON db_pool (status)`;
-  await sql`CREATE INDEX IF NOT EXISTS idx_pool_assigned ON db_pool (assigned_to, assigned_at)`;
-  await sql`CREATE INDEX IF NOT EXISTS idx_pool_batch ON db_pool (upload_batch)`;
-
-  // 6. 시드 — 직원
-  const empCnt = await sql`SELECT COUNT(*)::int AS n FROM employees`;
-  if ((empCnt[0]?.n || 0) === 0) {
-    for (let i = 0; i < SEED_EMPLOYEES.length; i++) {
-      const [dept, name] = SEED_EMPLOYEES[i];
-      await sql`INSERT INTO employees (name, dept, sort_order) VALUES (${name}, ${dept}, ${i})`;
-    }
+  // 시드 — 대표(admin) 계정
+  const adminCnt = await sql`SELECT COUNT(*)::int AS n FROM users WHERE role = 'admin'`;
+  if ((adminCnt[0]?.n || 0) === 0) {
+    const { hash, salt } = hashPassword(ADMIN_DEFAULT_PW);
+    await sql`
+      INSERT INTO users (name, password_hash, password_salt, role, registered, sort_order)
+      VALUES (${ADMIN_NAME}, ${hash}, ${salt}, 'admin', TRUE, -1)
+      ON CONFLICT (name) DO NOTHING
+    `;
   }
 
-  // 7. 시드 — 디비 소스 (업체)
-  const srcCnt = await sql`SELECT COUNT(*)::int AS n FROM db_sources`;
-  if ((srcCnt[0]?.n || 0) === 0) {
-    for (let i = 0; i < SEED_SOURCES.length; i++) {
-      const [code, label, vendor, color] = SEED_SOURCES[i];
-      await sql`INSERT INTO db_sources (code, label, vendor, color, sort_order) VALUES (${code}, ${label}, ${vendor}, ${color}, ${i})`;
-    }
-  }
-
-  // 8. 시드 — 가짜 DB 10개 (테스트 DB 풀이 비었을 때만)
-  const poolCnt = await sql`SELECT COUNT(*)::int AS n FROM db_pool`;
-  if ((poolCnt[0]?.n || 0) === 0 && !isProd) {
-    for (let i = 0; i < SEED_POOL.length; i++) {
-      const [code, name, phone, carrier, model] = SEED_POOL[i];
-      const src = await sql`SELECT id FROM db_sources WHERE code = ${code} LIMIT 1`;
-      const sourceId = src[0]?.id;
-      if (sourceId) {
-        await sql`
-          INSERT INTO db_pool (source_id, upload_batch, name, phone, carrier, model)
-          VALUES (${sourceId}, 'SEED', ${name}, ${phone}, ${carrier}, ${model})
-        `;
-      }
-    }
-  }
-
-  // 9. 시드 — 근태(반차/휴가) 샘플: 1명당 2개씩 주입 (테스트 환경, 첫 실행 시만)
-  const attCnt = await sql`SELECT COUNT(*)::int AS n FROM attendance`;
-  if ((attCnt[0]?.n || 0) === 0 && !isProd) {
-    const today = new Date();
-    const ymd = (d) => d.toISOString().slice(0, 10);
-    const dPlus = (offset) => { const d = new Date(today); d.setDate(d.getDate() + offset); return ymd(d); };
-    // 4명 × 2개씩 = 8개 샘플
-    const seedAtt = [
-      ['김상현', 'HALF_AM', dPlus(0)],   ['김상현', 'ANNUAL',  dPlus(2)],
-      ['이경민', 'HALF_PM', dPlus(0)],   ['이경민', 'MONTHLY_OFF', dPlus(3)],
-      ['양정연', 'ANNUAL',  dPlus(0)],   ['양정연', 'HALF_AM', dPlus(1)],
-      ['이기성', 'OFF',     dPlus(0)],   ['이기성', 'HALF_PM', dPlus(1)],
-    ];
-    for (const [name, status, date] of seedAtt) {
-      const emp = await sql`SELECT id FROM employees WHERE name = ${name} LIMIT 1`;
-      if (!emp[0]) continue;
-      const ratio = statusToRatio(status);
-      // 토/일이거나 공휴일이면 건너뜀 (의미 없음)
-      const dow = new Date(date + 'T00:00:00').getDay();
-      if (dow === 0 || dow === 6) continue;
-      await sql`
-        INSERT INTO attendance (employee_id, work_date, status, ratio)
-        VALUES (${emp[0].id}, ${date}, ${status}, ${ratio})
-        ON CONFLICT (employee_id, work_date) DO NOTHING
-      `;
-    }
+  // 시드 — 12명 preset (registered=false, 회원가입 시 비밀번호 설정)
+  for (let i = 0; i < PRESET_NAMES.length; i++) {
+    const name = PRESET_NAMES[i];
+    const role = MANAGER_NAMES.has(name) ? 'manager' : 'employee';
+    await sql`
+      INSERT INTO users (name, role, registered, sort_order)
+      VALUES (${name}, ${role}, FALSE, ${i})
+      ON CONFLICT (name) DO NOTHING
+    `;
   }
 
   initialized = true;
 }
 
-// 부서 정렬 순서 (UI 그룹핑용)
-export const DEPT_ORDER = ['배송', '개통', '해피콜', '민원', '1차'];
+// ─────────────── 비밀번호 해시 (pbkdf2) ───────────────
+export function hashPassword(password, saltHex) {
+  const salt = saltHex || crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256').toString('hex');
+  return { hash, salt };
+}
+export function verifyPassword(password, hash, salt) {
+  if (!hash || !salt) return false;
+  const cmp = crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256').toString('hex');
+  return crypto.timingSafeEqual(Buffer.from(cmp, 'hex'), Buffer.from(hash, 'hex'));
+}
 
-// 근태 상태 → 분배 가중치
-export function statusToRatio(status) {
-  switch (status) {
-    case 'WORK': return 1.0;
-    case 'HALF_AM':
-    case 'HALF_PM': return 0.5;
-    default: return 0.0; // MONTHLY_OFF / ANNUAL / SICK / OFF / HOLIDAY / WEEKEND
-  }
+// ─────────────── 세션 쿠키 (HMAC 서명) ───────────────
+const SESSION_SECRET = process.env.SESSION_SECRET
+  || 'tm-company-default-session-secret-please-set-SESSION_SECRET-env';
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14; // 14일
+
+export function signSession(payload) {
+  const exp = Date.now() + SESSION_TTL_MS;
+  const json = JSON.stringify({ ...payload, exp });
+  const b64 = Buffer.from(json).toString('base64url');
+  const sig = crypto.createHmac('sha256', SESSION_SECRET).update(b64).digest('base64url');
+  return `${b64}.${sig}`;
+}
+export function verifySession(token) {
+  if (!token) return null;
+  const [b64, sig] = token.split('.');
+  if (!b64 || !sig) return null;
+  const expected = crypto.createHmac('sha256', SESSION_SECRET).update(b64).digest('base64url');
+  let ok = false;
+  try {
+    ok = crypto.timingSafeEqual(Buffer.from(sig, 'base64url'), Buffer.from(expected, 'base64url'));
+  } catch { return null; }
+  if (!ok) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
+    if (payload.exp && payload.exp < Date.now()) return null;
+    return payload;
+  } catch { return null; }
+}
+
+export function parseCookies(req) {
+  const header = req.headers?.cookie || '';
+  const out = {};
+  header.split(';').forEach(c => {
+    const idx = c.indexOf('=');
+    if (idx === -1) return;
+    const k = c.slice(0, idx).trim();
+    const v = c.slice(idx + 1).trim();
+    if (k) out[k] = decodeURIComponent(v);
+  });
+  return out;
+}
+
+export function setSessionCookie(res, token) {
+  const maxAge = Math.floor(SESSION_TTL_MS / 1000);
+  res.setHeader('Set-Cookie',
+    `tm_session=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`);
+}
+export function clearSessionCookie(res) {
+  res.setHeader('Set-Cookie', 'tm_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
+}
+
+export async function getCurrentUser(req) {
+  const cookies = parseCookies(req);
+  const session = verifySession(cookies.tm_session);
+  if (!session?.uid) return null;
+  const rows = await sql`
+    SELECT id, name, role, registered
+    FROM users WHERE id = ${session.uid} LIMIT 1
+  `;
+  return rows[0] || null;
+}
+
+export function requireAuth(handler) {
+  return async (req, res) => {
+    await ensureSchema();
+    const user = await getCurrentUser(req);
+    if (!user) {
+      res.status(401).json({ error: 'unauthorized' });
+      return;
+    }
+    req.user = user;
+    return handler(req, res);
+  };
+}
+
+export function readJson(req) {
+  return new Promise((resolve, reject) => {
+    if (req.body && typeof req.body === 'object') return resolve(req.body);
+    let raw = '';
+    req.on('data', c => raw += c);
+    req.on('end', () => {
+      if (!raw) return resolve({});
+      try { resolve(JSON.parse(raw)); }
+      catch (e) { reject(e); }
+    });
+    req.on('error', reject);
+  });
 }
