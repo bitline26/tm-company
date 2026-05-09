@@ -17,26 +17,42 @@ export default requireAuth(async function handler(req, res) {
     const nextM = m === 12 ? 1 : m + 1;
     const end = `${nextY}-${String(nextM).padStart(2, '0')}-01`;
 
-    // 직원 목록 — 사용자 모두에게 동일하게 노출 (전체 그리드 뷰)
-    // admin은 sort_order=-1 로 맨 앞 → 일반 표에서 숨길지는 클라이언트에서 결정
-    const users = await sql`
-      SELECT id, name, role, registered
-      FROM users
-      WHERE role <> 'admin'
-      ORDER BY sort_order ASC, id ASC
-    `;
+    const me = req.user;
+    const isPriv = me.role === 'admin' || me.role === 'manager';
 
-    const records = await sql`
-      SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,
-             a.approved_by, a.approved_at, a.reject_reason, a.requested_at,
-             u.name AS approver_name
-      FROM attendance_records a
-      LEFT JOIN users u ON u.id = a.approved_by
-      WHERE a.work_date >= ${start} AND a.work_date < ${end}
-      ORDER BY a.work_date ASC, a.user_id ASC
-    `;
+    // 권한 분리: 일반 직원 = 본인 데이터만, admin/manager = 전체
+    let users, records;
+    if (isPriv) {
+      users = await sql`
+        SELECT id, name, role, registered
+        FROM users
+        WHERE role <> 'admin'
+        ORDER BY sort_order ASC, id ASC
+      `;
+      records = await sql`
+        SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,
+               a.approved_by, a.approved_at, a.reject_reason, a.requested_at,
+               u.name AS approver_name
+        FROM attendance_records a
+        LEFT JOIN users u ON u.id = a.approved_by
+        WHERE a.work_date >= ${start} AND a.work_date < ${end}
+        ORDER BY a.work_date ASC, a.user_id ASC
+      `;
+    } else {
+      users = [{ id: me.id, name: me.name, role: me.role, registered: true }];
+      records = await sql`
+        SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,
+               a.approved_by, a.approved_at, a.reject_reason, a.requested_at,
+               u.name AS approver_name
+        FROM attendance_records a
+        LEFT JOIN users u ON u.id = a.approved_by
+        WHERE a.work_date >= ${start} AND a.work_date < ${end}
+          AND a.user_id = ${me.id}
+        ORDER BY a.work_date ASC
+      `;
+    }
 
-    return res.status(200).json({ ym, users, records });
+    return res.status(200).json({ ym, users, records, isPriv });
   } catch (e) {
     console.error('att/list error:', e);
     return res.status(500).json({ error: 'server error', detail: String(e.message || e) });
