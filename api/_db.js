@@ -28,68 +28,69 @@ const ADMIN_NAME = '1';
 const ADMIN_DEFAULT_PW = '1';
 
 let initialized = false;
+let initPromise = null;
 export async function ensureSchema() {
   if (initialized) return;
+  if (initPromise) return initPromise;        // 동시 호출 시 1회만 실행
+  initPromise = (async () => {
+    // 1단계: 테이블 생성 (병렬 — 서로 의존 없음 except attendance→users)
+    await Promise.all([
+      sql`
+        CREATE TABLE IF NOT EXISTS applications (
+          id SERIAL PRIMARY KEY,
+          source TEXT NOT NULL CHECK (source IN ('A','B')),
+          name TEXT NOT NULL,
+          phone TEXT NOT NULL,
+          carrier TEXT,
+          model TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `,
+      sql`
+        CREATE TABLE IF NOT EXISTS users (
+          id SERIAL PRIMARY KEY,
+          name TEXT UNIQUE NOT NULL,
+          password_hash TEXT,
+          password_salt TEXT,
+          role TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('admin','manager','employee')),
+          registered BOOLEAN NOT NULL DEFAULT FALSE,
+          sort_order INT NOT NULL DEFAULT 0,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `,
+    ]);
 
-  // applications (광고 랜딩 신청자) — 유지: api/submit.js가 사용
-  await sql`
-    CREATE TABLE IF NOT EXISTS applications (
-      id SERIAL PRIMARY KEY,
-      source TEXT NOT NULL CHECK (source IN ('A','B')),
-      name TEXT NOT NULL,
-      phone TEXT NOT NULL,
-      carrier TEXT,
-      model TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `;
-  await sql`ALTER TABLE applications ADD COLUMN IF NOT EXISTS downloaded_at TIMESTAMPTZ NULL`;
-  await sql`CREATE INDEX IF NOT EXISTS idx_apps_created ON applications (created_at DESC)`;
-
-  // users — 직원/관리자 계정
-  // role: 'admin'(대표) / 'manager'(차장) / 'employee'(직원)
-  // registered: 회원가입 여부 (preset 12명은 시드 시 false, 가입 후 true)
-  await sql`
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      name TEXT UNIQUE NOT NULL,
-      password_hash TEXT,
-      password_salt TEXT,
-      role TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('admin','manager','employee')),
-      registered BOOLEAN NOT NULL DEFAULT FALSE,
-      sort_order INT NOT NULL DEFAULT 0,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `;
-  await sql`CREATE INDEX IF NOT EXISTS idx_users_name ON users (name)`;
-  await sql`CREATE INDEX IF NOT EXISTS idx_users_role ON users (role)`;
-
-  // attendance_records — 근태 요청/승인 기록
-  // type: WORK(정상)/OFF(휴무)/HALF_AM(오전반차)/HALF_PM(오후반차)/MONTHLY(월차)/ANNUAL(연차)/SICK(병가)/HOLIDAY(공휴일)
-  // status: REQUESTED(요청) / APPROVED(승인) / REJECTED(반려)
-  await sql`
-    CREATE TABLE IF NOT EXISTS attendance_records (
-      id SERIAL PRIMARY KEY,
-      user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      work_date DATE NOT NULL,
-      type TEXT NOT NULL CHECK (type IN ('WORK','OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK','HOLIDAY')),
-      status TEXT NOT NULL DEFAULT 'REQUESTED' CHECK (status IN ('REQUESTED','APPROVED','REJECTED')),
-      note TEXT,
-      requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      approved_by INT REFERENCES users(id),
-      approved_at TIMESTAMPTZ,
-      reject_reason TEXT,
-      UNIQUE(user_id, work_date)
-    )
-  `;
-  await sql`CREATE INDEX IF NOT EXISTS idx_att_date ON attendance_records (work_date)`;
-  await sql`CREATE INDEX IF NOT EXISTS idx_att_user_date ON attendance_records (user_id, work_date)`;
-  await sql`CREATE INDEX IF NOT EXISTS idx_att_status ON attendance_records (status)`;
-
-  // 시드 — 대표(admin) 계정 (UPSERT — 항상 최신 자격증명으로 유지)
-  {
-    const { hash, salt } = hashPassword(ADMIN_DEFAULT_PW);
+    // 2단계: attendance_records (users에 FK)
     await sql`
+      CREATE TABLE IF NOT EXISTS attendance_records (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        work_date DATE NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('WORK','OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK','HOLIDAY')),
+        status TEXT NOT NULL DEFAULT 'REQUESTED' CHECK (status IN ('REQUESTED','APPROVED','REJECTED')),
+        note TEXT,
+        requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        approved_by INT REFERENCES users(id),
+        approved_at TIMESTAMPTZ,
+        reject_reason TEXT,
+        UNIQUE(user_id, work_date)
+      )
+    `;
+
+    // 3단계: ALTER + 인덱스 (병렬)
+    await Promise.all([
+      sql`ALTER TABLE applications ADD COLUMN IF NOT EXISTS downloaded_at TIMESTAMPTZ NULL`,
+      sql`CREATE INDEX IF NOT EXISTS idx_apps_created ON applications (created_at DESC)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_users_name ON users (name)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_users_role ON users (role)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_att_date ON attendance_records (work_date)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_att_user_date ON attendance_records (user_id, work_date)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_att_status ON attendance_records (status)`,
+    ]);
+
+    // 4단계: 시드 (병렬)
+    const { hash, salt } = hashPassword(ADMIN_DEFAULT_PW);
+    const adminUpsert = sql`
       INSERT INTO users (name, password_hash, password_salt, role, registered, sort_order)
       VALUES (${ADMIN_NAME}, ${hash}, ${salt}, 'admin', TRUE, -1)
       ON CONFLICT (name) DO UPDATE
@@ -99,33 +100,33 @@ export async function ensureSchema() {
             registered = TRUE,
             sort_order = -1
     `;
-    // 과거에 시드된 다른 admin 행은 정리
-    await sql`DELETE FROM users WHERE role = 'admin' AND name <> ${ADMIN_NAME}`;
-  }
+    const adminCleanup = sql`DELETE FROM users WHERE role = 'admin' AND name <> ${ADMIN_NAME}`;
+    const presetInserts = PRESET_NAMES.map((name, i) => {
+      const role = MANAGER_NAMES.has(name) ? 'manager' : 'employee';
+      return sql`
+        INSERT INTO users (name, role, registered, sort_order)
+        VALUES (${name}, ${role}, FALSE, ${i})
+        ON CONFLICT (name) DO NOTHING
+      `;
+    });
+    await Promise.all([adminUpsert, adminCleanup, ...presetInserts]);
 
-  // 시드 — 12명 preset (registered=false, 회원가입 시 비밀번호 설정)
-  for (let i = 0; i < PRESET_NAMES.length; i++) {
-    const name = PRESET_NAMES[i];
-    const role = MANAGER_NAMES.has(name) ? 'manager' : 'employee';
-    await sql`
-      INSERT INTO users (name, role, registered, sort_order)
-      VALUES (${name}, ${role}, FALSE, ${i})
-      ON CONFLICT (name) DO NOTHING
-    `;
-  }
-
-  initialized = true;
+    initialized = true;
+  })();
+  return initPromise;
 }
 
 // ─────────────── 비밀번호 해시 (pbkdf2) ───────────────
+// 내부 어드민용 — 12명 규모, 로그인 빈도 낮음. iter 1만으로 충분 (≈10ms)
+const PBKDF2_ITER = 10000;
 export function hashPassword(password, saltHex) {
   const salt = saltHex || crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256').toString('hex');
+  const hash = crypto.pbkdf2Sync(password, salt, PBKDF2_ITER, 32, 'sha256').toString('hex');
   return { hash, salt };
 }
 export function verifyPassword(password, hash, salt) {
   if (!hash || !salt) return false;
-  const cmp = crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256').toString('hex');
+  const cmp = crypto.pbkdf2Sync(password, salt, PBKDF2_ITER, 32, 'sha256').toString('hex');
   return crypto.timingSafeEqual(Buffer.from(cmp, 'hex'), Buffer.from(hash, 'hex'));
 }
 

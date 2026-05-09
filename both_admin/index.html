@@ -469,7 +469,11 @@ function loginForm(){
   const nameI=h('input',{type:'text',autocomplete:'username',placeholder:'이름'});
   const pwI=h('input',{type:'password',autocomplete:'current-password',placeholder:'비밀번호'});
   const msg=h('div',{class:'auth-msg'});
+  const btn=h('button',{class:'btn btn-primary btn-block'},'로그인');
+  let busy=false;
   const submit=async()=>{
+    if(busy) return;
+    busy=true; btn.textContent='로그인 중…'; btn.style.opacity='.7'; btn.disabled=true;
     msg.textContent='';
     try{
       const r=await api('/api/auth/login',{method:'POST',body:{name:nameI.value.trim(),password:pwI.value}});
@@ -477,15 +481,21 @@ function loginForm(){
       State.ym=todayYm();
       await loadMonth();
       renderApp();
-    }catch(e){ msg.textContent=e.message; }
+    }catch(e){
+      msg.textContent=e.message;
+      busy=false; btn.textContent='로그인'; btn.style.opacity='1'; btn.disabled=false;
+    }
   };
+  btn.addEventListener('click',submit);
   pwI.addEventListener('keydown',e=>{ if(e.key==='Enter') submit(); });
+  nameI.addEventListener('keydown',e=>{ if(e.key==='Enter') pwI.focus(); });
   wrap.append(
     h('div',{class:'field'},nameI),
     h('div',{class:'field'},pwI),
     msg,
-    h('button',{class:'btn btn-primary btn-block',onClick:submit},'로그인')
+    btn
   );
+  setTimeout(()=>{ try{ nameI.focus(); }catch(_){}; },20);
   return wrap;
 }
 
@@ -732,7 +742,7 @@ function renderGrid(){
   }
 
   const table=h('table',{class:'grid'},
-    h('thead',null,h('tr',null,headRow),h('tr',null,headRow2)),
+    h('thead',null,h('tr',null,headRow)),
     tbody
   );
   const wrap=h('div',{class:'grid-wrap'},table);
@@ -1012,17 +1022,42 @@ function renderPersonDetail(){
     cal
   );
 
-  // 3) 신청 이력
-  const sortedRecs=recs.slice().sort((a,b)=>String(b.work_date).localeCompare(String(a.work_date)));
+  // 3) 신청 이력 — 날짜 범위/타입/상태 필터 + 정렬
+  const filter={
+    sort:'desc',     // desc(최신) | asc(오래된)
+    type:'ALL',      // ALL | WORK/OFF/...
+    status:'ALL',    // ALL | REQUESTED/APPROVED/REJECTED
+    from:'',         // YYYY-MM-DD
+    to:'',
+  };
   const histList=h('div',{class:'pd-history-list'});
-  if(!sortedRecs.length){
-    histList.append(h('div',{class:'empty',style:'padding:24px'},'아직 신청 이력이 없습니다'));
-  } else {
-    for(const r of sortedRecs){
+
+  function paintHist(){
+    histList.innerHTML='';
+    let filtered=recs.slice();
+    if(filter.type!=='ALL'){
+      if(filter.type==='HALF') filtered=filtered.filter(r=>r.type==='HALF_AM'||r.type==='HALF_PM');
+      else filtered=filtered.filter(r=>r.type===filter.type);
+    }
+    if(filter.status!=='ALL') filtered=filtered.filter(r=>r.status===filter.status);
+    if(filter.from) filtered=filtered.filter(r=>String(r.work_date).slice(0,10)>=filter.from);
+    if(filter.to) filtered=filtered.filter(r=>String(r.work_date).slice(0,10)<=filter.to);
+    filtered.sort((a,b)=>{
+      const c=String(a.work_date).localeCompare(String(b.work_date));
+      return filter.sort==='desc'?-c:c;
+    });
+    if(!filtered.length){
+      histList.append(h('div',{class:'empty',style:'padding:24px'},'조건에 맞는 이력이 없습니다'));
+      return;
+    }
+    for(const r of filtered){
       const dateStr=String(r.work_date).slice(0,10);
-      histList.append(h('div',{class:'pd-hist'},
+      const dow=['일','월','화','수','목','금','토'][new Date(dateStr+'T00:00:00').getDay()];
+      histList.append(h('div',{class:'pd-hist',
+        style:'cursor:pointer',
+        onClick:()=>openCellDrawer(u,dateStr,r)},
         h('div',{class:'hi-left'},
-          h('span',{class:'hi-date'}, dateStr.slice(5)),
+          h('span',{class:'hi-date'}, dateStr.slice(5)+' ('+dow+')'),
           h('span',{class:`chip chip-${r.type}`}, TYPE_LABELS[r.type]),
           r.note?h('span',{style:'color:var(--text-soft);font-size:11.5px'}, '· '+r.note):null,
         ),
@@ -1030,8 +1065,59 @@ function renderPersonDetail(){
       ));
     }
   }
+
+  // 필터바
+  const filterBar=h('div',{
+    style:'display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:14px;font-size:12px'
+  });
+  // 타입 필터
+  const typeOpts=[['ALL','전체'],['ANNUAL','연차'],['MONTHLY','월차'],['HALF','반차'],['SICK','병가'],['OFF','휴무'],['WORK','정상']];
+  const typeSel=h('select',{
+    style:'padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:#fff;font-size:12.5px;outline:none;cursor:pointer',
+    onChange:(e)=>{filter.type=e.target.value;paintHist();}
+  }, ...typeOpts.map(([v,l])=>h('option',{value:v},l)));
+  // 상태 필터
+  const statusOpts=[['ALL','전체상태'],['APPROVED','승인'],['REQUESTED','대기'],['REJECTED','반려']];
+  const statusSel=h('select',{
+    style:'padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:#fff;font-size:12.5px;outline:none;cursor:pointer',
+    onChange:(e)=>{filter.status=e.target.value;paintHist();}
+  }, ...statusOpts.map(([v,l])=>h('option',{value:v},l)));
+  // 날짜 from/to
+  const fromI=h('input',{type:'date',
+    style:'padding:6px 9px;border:1px solid var(--border);border-radius:7px;background:#fff;font-size:12.5px;outline:none',
+    onChange:(e)=>{filter.from=e.target.value;paintHist();}});
+  const toI=h('input',{type:'date',
+    style:'padding:6px 9px;border:1px solid var(--border);border-radius:7px;background:#fff;font-size:12.5px;outline:none',
+    onChange:(e)=>{filter.to=e.target.value;paintHist();}});
+  // 정렬 토글
+  const sortBtn=h('button',{
+    class:'btn',
+    style:'padding:7px 11px;font-size:12px',
+    onClick:()=>{filter.sort=filter.sort==='desc'?'asc':'desc';sortBtn.textContent=filter.sort==='desc'?'최신순 ↓':'오래된순 ↑';paintHist();}
+  }, '최신순 ↓');
+  // 초기화
+  const resetBtn=h('button',{
+    class:'btn',
+    style:'padding:7px 11px;font-size:12px',
+    onClick:()=>{
+      filter.sort='desc';filter.type='ALL';filter.status='ALL';filter.from='';filter.to='';
+      typeSel.value='ALL';statusSel.value='ALL';fromI.value='';toI.value='';
+      sortBtn.textContent='최신순 ↓';paintHist();
+    }
+  }, '초기화');
+
+  filterBar.append(
+    typeSel, statusSel,
+    h('span',{style:'color:var(--text-soft);font-size:11.5px;margin-left:4px'},'기간'),
+    fromI, h('span',{style:'color:var(--text-soft)'}, '~'), toI,
+    h('span',{style:'flex:1'}),
+    sortBtn, resetBtn
+  );
+
+  paintHist();
   const histSection=h('section',{class:'pd-section'},
-    h('h3',null,'🕘 신청 이력'),
+    h('h3',null,'🕘 신청 이력 ',h('span',{style:'color:var(--text-soft);font-weight:500;font-size:12px;margin-left:6px'},'· 총 '+recs.length+'건')),
+    filterBar,
     histList
   );
 
