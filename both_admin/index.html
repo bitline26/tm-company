@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TM 근태관리</title>
+<title>티엠컴퍼니</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
 <style>
@@ -29,77 +29,67 @@
 
   .auth-wrap{
     min-height:100vh;display:flex;align-items:center;justify-content:center;
-    background:
-      radial-gradient(1100px 600px at 12% -10%, #e8e4ff 0%, transparent 55%),
-      radial-gradient(900px 600px at 95% 110%, #ffe4d4 0%, transparent 55%),
-      linear-gradient(180deg,#fafaf8 0%, #f4f3f0 100%);
+    background:#fafaf8;
     padding:24px;position:relative;overflow:hidden;
   }
   .auth-wrap::before{
     content:"";position:absolute;inset:0;pointer-events:none;
-    background-image:radial-gradient(rgba(55,53,47,.05) 1px, transparent 1px);
-    background-size:22px 22px;
-    mask-image:linear-gradient(180deg,transparent 0,#000 30%,#000 70%,transparent 100%);
+    background:
+      radial-gradient(60% 50% at 50% 0%, rgba(55,53,47,.05) 0%, transparent 70%),
+      radial-gradient(40% 40% at 0% 100%, rgba(55,53,47,.04) 0%, transparent 70%),
+      radial-gradient(40% 40% at 100% 100%, rgba(55,53,47,.04) 0%, transparent 70%);
   }
   .auth-card{
-    position:relative;z-index:1;width:420px;background:#fff;
-    border-radius:14px;padding:40px 36px 32px;
-    box-shadow:0 1px 2px rgba(15,15,15,.04),0 12px 32px rgba(15,15,15,.08),0 32px 64px rgba(15,15,15,.06);
-    border:1px solid rgba(15,15,15,.06);
+    position:relative;z-index:1;width:380px;background:#fff;
+    border-radius:16px;padding:44px 36px 28px;
+    box-shadow:0 1px 1px rgba(15,15,15,.03),0 8px 24px rgba(15,15,15,.06),0 24px 48px rgba(15,15,15,.04);
+    border:1px solid rgba(15,15,15,.05);
   }
-  .auth-brand{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+  .auth-brand{display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:28px}
   .auth-brand-mark{
-    width:36px;height:36px;border-radius:9px;
-    background:linear-gradient(135deg,#37352f 0%,#5b5750 100%);
+    width:44px;height:44px;border-radius:11px;
+    background:#0f0f0f;
     color:#fff;display:flex;align-items:center;justify-content:center;
-    font-weight:800;font-size:13px;letter-spacing:0.02em;
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),0 4px 10px rgba(15,15,15,.18);
+    font-weight:800;font-size:15px;letter-spacing:0.02em;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),0 4px 14px rgba(15,15,15,.22);
   }
-  .auth-brand-text{font-weight:700;font-size:15px;letter-spacing:-0.01em}
-  .auth-brand-text small{display:block;font-weight:500;color:var(--text-soft);font-size:11.5px;margin-top:1px}
+  .auth-brand-text{font-weight:700;font-size:16px;letter-spacing:-0.02em}
 
-  .auth-logo{font-size:22px;font-weight:700;letter-spacing:-0.025em;margin-bottom:4px;line-height:1.25}
-  .auth-sub{color:var(--text-soft);font-size:13px;margin-bottom:22px;line-height:1.55}
-
-  .auth-tabs{display:flex;gap:18px;border-bottom:1px solid var(--border);margin-bottom:22px}
-  .auth-tab{padding:10px 0 12px;border:none;background:transparent;color:var(--text-soft);font-weight:600;font-size:13.5px;position:relative;letter-spacing:-0.005em}
+  .auth-tabs{display:flex;gap:20px;justify-content:center;border-bottom:1px solid var(--border);margin-bottom:24px}
+  .auth-tab{padding:10px 2px 12px;border:none;background:transparent;color:#a3a29e;font-weight:600;font-size:13.5px;position:relative;letter-spacing:-0.005em}
   .auth-tab:hover{color:var(--text)}
   .auth-tab.on{color:var(--text)}
   .auth-tab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--text);border-radius:2px}
 
-  .field{margin-bottom:14px}
-  .field label{display:block;font-size:12px;font-weight:600;color:var(--text-soft);margin-bottom:6px;letter-spacing:0.01em}
+  .field{margin-bottom:12px}
   .field input,.field select{
-    width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:8px;
-    background:#fff;outline:none;transition:border-color .12s,box-shadow .12s;
+    width:100%;padding:13px 14px;border:1px solid var(--border);border-radius:10px;
+    background:#fcfcfb;outline:none;transition:border-color .12s,box-shadow .12s,background .12s;
     font-size:14px;color:var(--text);
   }
   .field input::placeholder{color:#b8b6b1}
-  .field input:focus,.field select:focus{border-color:var(--text);box-shadow:0 0 0 3px rgba(55,53,47,.08)}
+  .field input:focus,.field select:focus{border-color:#0f0f0f;background:#fff;box-shadow:0 0 0 3px rgba(15,15,15,.06)}
 
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border-radius:7px;border:1px solid var(--border);background:#fff;color:var(--text);font-weight:600;font-size:13px;transition:background .12s,border-color .12s,transform .05s}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text);font-weight:600;font-size:13px;transition:background .12s,border-color .12s,transform .05s}
   .btn:hover{background:var(--hover)}
   .btn:active{transform:translateY(1px)}
-  .btn-primary{background:#37352f;color:#fff;border-color:#37352f}
-  .btn-primary:hover{background:#1f1d19;border-color:#1f1d19}
-  .btn-block{width:100%;padding:13px;font-size:14px;border-radius:9px;letter-spacing:-0.005em}
+  .btn-primary{background:#0f0f0f;color:#fff;border-color:#0f0f0f}
+  .btn-primary:hover{background:#000;border-color:#000}
+  .btn-block{width:100%;padding:14px;font-size:14px;border-radius:11px;letter-spacing:-0.005em;margin-top:6px}
   .btn-danger{color:var(--red);border-color:var(--red-soft)}
   .btn-danger:hover{background:var(--red-soft)}
 
-  .auth-msg{font-size:12.5px;color:var(--red);min-height:18px;margin:6px 0 8px}
+  .auth-msg{font-size:12px;color:var(--red);min-height:16px;text-align:center;margin:8px 0 0}
 
   .auth-hint{
-    margin-top:18px;padding:12px 14px;border-radius:9px;
-    background:#f7f6f3;border:1px solid var(--border-soft);
-    font-size:12px;color:var(--text-soft);line-height:1.6;
-    display:flex;align-items:center;gap:10px;
-  }
-  .auth-hint .pill{
-    flex-shrink:0;font-size:10.5px;font-weight:700;color:#fff;background:#37352f;
-    padding:3px 7px;border-radius:4px;letter-spacing:0.04em;
+    margin-top:18px;padding:11px 14px;border-radius:10px;
+    background:#f7f6f3;
+    font-size:11.5px;color:var(--text-soft);
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    letter-spacing:0.01em;
   }
   .auth-hint code{
-    font-family:'SF Mono',Menlo,monospace;font-size:11.5px;background:#fff;
+    font-family:'SF Mono',Menlo,monospace;font-size:11px;background:#fff;
     border:1px solid var(--border);padding:1.5px 6px;border-radius:4px;color:var(--text);
   }
 
@@ -284,12 +274,8 @@ function renderAuth(){
     card.append(
       h('div',{class:'auth-brand'},
         h('div',{class:'auth-brand-mark'},'TM'),
-        h('div',{class:'auth-brand-text'},'TM 근태관리',h('small',null,'Attendance & Leave'))
+        h('div',{class:'auth-brand-text'},'티엠컴퍼니')
       ),
-      h('div',{class:'auth-logo'}, tab.cur==='login'?'다시 오신 걸 환영합니다':'계정을 만들어 주세요'),
-      h('div',{class:'auth-sub'}, tab.cur==='login'
-        ? '이름과 비밀번호로 로그인하면 본인 일정과 팀 근태를 한눈에 확인할 수 있어요.'
-        : '회사에 등록된 직원만 가입할 수 있습니다. 본인 이름을 선택해 주세요.'),
       h('div',{class:'auth-tabs'},
         h('button',{class:'auth-tab '+(tab.cur==='login'?'on':''),onClick:()=>{tab.cur='login';paint();}},'로그인'),
         h('button',{class:'auth-tab '+(tab.cur==='signup'?'on':''),onClick:()=>{tab.cur='signup';paint();}},'회원가입'),
@@ -304,7 +290,7 @@ function renderAuth(){
 
 function loginForm(){
   const wrap=h('div');
-  const nameI=h('input',{type:'text',autocomplete:'username',placeholder:'예: 김상현 / 대표'});
+  const nameI=h('input',{type:'text',autocomplete:'username',placeholder:'이름'});
   const pwI=h('input',{type:'password',autocomplete:'current-password',placeholder:'비밀번호'});
   const msg=h('div',{class:'auth-msg'});
   const submit=async()=>{
@@ -319,14 +305,10 @@ function loginForm(){
   };
   pwI.addEventListener('keydown',e=>{ if(e.key==='Enter') submit(); });
   wrap.append(
-    h('div',{class:'field'},h('label',null,'이름'),nameI),
-    h('div',{class:'field'},h('label',null,'비밀번호'),pwI),
+    h('div',{class:'field'},nameI),
+    h('div',{class:'field'},pwI),
     msg,
-    h('button',{class:'btn btn-primary btn-block',onClick:submit},'로그인'),
-    h('div',{class:'auth-hint'},
-      h('span',{class:'pill'},'관리자'),
-      h('div',null,'아이디 ',h('code',null,'1'),' · 비밀번호 ',h('code',null,'1'))
-    )
+    h('button',{class:'btn btn-primary btn-block',onClick:submit},'로그인')
   );
   return wrap;
 }
@@ -354,9 +336,9 @@ function signupForm(){
     }catch(e){ msg.textContent=e.message; }
   };
   wrap.append(
-    h('div',{class:'field'},h('label',null,'이름 (등록된 직원만 선택 가능)'),sel),
-    h('div',{class:'field'},h('label',null,'비밀번호'),pwI),
-    h('div',{class:'field'},h('label',null,'비밀번호 확인'),pw2I),
+    h('div',{class:'field'},sel),
+    h('div',{class:'field'},pwI),
+    h('div',{class:'field'},pw2I),
     msg,
     h('button',{class:'btn btn-primary btn-block',onClick:submit},'가입하기')
   );
