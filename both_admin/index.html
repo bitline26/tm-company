@@ -134,29 +134,73 @@
   table.grid td.day.weekend{background:var(--bg-soft);cursor:default}
   table.grid td.day.weekend:hover{outline:none}
   table.grid td.day.today{box-shadow:inset 0 0 0 2px var(--accent)}
+  /* 셀 타입 색상 (Linear/Notion 톤 — 채도 낮고 선명) */
   td.type-WORK{background:#fff}
-  td.type-OFF{background:var(--gray-soft);color:var(--text)}
-  td.type-HALF_AM{background:linear-gradient(180deg,var(--yellow-soft) 50%,#fff 50%);color:var(--yellow)}
-  td.type-HALF_PM{background:linear-gradient(180deg,#fff 50%,var(--yellow-soft) 50%);color:var(--yellow)}
-  td.type-MONTHLY{background:var(--blue-soft);color:var(--blue)}
-  td.type-ANNUAL{background:var(--purple-soft);color:var(--purple)}
-  td.type-SICK{background:var(--red-soft);color:var(--red)}
-  td.type-HOLIDAY{background:var(--gray-soft);color:var(--text-soft)}
-  td.day.requested::after{content:"";position:absolute;inset:2px;border:1.5px dashed var(--yellow);border-radius:3px;pointer-events:none}
-  td.day.rejected{text-decoration:line-through;color:var(--red)!important;background:var(--red-soft)!important}
+  td.type-OFF{background:#f1f1ef;color:#5b5750}
+  td.type-HALF_AM{background:linear-gradient(180deg,#fde8c8 50%,#fff 50%);color:#a96400}
+  td.type-HALF_PM{background:linear-gradient(180deg,#fff 50%,#fde8c8 50%);color:#a96400}
+  td.type-MONTHLY{background:#dee9f5;color:#175594}
+  td.type-ANNUAL{background:#dbe5f8;color:#1d4ed8}
+  td.type-SICK{background:#fde0dd;color:#b91c1c}
+  td.type-HOLIDAY{background:#ebe3f5;color:#6940a5}
+  td.day.requested::after{content:"";position:absolute;inset:2px;border:1.5px dashed #d49426;border-radius:3px;pointer-events:none}
+  td.day.rejected{text-decoration:line-through;color:#b91c1c!important;background:#fde0dd!important}
+
+  /* 본인 행 강조 — 좌측 액센트 바 + 행 배경 미세 톤다운 */
+  table.grid tr.row-self .col-name{
+    background:#f6f1e9;color:#37352f;
+    box-shadow:inset 3px 0 0 #0f0f0f;
+    padding-left:14px;
+  }
+  table.grid tr.row-self td.day:not(.weekend){background-color:#fdfbf7}
+  table.grid tr.row-self td.day.type-OFF{background:#ecebe9}
+  table.grid tr.row-self td.day.type-MONTHLY{background:#d4e2f1}
+  table.grid tr.row-self td.day.type-ANNUAL{background:#cfdcf6}
+  table.grid tr.row-self td.day.type-SICK{background:#fcd6d2}
+  table.grid tr.row-self td.day.type-HOLIDAY{background:#e1d6f1}
+
   .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;font-size:12px;color:var(--text-soft)}
   .legend-item{display:inline-flex;align-items:center;gap:5px}
   .legend-sw{display:inline-block;width:14px;height:14px;border-radius:3px;border:1px solid var(--border)}
 
-  .modal-bg{position:fixed;inset:0;background:rgba(15,15,15,.4);display:flex;align-items:center;justify-content:center;z-index:50}
-  .modal{background:#fff;border-radius:8px;width:420px;max-width:90vw;padding:22px;box-shadow:var(--shadow-md)}
-  .modal h3{margin:0 0 4px;font-size:16px;font-weight:700}
+  /* 헤더 위젯 (오늘 부재 / 본인 사용량) */
+  .stat-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  .stat-chip{
+    display:inline-flex;align-items:center;gap:8px;padding:8px 12px;
+    background:#fff;border:1px solid var(--border);border-radius:9px;font-size:12.5px;
+    color:var(--text);
+  }
+  .stat-chip .num{font-weight:700;font-size:14px;color:#0f0f0f}
+  .stat-chip.muted{color:var(--text-soft)}
+  .stat-chip .stat-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .stat-chip .stat-dot.dot-annual{background:#1d4ed8}
+  .stat-chip .stat-dot.dot-half{background:#d49426}
+  .stat-chip .stat-dot.dot-sick{background:#b91c1c}
+  .stat-chip .stat-dot.dot-monthly{background:#175594}
+  .stat-chip .stat-dot.dot-off{background:#5b5750}
+  .out-today{
+    background:#fffbf2;border-color:#f6e2b3;color:#7a4f00;
+  }
+  .out-today .num{color:#7a4f00}
+
+  .modal-bg{position:fixed;inset:0;background:rgba(15,15,15,.42);display:flex;align-items:center;justify-content:center;z-index:50;backdrop-filter:blur(2px)}
+  .modal{background:#fff;border-radius:14px;width:440px;max-width:92vw;padding:24px;box-shadow:0 20px 50px rgba(15,15,15,.18),0 4px 12px rgba(15,15,15,.06);border:1px solid rgba(15,15,15,.05)}
+  .modal h3{margin:0 0 4px;font-size:16px;font-weight:700;letter-spacing:-0.01em}
   .modal .modal-sub{font-size:12.5px;color:var(--text-soft);margin-bottom:16px}
-  .type-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:14px}
-  .type-btn{padding:10px;border:1px solid var(--border);border-radius:6px;background:#fff;font-size:13px;font-weight:600;text-align:center;color:var(--text-soft)}
+  .type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px}
+  .type-btn{padding:9px 6px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:12.5px;font-weight:600;text-align:center;color:var(--text-soft);transition:all .1s}
   .type-btn:hover{background:var(--hover)}
-  .type-btn.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+  .type-btn.on{border-color:#0f0f0f;background:#0f0f0f;color:#fff}
   .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+  .audit-box{
+    margin:6px 0 14px;padding:10px 12px;border-radius:8px;background:#f7f6f3;
+    font-size:11.5px;color:var(--text-soft);line-height:1.55;
+  }
+  .audit-box .audit-line{display:flex;justify-content:space-between;gap:8px}
+  .audit-box .audit-key{color:#9b9a97;font-weight:500}
+  .audit-box .audit-val{color:var(--text);font-weight:500}
+  .audit-box .audit-val.ok{color:#0f7b6c}
+  .audit-box .audit-val.no{color:#b91c1c}
 
   .approval-list{display:flex;flex-direction:column;gap:8px}
   .approval-card{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid var(--border);border-radius:8px;background:#fff}
@@ -404,21 +448,74 @@ function renderTopbar(){
       loadMonth().then(renderApp);
     };
     actions.append(
+      h('button',{class:'btn',onClick:exportCsv,title:'CSV로 내보내기'},'내보내기'),
       h('div',{class:'month-picker'},
-        h('button',{class:'icon-btn',onClick:()=>change(-1)},'‹'),
+        h('button',{class:'icon-btn',onClick:()=>change(-1),title:'이전 달 (←)'},'‹'),
         h('div',{class:'month-label'},`${y}년 ${m}월`),
-        h('button',{class:'icon-btn',onClick:()=>change(+1)},'›'),
+        h('button',{class:'icon-btn',onClick:()=>change(+1),title:'다음 달 (→)'},'›'),
       ),
       h('button',{class:'btn',onClick:()=>{State.ym=todayYm();loadMonth().then(renderApp);}},'오늘')
     );
   }
   return h('header',{class:'topbar'},
     h('div',null,
-      h('div',{class:'crumbs'},'TM 근태관리'),
+      h('div',{class:'crumbs'},'티엠컴퍼니'),
       h('h1',{class:'page-title'},title)
     ),
     actions
   );
+}
+
+// 헤더 위젯 (오늘 부재 / 본인 사용량) ─────────────────
+function renderStatChips(){
+  const wrap=h('div',{class:'stat-row'});
+  const today=new Date();
+  const todayYmd=fmtYmd(today.getFullYear(),today.getMonth()+1,today.getDate());
+
+  // 오늘 부재중 (APPROVED 인 OFF/MONTHLY/ANNUAL/SICK/HOLIDAY/HALF_AM/HALF_PM)
+  const outToday=State.records.filter(r=>{
+    const d=String(r.work_date).slice(0,10);
+    return d===todayYmd && r.status==='APPROVED' && r.type!=='WORK';
+  });
+  const userMap={}; State.users.forEach(u=>userMap[u.id]=u);
+  const outNames=outToday.map(r=>{
+    const n=userMap[r.user_id]?.name||'?';
+    return `${n}(${TYPE_LABELS[r.type]})`;
+  }).join(', ');
+  wrap.append(h('div',{
+    class:'stat-chip out-today',
+    title:outNames||'결근/휴가 없음',
+  }, '오늘 부재 ', h('span',{class:'num'}, outToday.length), '명',
+     outNames?h('span',{style:'color:#9a7600;margin-left:6px'},'· '+outNames):null));
+
+  // 본인 이번달 사용량 (APPROVED만)
+  const me=State.user;
+  if(me.role!=='admin'){
+    const mine=State.records.filter(r=>r.user_id===me.id && r.status==='APPROVED');
+    const cnt={ANNUAL:0,MONTHLY:0,HALF_AM:0,HALF_PM:0,SICK:0,OFF:0};
+    mine.forEach(r=>{ if(cnt[r.type]!=null) cnt[r.type]++; });
+    const halfTotal=cnt.HALF_AM+cnt.HALF_PM;
+    wrap.append(
+      h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-annual'}),' 연차 ',h('span',{class:'num'},cnt.ANNUAL)),
+      h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-monthly'}),' 월차 ',h('span',{class:'num'},cnt.MONTHLY)),
+      h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-half'}),' 반차 ',h('span',{class:'num'},halfTotal)),
+      h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-sick'}),' 병가 ',h('span',{class:'num'},cnt.SICK)),
+      h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-off'}),' 휴무 ',h('span',{class:'num'},cnt.OFF)),
+    );
+  }
+
+  // 승인 대기
+  const isPriv=me.role==='admin'||me.role==='manager';
+  const waiting=State.records.filter(r=>r.status==='REQUESTED');
+  if(waiting.length){
+    wrap.append(h('div',{
+      class:'stat-chip',style:'background:#fff7ec;border-color:#f4d99c;color:#7a4f00;cursor:pointer',
+      onClick:()=>{ if(isPriv){ State.page='approval'; renderApp(); }}
+    },'승인 대기 ', h('span',{class:'num',style:'color:#7a4f00'}, waiting.length),'건',
+       isPriv?h('span',{style:'margin-left:6px;font-size:11px'},'· 클릭'):null));
+  }
+
+  return wrap;
 }
 
 function renderGrid(){
@@ -451,7 +548,8 @@ function renderGrid(){
 
   const tbody=h('tbody');
   for(const u of State.users){
-    const tr=h('tr');
+    const isSelf=u.id===State.user.id;
+    const tr=h('tr',{class:isSelf?'row-self':''});
     tr.append(h('td',{class:'col-name'}, u.name,
       u.role==='manager'?h('span',{class:'role-badge role-manager',style:'margin-left:6px'},'차장'):null
     ));
@@ -488,14 +586,15 @@ function renderGrid(){
 
   const legend=h('div',{class:'legend'},
     legendItem('정상','#fff'),
-    legendItem('휴무','var(--gray-soft)'),
-    legendItem('월차','var(--blue-soft)'),
-    legendItem('연차','var(--purple-soft)'),
-    legendItem('반차','var(--yellow-soft)'),
-    legendItem('병가','var(--red-soft)'),
+    legendItem('휴무','#f1f1ef'),
+    legendItem('월차','#dee9f5'),
+    legendItem('연차','#dbe5f8'),
+    legendItem('반차','#fde8c8'),
+    legendItem('병가','#fde0dd'),
+    legendItem('공가','#ebe3f5'),
     h('span',{class:'legend-item',style:'margin-left:auto'},'· 점선 = 승인대기 · 빨강 취소선 = 반려')
   );
-  return h('div',null,wrap,legend);
+  return h('div',null, renderStatChips(), wrap, legend);
 }
 function legendItem(label,color){
   return h('span',{class:'legend-item'},h('span',{class:'legend-sw',style:`background:${color}`}),label);
@@ -529,6 +628,32 @@ function openCellModal(target,ymd,rec){
   const noteI=h('input',{type:'text',value:rec?rec.note||'':'',placeholder:'메모 (선택)'});
   const msg=h('div',{class:'auth-msg'});
 
+  // 승인 이력 박스 (기존 레코드가 있을 때만)
+  let auditBox=null;
+  if(rec){
+    const reqAt=rec.requested_at?new Date(rec.requested_at).toLocaleString('ko-KR',{dateStyle:'medium',timeStyle:'short'}):'';
+    const apvAt=rec.approved_at?new Date(rec.approved_at).toLocaleString('ko-KR',{dateStyle:'medium',timeStyle:'short'}):'';
+    const apvName=rec.approver_name||'';
+    let statusLine;
+    if(rec.status==='APPROVED'){
+      statusLine=h('div',{class:'audit-line'},
+        h('span',{class:'audit-key'},'승인'),
+        h('span',{class:'audit-val ok'}, apvName||'관리자',' · ',apvAt));
+    } else if(rec.status==='REJECTED'){
+      statusLine=h('div',{class:'audit-line'},
+        h('span',{class:'audit-key'},'반려'),
+        h('span',{class:'audit-val no'}, apvName||'관리자',' · ',apvAt, rec.reject_reason?` — ${rec.reject_reason}`:''));
+    } else {
+      statusLine=h('div',{class:'audit-line'},
+        h('span',{class:'audit-key'},'상태'),
+        h('span',{class:'audit-val'},'승인 대기'));
+    }
+    auditBox=h('div',{class:'audit-box'},
+      h('div',{class:'audit-line'},h('span',{class:'audit-key'},'요청'),h('span',{class:'audit-val'},reqAt)),
+      statusLine
+    );
+  }
+
   const close=()=>{ const m=$('.modal-bg'); if(m) m.remove(); };
   const save=async()=>{
     msg.textContent='';
@@ -559,8 +684,9 @@ function openCellModal(target,ymd,rec){
     h('div',{class:'modal-sub'}, isSelf
       ? (isPriv?'등록 즉시 자동 승인됩니다':'등록 시 차장/대표 승인 후 반영됩니다')
       : `${target.name} 일정을 직접 등록 (자동 승인)`),
+    auditBox,
     typeGrid,
-    h('div',{class:'field'},h('label',null,'메모'),noteI),
+    h('div',{class:'field'},noteI),
     msg,
     h('div',{class:'modal-actions'},
       rec?h('button',{class:'btn btn-danger',onClick:cancel},'삭제'):null,
@@ -578,17 +704,39 @@ function renderApproval(){
   const pending=State.records.filter(r=>r.status==='REQUESTED');
   if(!pending.length) return h('div',{class:'empty'},'승인 대기 중인 요청이 없습니다');
   const list=h('div',{class:'approval-list'});
-  async function act(id,action){
-    let reason=null;
-    if(action==='reject'){
-      reason=prompt('반려 사유 (선택)')||'';
-    }
+  async function doApprove(id){
     try{
-      await api('/api/att/approve',{method:'POST',body:{id,action,reject_reason:reason}});
-      await loadMonth();
-      renderApp();
-      showToast(action==='approve'?'승인됨':'반려됨');
+      await api('/api/att/approve',{method:'POST',body:{id,action:'approve'}});
+      await loadMonth(); renderApp(); showToast('승인됨');
     }catch(e){ alert(e.message); }
+  }
+  function openRejectModal(id, who){
+    const reasonI=h('input',{type:'text',placeholder:'반려 사유 (필수)'});
+    const msg=h('div',{class:'auth-msg'});
+    const close=()=>{ const m=$('.modal-bg'); if(m) m.remove(); };
+    const submit=async()=>{
+      const reason=reasonI.value.trim();
+      if(!reason){ msg.textContent='사유를 입력해주세요'; return; }
+      try{
+        await api('/api/att/approve',{method:'POST',body:{id,action:'reject',reject_reason:reason}});
+        close(); await loadMonth(); renderApp(); showToast('반려됨');
+      }catch(e){ msg.textContent=e.message; }
+    };
+    reasonI.addEventListener('keydown',e=>{ if(e.key==='Enter') submit(); });
+    const modal=h('div',{class:'modal'},
+      h('h3',null,'반려'),
+      h('div',{class:'modal-sub'}, who?`${who}님의 신청을 반려합니다`:''),
+      h('div',{class:'field'},reasonI),
+      msg,
+      h('div',{class:'modal-actions'},
+        h('button',{class:'btn',onClick:close},'취소'),
+        h('button',{class:'btn btn-danger',onClick:submit},'반려 확정')
+      )
+    );
+    const bg=h('div',{class:'modal-bg'},modal);
+    bg.addEventListener('click',e=>{ if(e.target===bg) close(); });
+    document.body.append(bg);
+    setTimeout(()=>reasonI.focus(),20);
   }
   for(const r of pending){
     const u=userMap[r.user_id]||{name:'?'};
@@ -599,8 +747,8 @@ function renderApproval(){
         h('div',{class:'what'}, r.note||'(메모 없음)',' · 요청: ',new Date(r.requested_at).toLocaleString('ko-KR'))
       ),
       h('div',{class:'approval-actions'},
-        h('button',{class:'btn btn-danger',onClick:()=>act(r.id,'reject')},'반려'),
-        h('button',{class:'btn btn-primary',onClick:()=>act(r.id,'approve')},'승인'),
+        h('button',{class:'btn btn-danger',onClick:()=>openRejectModal(r.id, u.name)},'반려'),
+        h('button',{class:'btn btn-primary',onClick:()=>doApprove(r.id)},'승인'),
       )
     );
     list.append(card);
@@ -628,6 +776,63 @@ async function logout(){
   State.user=null; State.users=[]; State.records=[];
   bootstrap();
 }
+
+// ───────── CSV 내보내기 ─────────
+function exportCsv(){
+  const [y,m]=State.ym.split('-').map(Number);
+  const dim=daysInMonth(y,m);
+  const recIdx={};
+  for(const r of State.records){
+    if(r.status!=='APPROVED') continue;
+    const dateStr=String(r.work_date).slice(0,10);
+    recIdx[`${r.user_id}|${dateStr}`]=r;
+  }
+  const rows=[];
+  const head=['이름','역할'];
+  for(let d=1;d<=dim;d++) head.push(`${m}/${d}`);
+  rows.push(head);
+  for(const u of State.users){
+    const row=[u.name, u.role==='manager'?'차장':'직원'];
+    for(let d=1;d<=dim;d++){
+      const ymd=fmtYmd(y,m,d);
+      const r=recIdx[`${u.id}|${ymd}`];
+      row.push(r?TYPE_LABELS[r.type]||'':'');
+    }
+    rows.push(row);
+  }
+  const csv=rows.map(r=>r.map(c=>{
+    const s=String(c||'');
+    return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s;
+  }).join(',')).join('\n');
+  // BOM 추가 — 엑셀 한글 깨짐 방지
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`근태_${State.ym}.csv`;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),500);
+  showToast('CSV 다운로드');
+}
+
+// ───────── 단축키 ─────────
+document.addEventListener('keydown',(e)=>{
+  if(!State.user) return;
+  // 입력 필드에서는 단축키 무시
+  const tag=(e.target&&e.target.tagName)||'';
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return;
+  if(e.key==='Escape'){
+    const m=$('.modal-bg'); if(m){ m.remove(); e.preventDefault(); }
+    return;
+  }
+  if(State.page!=='grid') return;
+  if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
+    const [y,m]=State.ym.split('-').map(Number);
+    const d=new Date(y, m-1+(e.key==='ArrowLeft'?-1:1), 1);
+    State.ym=fmtYm(d);
+    loadMonth().then(renderApp);
+    e.preventDefault();
+  }
+});
 
 bootstrap();
 </script>

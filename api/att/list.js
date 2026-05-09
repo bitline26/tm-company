@@ -27,11 +27,13 @@ export default requireAuth(async function handler(req, res) {
     `;
 
     const records = await sql`
-      SELECT id, user_id, work_date, type, status, note,
-             approved_by, approved_at, reject_reason, requested_at
-      FROM attendance_records
-      WHERE work_date >= ${start} AND work_date < ${end}
-      ORDER BY work_date ASC, user_id ASC
+      SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,
+             a.approved_by, a.approved_at, a.reject_reason, a.requested_at,
+             u.name AS approver_name
+      FROM attendance_records a
+      LEFT JOIN users u ON u.id = a.approved_by
+      WHERE a.work_date >= ${start} AND a.work_date < ${end}
+      ORDER BY a.work_date ASC, a.user_id ASC
     `;
 
     return res.status(200).json({ ym, users, records });
