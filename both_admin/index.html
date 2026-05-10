@@ -489,6 +489,15 @@ const State = {
   salesVendorRows: [],     // vendor-daily 응답
   salesDayMeta: null,      // {recontact_completed, note}
   salesOrdersFilter: { status:'ALL', tm:'ALL', vendor:'ALL', q:'' },
+
+  // 캐시 키 (로드된 컨텍스트 추적 — 같은 키면 페치 스킵)
+  salesOrdersLoadedYm: null,
+  salesTmLoadedKey: null,    // 'ym|cutoff'
+  salesVendorLoadedDate: null,
+  salesVendorsLoaded: false,
+
+  // 로딩 인디케이터 (페이지별)
+  loadingPage: null,
 };
 
 // 이름 → HSL 색상 (아바타 일관성)
@@ -569,8 +578,9 @@ async function bootstrap(){
     State.presetNames=me.presetNames||[];
     if(State.user){
       State.ym=todayYm();
-      await loadMonth();
+      // 즉시 렌더 (월 데이터는 백그라운드에서)
       renderApp();
+      loadMonth().then(()=>{ if(State.user) renderApp(); }).catch(console.error);
     }else{
       renderAuth();
     }
@@ -619,8 +629,8 @@ function loginForm(){
       const r=await api('/api/auth/login',{method:'POST',body:{name:nameI.value.trim(),password:pwI.value}});
       State.user=r.user;
       State.ym=todayYm();
-      await loadMonth();
-      renderApp();
+      renderApp();   // 즉시 대시보드 표시
+      loadMonth().then(()=>{ if(State.user) renderApp(); }).catch(console.error);
     }catch(e){
       msg.textContent=e.message;
       busy=false; btn.textContent='로그인'; btn.style.opacity='1'; btn.disabled=false;
@@ -657,8 +667,8 @@ function signupForm(){
       const r=await api('/api/auth/signup',{method:'POST',body:{name:sel.value,password:pwI.value}});
       State.user=r.user;
       State.ym=todayYm();
-      await loadMonth();
       renderApp();
+      loadMonth().then(()=>{ if(State.user) renderApp(); }).catch(console.error);
     }catch(e){ msg.textContent=e.message; }
   };
   wrap.append(
@@ -1636,55 +1646,97 @@ const ORDER_STATUS_LIST=['PAID','IN_PROGRESS','UNPAID','PARTIAL','CANCELLED'];
 const CARRIER_LIST=['SK','KT','LGU'];
 const fmtKRW=(n)=>'₩'+(Number(n||0)).toLocaleString('ko-KR');
 
-async function loadSalesContext(page){
-  // vendor 마스터는 모든 영업 페이지에 필요
-  if (!State.salesVendors.length){
-    try{ const v=await api('/api/sales/vendors'); State.salesVendors=v.vendors||[]; }catch(e){ console.error(e); }
+async function loadSalesContext(page, force){
+  const tasks = [];
+  // vendor 마스터 한 번만
+  if (!State.salesVendorsLoaded || force){
+    tasks.push(api('/api/sales/vendors').then(v=>{
+      State.salesVendors = v.vendors || []; State.salesVendorsLoaded = true;
+    }).catch(()=>{}));
   }
   if (page==='sales-orders'){
     const ym=State.salesYm || todayYm(); State.salesYm=ym;
-    const r=await api(`/api/sales/orders?ym=${ym}`);
-    State.salesOrders=r.orders||[];
+    if (force || State.salesOrdersLoadedYm !== ym){
+      tasks.push(api(`/api/sales/orders?ym=${ym}`).then(r=>{
+        State.salesOrders = r.orders || []; State.salesOrdersLoadedYm = ym;
+      }));
+    }
   } else if (page==='sales-tm'){
     const ym=State.salesYm || todayYm(); State.salesYm=ym;
     const cutoff=State.salesCutoff || (new Date().toISOString().slice(0,10));
     State.salesCutoff=cutoff;
-    const r=await api(`/api/sales/tm-summary?ym=${ym}&cutoff=${cutoff}`);
-    State.salesTmRows=r.rows||[];
-    State.salesPeriod=r.period;
-    State.salesTmElapsed=r.elapsedWorkdays||0;
-    State.salesTmRemaining=r.remainingWorkdays||0;
-    State.salesTmTotal=r.totalWorkdays||0;
+    const key = `${ym}|${cutoff}`;
+    if (force || State.salesTmLoadedKey !== key){
+      tasks.push(api(`/api/sales/tm-summary?ym=${ym}&cutoff=${cutoff}`).then(r=>{
+        State.salesTmRows = r.rows || [];
+        State.salesPeriod = r.period;
+        State.salesTmElapsed = r.elapsedWorkdays || 0;
+        State.salesTmRemaining = r.remainingWorkdays || 0;
+        State.salesTmTotal = r.totalWorkdays || 0;
+        State.salesTmLoadedKey = key;
+      }));
+    }
   } else if (page==='sales-vendor'){
     const d=State.salesDate || (new Date().toISOString().slice(0,10));
     State.salesDate=d;
-    const r=await api(`/api/sales/vendor-daily?date=${d}`);
-    State.salesVendorRows=r.vendors||[];
-    State.salesDayMeta=r.meta||{recontact_completed:0,note:null};
+    if (force || State.salesVendorLoadedDate !== d){
+      tasks.push(api(`/api/sales/vendor-daily?date=${d}`).then(r=>{
+        State.salesVendorRows = r.vendors || [];
+        State.salesDayMeta = r.meta || { recontact_completed: 0, note: null };
+        State.salesVendorLoadedDate = d;
+      }));
+    }
   }
+  if (tasks.length) await Promise.all(tasks);
 }
 
+// 클릭 즉시 렌더 + 백그라운드 페치
 async function navTo(key){
+  const prevPage = State.page;
   State.page=key;
   State.selectedPersonId=null;
+  // 캐시 미적재 페이지면 로딩 상태 표시
+  const needsLoad = key && key.startsWith('sales-') && (
+    (key==='sales-orders' && State.salesOrdersLoadedYm !== (State.salesYm||todayYm())) ||
+    (key==='sales-tm'     && State.salesTmLoadedKey   !== `${State.salesYm||todayYm()}|${State.salesCutoff||new Date().toISOString().slice(0,10)}`) ||
+    (key==='sales-vendor' && State.salesVendorLoadedDate !== (State.salesDate||new Date().toISOString().slice(0,10)))
+  );
+  if (needsLoad) State.loadingPage = key;
+  renderApp();   // 즉시 표시 (캐시된 데이터 또는 로딩 인디케이터)
   if (key && key.startsWith('sales-')){
-    try{ await loadSalesContext(key); }
-    catch(e){ console.error(e); showToast('데이터 로드 실패: '+e.message); }
+    try{
+      await loadSalesContext(key);
+    }catch(e){ console.error(e); showToast('데이터 로드 실패: '+e.message); }
+    if (State.page === key){
+      State.loadingPage = null;
+      renderApp();
+    } else {
+      State.loadingPage = null;
+    }
   }
-  renderApp();
 }
 
-// ─────── 요청 4: 거래 표 ───────
+// ─────── 요청 4: PB 내역 표 ───────
 function renderSalesOrders(){
   const me=State.user;
   const isPriv=me.role==='admin'||me.role==='manager';
   const wrap=h('div');
+  // 로딩 인디케이터 (첫 진입 시)
+  if (State.loadingPage==='sales-orders' && State.salesOrdersLoadedYm===null){
+    return h('div',{class:'sales-empty',style:'padding:80px 20px'},
+      h('div',{class:'ico'},'⏳'),
+      h('div',null,'PB 내역 로딩 중…'));
+  }
 
   // 툴바
   const ymI=h('input',{type:'month',value:State.salesYm||todayYm()});
   ymI.addEventListener('change',async()=>{
     State.salesYm=ymI.value || todayYm();
-    await loadSalesContext('sales-orders'); renderApp();
+    State.salesOrdersLoadedYm=null;
+    State.loadingPage='sales-orders';
+    renderApp();
+    await loadSalesContext('sales-orders');
+    State.loadingPage=null; renderApp();
   });
   const filterStatus=h('select',null,
     h('option',{value:'ALL'},'전체 상태'),
@@ -1903,11 +1955,26 @@ function renderSalesTM(){
   const me=State.user;
   const isPriv=me.role==='admin'||me.role==='manager';
   const wrap=h('div');
+  if (State.loadingPage==='sales-tm' && State.salesTmLoadedKey===null){
+    return h('div',{class:'sales-empty',style:'padding:80px 20px'},
+      h('div',{class:'ico'},'⏳'),
+      h('div',null,'TM 마감 데이터 로딩 중…'));
+  }
 
   const ymI=h('input',{type:'month',value:State.salesYm||todayYm()});
-  ymI.addEventListener('change',async()=>{ State.salesYm=ymI.value; await loadSalesContext('sales-tm'); renderApp(); });
+  ymI.addEventListener('change',async()=>{
+    State.salesYm=ymI.value; State.salesTmLoadedKey=null;
+    State.loadingPage='sales-tm'; renderApp();
+    await loadSalesContext('sales-tm');
+    State.loadingPage=null; renderApp();
+  });
   const cutoffI=h('input',{type:'date',value:State.salesCutoff||(new Date().toISOString().slice(0,10))});
-  cutoffI.addEventListener('change',async()=>{ State.salesCutoff=cutoffI.value; await loadSalesContext('sales-tm'); renderApp(); });
+  cutoffI.addEventListener('change',async()=>{
+    State.salesCutoff=cutoffI.value; State.salesTmLoadedKey=null;
+    State.loadingPage='sales-tm'; renderApp();
+    await loadSalesContext('sales-tm');
+    State.loadingPage=null; renderApp();
+  });
 
   const period=State.salesPeriod||{};
   const totalWdI=h('input',{type:'number',min:0,value:State.salesTmTotal||0,style:'width:70px'});
@@ -2025,14 +2092,24 @@ function renderSalesTM(){
   return wrap;
 }
 
-// ─────── 요청 3: 디비 평가 ───────
+// ─────── 요청 3: 유입 분석 ───────
 function renderSalesVendor(){
   const me=State.user;
   const isPriv=me.role==='admin'||me.role==='manager';
   const wrap=h('div');
+  if (State.loadingPage==='sales-vendor' && State.salesVendorLoadedDate===null){
+    return h('div',{class:'sales-empty',style:'padding:80px 20px'},
+      h('div',{class:'ico'},'⏳'),
+      h('div',null,'유입 분석 로딩 중…'));
+  }
 
   const dateI=h('input',{type:'date',value:State.salesDate||(new Date().toISOString().slice(0,10))});
-  dateI.addEventListener('change',async()=>{ State.salesDate=dateI.value; await loadSalesContext('sales-vendor'); renderApp(); });
+  dateI.addEventListener('change',async()=>{
+    State.salesDate=dateI.value; State.salesVendorLoadedDate=null;
+    State.loadingPage='sales-vendor'; renderApp();
+    await loadSalesContext('sales-vendor');
+    State.loadingPage=null; renderApp();
+  });
 
   const recontactI=h('input',{type:'number',min:0,value:State.salesDayMeta?.recontact_completed||0,style:'width:70px'});
   recontactI.addEventListener('blur',async()=>{
