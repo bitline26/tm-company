@@ -712,14 +712,14 @@ function renderAdminApp(){
       h('div',{class:'side-user-meta'},'티엠컴퍼니')
     ),
     h('nav',{class:'side-nav'},
-      h('div',{class:'nav-group-h'},'근태'),
+      h('div',{class:'nav-group-h'},'인사'),
       navItem('people','직원','👥'),
       isPriv?navItem('approval','승인 대기','✔︎',pendingCount||null):null,
       navItem('grid','팀 캘린더','📅'),
-      h('div',{class:'nav-group-h'},'영업'),
-      navItem('sales-orders','거래','📋'),
+      h('div',{class:'nav-group-h'},'실적'),
+      navItem('sales-orders','PB 내역','📋'),
       navItem('sales-tm','TM 마감','📊'),
-      navItem('sales-vendor','디비 평가','🏷'),
+      navItem('sales-vendor','유입 분석','📈'),
     ),
     h('div',{class:'side-foot'},
       h('button',{class:'nav-item',onClick:logout},
@@ -768,11 +768,11 @@ function renderEmployeeApp(){
       h('div',{class:'side-user-meta'},'티엠컴퍼니')
     ),
     h('nav',{class:'side-nav'},
-      h('div',{class:'nav-group-h'},'근태'),
+      h('div',{class:'nav-group-h'},'인사'),
       navItem('my','내 근태','👤'),
       navItem('history','신청 이력','🕘'),
-      h('div',{class:'nav-group-h'},'영업'),
-      navItem('sales-orders','내 거래','📋'),
+      h('div',{class:'nav-group-h'},'실적'),
+      navItem('sales-orders','내 PB 내역','📋'),
     ),
     h('div',{class:'side-foot'},
       h('button',{class:'nav-item',onClick:logout},
@@ -781,7 +781,7 @@ function renderEmployeeApp(){
     )
   );
 
-  const titleMap={my:'내 근태',history:'신청 이력','sales-orders':'내 거래'};
+  const titleMap={my:'내 근태',history:'신청 이력','sales-orders':'내 PB 내역'};
   const title=titleMap[State.page];
   const actions=h('div',{class:'top-actions'});
   if(State.page==='my'){
@@ -957,7 +957,7 @@ function _renderHistoryOnly(u){
 function renderTopbar(){
   const titleMap={
     people:'직원',approval:'승인 대기',grid:'팀 캘린더',
-    'sales-orders':'거래','sales-tm':'TM 마감 보고','sales-vendor':'디비 평가'
+    'sales-orders':'PB 내역','sales-tm':'TM 마감 보고','sales-vendor':'유입 분석'
   };
   let title=titleMap[State.page]||'';
   if(State.selectedPersonId){
@@ -1701,7 +1701,7 @@ function renderSalesOrders(){
   filterTm.addEventListener('change',()=>{State.salesOrdersFilter.tm=filterTm.value;renderApp();});
 
   const filterVendor=h('select',null,
-    h('option',{value:'ALL'},'전체 디비'),
+    h('option',{value:'ALL'},'전체 유입처'),
     ...State.salesVendors.filter(v=>v.active).map(v=>h('option',{value:String(v.id)}, `${v.code}${v.parent_label?' · '+v.parent_label:''}`))
   );
   filterVendor.value=State.salesOrdersFilter.vendor;
@@ -1711,7 +1711,7 @@ function renderSalesOrders(){
   searchI.addEventListener('input',()=>{State.salesOrdersFilter.q=searchI.value;debouncedRedraw();});
   let debounceT; function debouncedRedraw(){ clearTimeout(debounceT); debounceT=setTimeout(()=>renderApp(),200); }
 
-  const addBtn=h('button',{class:'add-row-btn',onClick:()=>addNewOrder()},'＋ 새 거래');
+  const addBtn=h('button',{class:'add-row-btn',onClick:()=>addNewOrder()},'＋ 새 PB');
 
   const toolbar=h('div',{class:'sales-toolbar'},
     h('span',{class:'label'},'월'), ymI,
@@ -1743,7 +1743,7 @@ function renderSalesOrders(){
     {k:'customer_name',label:'고객명',type:'text',w:90},
     {k:'customer_phone',label:'전화번호',type:'text',w:120},
     {k:'carrier',label:'통신사',type:'carrier',w:60},
-    {k:'vendor_id',label:'디비',type:'vendor',w:90},
+    {k:'vendor_id',label:'유입처',type:'vendor',w:90},
     {k:'amount',label:'금액',type:'amount',w:90},
     {k:'payment_bank',label:'은행',type:'text',w:80},
     {k:'payment_account',label:'계좌',type:'text',w:130},
@@ -1759,7 +1759,7 @@ function renderSalesOrders(){
   if (!rows.length){
     tbody.append(h('tr',null,
       h('td',{colspan:cols.length+(isPriv?1:0),style:'padding:40px;text-align:center;color:var(--text-soft)'},
-        State.salesOrders.length?'필터에 맞는 거래가 없습니다':'아직 거래가 없습니다 · 우측 상단 ＋ 버튼으로 추가')));
+        State.salesOrders.length?'필터에 맞는 내역이 없습니다':'아직 PB 내역이 없습니다 · 우측 상단 ＋ 버튼으로 추가')));
   }
   for (const r of rows){
     const tr=h('tr',{class:`row-status-${r.status}`});
@@ -1776,7 +1776,7 @@ function renderSalesOrders(){
       const td=h('td',null,h('div',{class:'cell',style:'justify-content:center;padding:10px 6px'},
         h('button',{class:'btn btn-danger',style:'padding:4px 8px;font-size:11px',
           onClick:async(e)=>{e.stopPropagation();
-            if(!confirm('이 거래를 삭제하시겠습니까?')) return;
+            if(!confirm('이 PB 내역을 삭제하시겠습니까?')) return;
             try{
               await api(`/api/sales/orders?id=${r.id}`,{method:'DELETE'});
               State.salesOrders=State.salesOrders.filter(o=>o.id!==r.id);
@@ -1894,7 +1894,7 @@ async function addNewOrder(){
       consult_date:today, status:'UNPAID', amount:0
     }});
     State.salesOrders.unshift(r.order);
-    renderApp(); showToast('새 거래 추가 — 셀 클릭으로 입력');
+    renderApp(); showToast('새 PB 추가 — 셀 클릭으로 입력');
   }catch(e){ alert(e.message); }
 }
 
@@ -2108,7 +2108,7 @@ function renderSalesVendor(){
     grid.append(card);
   }
   if (!rows.length){
-    grid.append(h('div',{class:'sales-empty'}, h('div',{class:'ico'},'🏷'), '디비 vendor 가 없습니다 — admin 에 시드 후 자동 생성'));
+    grid.append(h('div',{class:'sales-empty'}, h('div',{class:'ico'},'📈'), '유입처가 없습니다 — admin 에 시드 후 자동 생성'));
   }
   wrap.append(grid);
   return wrap;
