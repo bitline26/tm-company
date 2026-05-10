@@ -26,6 +26,9 @@ const MANAGER_NAMES = new Set(['문실장']);
 // 대표(관리자) 시드 계정 — 매 ensureSchema 마다 upsert (비번 변경 시 즉시 반영)
 const ADMIN_NAME = '1';
 const ADMIN_DEFAULT_PW = '1';
+// 직원 테스트 계정 (개발용 빠른 로그인)
+const EMP_TEST_NAME = '2';
+const EMP_TEST_PW = '2';
 
 let initialized = false;
 let initPromise = null;
@@ -206,6 +209,17 @@ export async function ensureSchema() {
             sort_order = -1
     `;
     const adminCleanup = sql`DELETE FROM users WHERE role = 'admin' AND name <> ${ADMIN_NAME}`;
+    // 직원 테스트 계정 (UPSERT — 항상 동기화)
+    const empTestPw = hashPassword(EMP_TEST_PW);
+    const empTestUpsert = sql`
+      INSERT INTO users (name, password_hash, password_salt, role, registered, sort_order)
+      VALUES (${EMP_TEST_NAME}, ${empTestPw.hash}, ${empTestPw.salt}, 'employee', TRUE, 999)
+      ON CONFLICT (name) DO UPDATE
+        SET password_hash = EXCLUDED.password_hash,
+            password_salt = EXCLUDED.password_salt,
+            role = 'employee',
+            registered = TRUE
+    `;
     const presetInserts = PRESET_NAMES.map((name, i) => {
       const role = MANAGER_NAMES.has(name) ? 'manager' : 'employee';
       return sql`
@@ -230,7 +244,7 @@ export async function ensureSchema() {
         ON CONFLICT (code) DO NOTHING
       `
     );
-    await Promise.all([adminUpsert, adminCleanup, ...presetInserts, ...vendorInserts]);
+    await Promise.all([adminUpsert, adminCleanup, empTestUpsert, ...presetInserts, ...vendorInserts]);
 
     initialized = true;
   })();
