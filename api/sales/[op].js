@@ -314,6 +314,7 @@ export default requireAuth(async function handler(req, res) {
   }
 
   // ───────── vendor-daily ─────────
+  // 작성 권한: admin/manager 만. 직원은 read-only (결과 조회만 가능)
   if (op === 'vendor-daily') {
     if (req.method === 'GET') {
       const d = String(req.query.date || '').match(/^\d{4}-\d{2}-\d{2}$/)?.[0];
