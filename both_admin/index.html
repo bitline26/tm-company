@@ -1149,11 +1149,11 @@ function renderMyClosing(){
     cumCntEl.textContent = fmtNum(s.total_count);
     cumDbEl.textContent  = fmtNum(s.total_db);
     const c = compute(s.total_count, s.total_db);
-    dayAvgEl.textContent   = fmtNum(c.dayAvg, 1);
-    projectedEl.textContent= fmtNum(c.projected, 0);
-    dbAvgEl.textContent    = fmtNum(c.dbAvg, 0);
+    dayAvgEl.textContent   = c.dayAvg ? fmtNum(c.dayAvg, 1) : '0.0';
+    projectedEl.textContent= fmtNum(Math.round(c.projected));
+    dbAvgEl.textContent    = fmtNum(Math.round(c.dbAvg));
     const e = c.eff;
-    effEl.textContent = fmtPct(e);
+    effEl.textContent = s.total_db>0 ? Math.round(e*100)+'%' : '—';
     effEl.style.color = e>=0.20?'#0f7b6c':e>=0.15?'#1d4ed8':e>=0.10?'#a96400':'#b91c1c';
   }
   repaint();
@@ -1215,37 +1215,39 @@ function renderMyClosing(){
     ),
   );
 
-  // 누적 작은 텍스트 (검정 카드 제거 — 가벼운 라인으로)
-  cumCntEl.style.cssText = 'font-size:14px;font-weight:800;color:#0f0f0f;display:inline-block;font-variant-numeric:tabular-nums';
-  cumDbEl.style.cssText  = 'font-size:14px;font-weight:800;color:#0f0f0f;display:inline-block;font-variant-numeric:tabular-nums';
-  const cumLine = h('div',{style:'padding:14px 24px 0;display:flex;gap:18px;align-items:center;font-size:12px;color:var(--text-soft)'},
-    h('div',null, h('span',{style:'font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;margin-right:6px'},'이번 달 총갯수'), cumCntEl),
-    h('div',null, h('span',{style:'font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;margin-right:6px'},'이번 달 총디비'), cumDbEl)
+  // 결과 한 행 (엑셀 그대로) — 표 형태
+  // dayAvgEl/projectedEl/dbAvgEl/effEl/cumCntEl/cumDbEl 는 표 셀에 들어감 (스타일 reset)
+  const cellStyleHt = 'padding:14px 12px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;font-size:18px';
+  cumCntEl.style.cssText = '';
+  cumDbEl.style.cssText = '';
+  dayAvgEl.style.cssText = '';
+  projectedEl.style.cssText = '';
+  dbAvgEl.style.cssText = '';
+  effEl.style.cssText = 'font-weight:800';
+  const offDisplay = autoOffDays===0 ? '0' : (autoOffDays%1?(-autoOffDays).toFixed(1):String(-autoOffDays));
+  const summaryTable = h('table',{style:'width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:14px 24px 0;width:calc(100% - 48px)'},
+    h('thead',null, h('tr',null,
+      ...['휴무','구분','총갯수','일평균','마감예상','총디비','디비평균','디비효율'].map(t=>
+        h('th',{style:'padding:10px 12px;background:#fbfaf8;color:var(--text-soft);font-size:11px;font-weight:700;letter-spacing:0.04em;text-align:right;border-bottom:1px solid var(--border-soft)'},t))
+    )),
+    h('tbody',null, h('tr',null,
+      h('td',{style:cellStyleHt+';color:'+(autoOffDays>0?'#b91c1c':'#5b5750')}, offDisplay),
+      h('td',{style:'padding:14px 12px;text-align:left;font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px'},
+        h('span',{class:'avatar',style:`width:24px;height:24px;font-size:11px;background:${nameColor(me.name)}`}, initial(me.name)),
+        me.name),
+      h('td',{style:cellStyleHt}, cumCntEl),
+      h('td',{style:cellStyleHt}, dayAvgEl),
+      h('td',{style:cellStyleHt+';color:#1d4ed8'}, projectedEl),
+      h('td',{style:cellStyleHt}, cumDbEl),
+      h('td',{style:cellStyleHt}, dbAvgEl),
+      h('td',{style:cellStyleHt+';font-size:20px'}, effEl),
+    ))
   );
-
-  // 자동 계산 결과 카드 (휴무는 attendance 자동값으로 함수 내부에서만 사용, 화면 표시 X)
-  const resultGrid = h('div',{style:'display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:14px 24px 0'},
-    h('div',{style:cellStyle+';background:#fafaf8'},
-      h('div',{style:labelStyle},'일평균'), dayAvgEl,
-      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:4px'},'= 총갯수 / 실근무일')
-    ),
-    h('div',{style:cellStyle+';background:#dbe5f8'},
-      h('div',{style:labelStyle+';color:#1d4ed8'},'마감 예상'), projectedEl,
-      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:4px'},'= 일평균 × 총근무일')
-    ),
-    h('div',{style:cellStyle+';background:#fafaf8'},
-      h('div',{style:labelStyle},'디비평균'), dbAvgEl,
-      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:4px'},'= 총디비 / 실근무일')
-    ),
-    h('div',{style:cellStyle+';background:#e7f6e9'},
-      h('div',{style:labelStyle+';color:#0f7b6c'},'디비 효율'), effEl,
-      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:4px'},'= 총갯수 / 총디비')
-    ),
-  );
+  const periodInfo = h('div',{style:'padding:10px 24px 0;color:var(--text-soft);font-size:12px'},
+    `실 근무일 ${elapsed} · 남은 ${remaining} · 총 ${total}일 · 휴무는 근태(승인된 휴가/월차/연차)에서 자동`);
 
   // 매출 카드는 직원 페이지에서 제거 (대표/관리자만 봄)
-
-  return h('div',null, toolbar, inputHead, inputGrid, cumLine, resultGrid);
+  return h('div',null, toolbar, inputHead, inputGrid, summaryTable, periodInfo);
 }
 
 // 헤더 위젯 (오늘 부재 / 본인 사용량) ─────────────────
