@@ -31,7 +31,7 @@ const EMP_TEST_NAME = '2';
 const EMP_TEST_PW = '2';
 
 // 스키마 마커 — 이 버전이 DB에 기록되어 있으면 ensureSchema 풀실행 스킵
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 let initialized = false;
 let initPromise = null;
@@ -148,7 +148,9 @@ export async function ensureSchema() {
       )
     `;
 
-    // sales_tm_daily — (deprecated) 일별 입력, 더 이상 신규 사용 안 함. 데이터 보존용.
+    // sales_tm_daily — 일별 직원 입력 (요청 2 일일보고)
+    // 직원이 매일 그날 받은 디비(db_count)와 그날 마감 건수(count) 입력
+    // 월 누적 = SUM(이번 달 시작~오늘) → admin TM 마감 결과표
     await sql`
       CREATE TABLE IF NOT EXISTS sales_tm_daily (
         id SERIAL PRIMARY KEY,
@@ -156,12 +158,15 @@ export async function ensureSchema() {
         user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         work_date DATE NOT NULL,
         db_count INT NOT NULL DEFAULT 0,
+        count INT NOT NULL DEFAULT 0,             -- 그날 마감 건수
         is_off BOOLEAN NOT NULL DEFAULT FALSE,
         note TEXT,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE(user_id, work_date)
       )
     `;
+    // 기존 테이블에 count 컬럼 없으면 추가
+    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS count INT NOT NULL DEFAULT 0`;
 
     // sales_tm_monthly — 월간 누적 입력 (요청 2 핵심)
     // 직원이 본인 행의 total_count(총갯수=마감), total_db(총디비), off_days(휴무) 직접 입력
