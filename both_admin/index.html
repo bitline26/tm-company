@@ -331,6 +331,127 @@
   }
 
   .toast{position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#37352f;color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;z-index:80;box-shadow:var(--shadow-md);max-width:90vw}
+
+  /* ─────────────── 영업 모듈 (요청 2,3,4) ─────────────── */
+  /* 사이드바 그룹 헤더 */
+  .nav-group-h{font-size:10.5px;font-weight:700;color:#a3a29e;letter-spacing:0.06em;text-transform:uppercase;padding:14px 10px 6px;margin-top:4px}
+  .nav-group-h:first-child{margin-top:0;padding-top:6px}
+
+  /* 영업 워크스페이스 공통 */
+  .sales-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:14px 24px;background:#fff;border-bottom:1px solid var(--border)}
+  .sales-toolbar .label{font-size:11px;font-weight:700;color:var(--text-soft);letter-spacing:0.04em}
+  .sales-toolbar input[type="date"],.sales-toolbar input[type="month"],.sales-toolbar input[type="number"],.sales-toolbar input[type="text"]{
+    padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:#fff;font-size:13px;outline:none;font-family:inherit;
+  }
+  .sales-toolbar input:focus{border-color:#0f0f0f;box-shadow:0 0 0 3px rgba(15,15,15,.06)}
+  .sales-toolbar select{padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:#fff;font-size:13px;outline:none}
+
+  /* 거래 표 (요청 4) */
+  .orders-wrap{padding:14px 24px 60px}
+  .orders-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .orders-table thead th{background:#fbfaf8;color:var(--text-soft);font-size:11px;font-weight:700;letter-spacing:0.03em;text-align:left;padding:10px 12px;border-bottom:1px solid var(--border-soft);position:sticky;top:0}
+  .orders-table tbody td{padding:0;border-bottom:1px solid var(--border-soft);vertical-align:middle}
+  .orders-table tbody tr:last-child td{border-bottom:none}
+  .orders-table tbody tr:hover td{background:#fafaf8}
+  .orders-table .cell{padding:10px 12px;display:flex;align-items:center;gap:6px;min-height:40px;cursor:text}
+  .orders-table .cell.editing{padding:0}
+  .orders-table .cell input,.orders-table .cell select,.orders-table .cell textarea{
+    width:100%;padding:10px 12px;border:none;outline:2px solid #0f0f0f;outline-offset:-2px;background:#fff;font-size:13px;font-family:inherit;border-radius:0;
+  }
+  .orders-table tr.row-status-PAID td{background:#e7f6e9}
+  .orders-table tr.row-status-PAID:hover td{background:#daf0dd}
+  .orders-table tr.row-status-IN_PROGRESS td{background:#fef3c7}
+  .orders-table tr.row-status-IN_PROGRESS:hover td{background:#fde9a0}
+  .orders-table tr.row-status-UNPAID td{background:#fff}
+  .orders-table tr.row-status-PARTIAL td{background:#e0e7ff}
+  .orders-table tr.row-status-PARTIAL:hover td{background:#cdd5fb}
+  .orders-table tr.row-status-CANCELLED td{background:#fee2e2;color:#9a3a3a}
+  .orders-table tr.row-status-CANCELLED .cell{text-decoration:line-through}
+
+  /* 상태 칩 (orders status) */
+  .st-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:5px;font-size:11px;font-weight:700;letter-spacing:-0.005em;white-space:nowrap}
+  .st-chip::before{content:"";width:6px;height:6px;border-radius:50%;display:inline-block}
+  .st-PAID{background:#d1fae5;color:#0f7b6c}
+  .st-PAID::before{background:#0f7b6c}
+  .st-IN_PROGRESS{background:#fef3c7;color:#a96400}
+  .st-IN_PROGRESS::before{background:#d49426}
+  .st-UNPAID{background:#f1f1ef;color:#5b5750}
+  .st-UNPAID::before{background:#9b9a97}
+  .st-PARTIAL{background:#e0e7ff;color:#4338ca}
+  .st-PARTIAL::before{background:#6366f1}
+  .st-CANCELLED{background:#fee2e2;color:#b91c1c}
+  .st-CANCELLED::before{background:#b91c1c}
+
+  /* 통신사 칩 */
+  .carrier-SK{background:#fef2f2;color:#dc2626;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px}
+  .carrier-KT{background:#fff7ed;color:#c2410c;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px}
+  .carrier-LGU{background:#fdf2f8;color:#be185d;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px}
+
+  /* TM 마감 표 (요청 2) */
+  .tm-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .tm-table th{background:#fbfaf8;color:var(--text-soft);font-size:11.5px;font-weight:700;letter-spacing:0.03em;padding:10px 12px;text-align:right;border-bottom:1px solid var(--border-soft)}
+  .tm-table th:nth-child(1),.tm-table th:nth-child(2){text-align:left}
+  .tm-table td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--border-soft);font-variant-numeric:tabular-nums;font-weight:600}
+  .tm-table td:nth-child(1),.tm-table td:nth-child(2){text-align:left}
+  .tm-table tr:last-child td{border-bottom:none}
+  .tm-table tr.row-self td{background:#fbf9f3}
+  .tm-table tr:hover td{background:#fafaf8}
+  .tm-table .col-input{cursor:cell}
+  .tm-table .col-input:hover{background:#f1f5fb !important}
+  .tm-table .col-input.editing{padding:0}
+  .tm-table .col-input input{width:100%;padding:9px 12px;border:none;outline:2px solid #0f0f0f;outline-offset:-2px;text-align:right;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+  .tm-table .total-row td{background:#0f0f0f !important;color:#fff;font-weight:800;font-size:14px}
+  .tm-table .eff-cell{font-weight:700}
+  .tm-table .off-cell{color:#b91c1c;font-weight:700}
+
+  /* TM 마감 매출 카드 */
+  .sales-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:14px}
+  .sales-card{padding:14px 16px;border-radius:10px;background:#fff;border:1px solid var(--border)}
+  .sales-card .lbl{font-size:11px;color:var(--text-soft);font-weight:600;letter-spacing:0.04em}
+  .sales-card .val{font-size:18px;font-weight:800;margin-top:3px;color:#0f0f0f;font-variant-numeric:tabular-nums}
+  .sales-card.hl{background:#0f0f0f;color:#fff;border-color:#0f0f0f}
+  .sales-card.hl .lbl{color:#a3a29e}
+  .sales-card.hl .val{color:#fff}
+  .sales-card.green{background:#0f7b6c;color:#fff;border-color:#0f7b6c}
+  .sales-card.green .lbl{color:#bff5e8}
+  .sales-card.green .val{color:#fff}
+
+  /* 디비 평가 (요청 3) — vendor 카드 */
+  .vendor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;padding:14px 24px}
+  .vendor-card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .vendor-card .vc-head{padding:10px 14px;font-size:13px;font-weight:700;color:#fff;display:flex;justify-content:space-between;align-items:center}
+  .vendor-card .vc-parent{font-size:10.5px;font-weight:600;opacity:.85;letter-spacing:0.03em}
+  .vendor-card .vc-grid{display:grid;grid-template-columns:repeat(2,1fr);padding:10px;gap:8px}
+  .vendor-card .vc-cell{padding:8px 10px;background:#fafaf8;border-radius:7px;cursor:cell;transition:background .1s}
+  .vendor-card .vc-cell:hover{background:#f1f1ef}
+  .vendor-card .vc-cell .lbl{font-size:10.5px;color:var(--text-soft);font-weight:600;letter-spacing:0.04em}
+  .vendor-card .vc-cell .val{font-size:16px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+  .vendor-card .vc-cell.editing{padding:0}
+  .vendor-card .vc-cell.editing input{width:100%;padding:8px 10px;border:none;outline:2px solid #0f0f0f;outline-offset:-2px;font-size:14px;font-weight:700;font-family:inherit}
+  .vendor-card .vc-stats{padding:0 10px 10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px}
+  .vendor-card .vc-stat{padding:7px 10px;border-radius:7px;display:flex;justify-content:space-between;align-items:center}
+  .vendor-card .vc-stat.eff{background:#dbeafe;color:#1d4ed8}
+  .vendor-card .vc-stat.acc{background:#fef3c7;color:#a16207}
+  .vendor-card .vc-stat .v{font-weight:800;font-size:14px}
+
+  /* 일자별 마감 헤더 (요청 3 상단) */
+  .day-summary{padding:14px 24px;background:#fff;border-bottom:1px solid var(--border)}
+  .day-summary-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+  .day-stat{padding:14px;background:#fafaf8;border-radius:10px}
+  .day-stat .lbl{font-size:11px;color:var(--text-soft);font-weight:600;letter-spacing:0.04em}
+  .day-stat .val{font-size:22px;font-weight:800;margin-top:3px;font-variant-numeric:tabular-nums}
+  .day-stat.hl{background:#fff8e7;border:1px solid #f6e2b3}
+  .day-stat.hl .val{color:#a96400}
+  .day-stat.green{background:#e7f6e9;border:1px solid #b7e0bf}
+  .day-stat.green .val{color:#0f7b6c}
+
+  /* 빈 상태 */
+  .sales-empty{padding:60px 20px;text-align:center;color:var(--text-soft)}
+  .sales-empty .ico{font-size:36px;margin-bottom:10px;opacity:.4}
+
+  /* + 새 거래 버튼 */
+  .add-row-btn{padding:9px 14px;border-radius:8px;background:#0f0f0f;color:#fff;border:none;font-weight:700;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+  .add-row-btn:hover{background:#000}
 </style>
 </head>
 <body>
@@ -353,6 +474,21 @@ const State = {
   detailDateFrom: '',      // 상세 진입 시 1회 적용용
   detailDateTo: '',
   selectedPersonId: null,  // 직원 상세 보기 대상
+
+  // ─────── 영업 모듈 ───────
+  salesYm: null,           // 'YYYY-MM' (요청 2,4 컨텍스트)
+  salesDate: null,         // 'YYYY-MM-DD' (요청 3 일별)
+  salesCutoff: null,       // 요청 2 cutoff (default = today)
+  salesOrders: [],         // 요청 4 거래 리스트
+  salesVendors: [],        // db_vendors
+  salesPeriod: null,       // sales_period
+  salesTmRows: [],         // tm-summary 응답 rows
+  salesTmElapsed: 0,
+  salesTmRemaining: 0,
+  salesTmTotal: 0,
+  salesVendorRows: [],     // vendor-daily 응답
+  salesDayMeta: null,      // {recontact_completed, note}
+  salesOrdersFilter: { status:'ALL', tm:'ALL', vendor:'ALL', q:'' },
 };
 
 // 이름 → HSL 색상 (아바타 일관성)
@@ -556,7 +692,7 @@ function renderAdminApp(){
 
   const navItem=(key,label,icon,count)=>h('button',{
     class:'nav-item '+(State.page===key?'on':''),
-    onClick:()=>{State.page=key;State.selectedPersonId=null;renderApp();}
+    onClick:()=>navTo(key)
   },
     h('span',{style:'display:inline-flex;align-items:center;gap:8px'},
       h('span',{style:'font-size:14px;width:18px;display:inline-flex;justify-content:center'},icon),
@@ -576,9 +712,14 @@ function renderAdminApp(){
       h('div',{class:'side-user-meta'},'티엠컴퍼니')
     ),
     h('nav',{class:'side-nav'},
+      h('div',{class:'nav-group-h'},'근태'),
       navItem('people','직원','👥'),
       isPriv?navItem('approval','승인 대기','✔︎',pendingCount||null):null,
       navItem('grid','팀 캘린더','📅'),
+      h('div',{class:'nav-group-h'},'영업'),
+      navItem('sales-orders','거래','📋'),
+      navItem('sales-tm','TM 마감','📊'),
+      navItem('sales-vendor','디비 평가','🏷'),
     ),
     h('div',{class:'side-foot'},
       h('button',{class:'nav-item',onClick:logout},
@@ -593,6 +734,9 @@ function renderAdminApp(){
   else if(State.page==='people') content=renderPeople();
   else if(State.page==='grid') content=renderGrid();
   else if(State.page==='approval') content=renderApproval();
+  else if(State.page==='sales-orders') content=renderSalesOrders();
+  else if(State.page==='sales-tm') content=renderSalesTM();
+  else if(State.page==='sales-vendor') content=renderSalesVendor();
 
   const main=h('section',{class:'main'},
     renderTopbar(),
@@ -605,11 +749,11 @@ function renderAdminApp(){
 function renderEmployeeApp(){
   const root=$('#app'); root.innerHTML='';
   const me=State.user;
-  if(!['my','history'].includes(State.page)) State.page='my';
+  if(!['my','history','sales-orders'].includes(State.page)) State.page='my';
 
   const navItem=(key,label,icon)=>h('button',{
     class:'nav-item '+(State.page===key?'on':''),
-    onClick:()=>{State.page=key;renderApp();}
+    onClick:()=>navTo(key)
   }, h('span',{style:'display:inline-flex;align-items:center;gap:8px'},
        h('span',{style:'font-size:14px;width:18px;display:inline-flex;justify-content:center'},icon),
        label));
@@ -624,8 +768,11 @@ function renderEmployeeApp(){
       h('div',{class:'side-user-meta'},'티엠컴퍼니')
     ),
     h('nav',{class:'side-nav'},
+      h('div',{class:'nav-group-h'},'근태'),
       navItem('my','내 근태','👤'),
       navItem('history','신청 이력','🕘'),
+      h('div',{class:'nav-group-h'},'영업'),
+      navItem('sales-orders','내 거래','📋'),
     ),
     h('div',{class:'side-foot'},
       h('button',{class:'nav-item',onClick:logout},
@@ -634,7 +781,7 @@ function renderEmployeeApp(){
     )
   );
 
-  const titleMap={my:'내 근태',history:'신청 이력'};
+  const titleMap={my:'내 근태',history:'신청 이력','sales-orders':'내 거래'};
   const title=titleMap[State.page];
   const actions=h('div',{class:'top-actions'});
   if(State.page==='my'){
@@ -665,6 +812,7 @@ function renderEmployeeApp(){
   let content;
   if(State.page==='my') content=renderMyHome();
   else if(State.page==='history') content=renderMyHistory();
+  else if(State.page==='sales-orders') content=renderSalesOrders();
 
   const main=h('section',{class:'main'},
     topbar,
@@ -807,7 +955,10 @@ function _renderHistoryOnly(u){
 }
 
 function renderTopbar(){
-  const titleMap={people:'직원',approval:'승인 대기',grid:'팀 캘린더'};
+  const titleMap={
+    people:'직원',approval:'승인 대기',grid:'팀 캘린더',
+    'sales-orders':'거래','sales-tm':'TM 마감 보고','sales-vendor':'디비 평가'
+  };
   let title=titleMap[State.page]||'';
   if(State.selectedPersonId){
     const u=State.users.find(u=>u.id===State.selectedPersonId);
@@ -1477,6 +1628,531 @@ async function logout(){
   try{ await api('/api/auth/logout',{method:'POST'}); }catch(_){}
   State.user=null; State.users=[]; State.records=[];
   bootstrap();
+}
+
+// ─────────────── 영업 모듈 ───────────────
+const ORDER_STATUS_LABEL={PAID:'입금완료',IN_PROGRESS:'입금중',UNPAID:'미입금',PARTIAL:'일부납부',CANCELLED:'취소'};
+const ORDER_STATUS_LIST=['PAID','IN_PROGRESS','UNPAID','PARTIAL','CANCELLED'];
+const CARRIER_LIST=['SK','KT','LGU'];
+const fmtKRW=(n)=>'₩'+(Number(n||0)).toLocaleString('ko-KR');
+
+async function loadSalesContext(page){
+  // vendor 마스터는 모든 영업 페이지에 필요
+  if (!State.salesVendors.length){
+    try{ const v=await api('/api/sales/vendors'); State.salesVendors=v.vendors||[]; }catch(e){ console.error(e); }
+  }
+  if (page==='sales-orders'){
+    const ym=State.salesYm || todayYm(); State.salesYm=ym;
+    const r=await api(`/api/sales/orders?ym=${ym}`);
+    State.salesOrders=r.orders||[];
+  } else if (page==='sales-tm'){
+    const ym=State.salesYm || todayYm(); State.salesYm=ym;
+    const cutoff=State.salesCutoff || (new Date().toISOString().slice(0,10));
+    State.salesCutoff=cutoff;
+    const r=await api(`/api/sales/tm-summary?ym=${ym}&cutoff=${cutoff}`);
+    State.salesTmRows=r.rows||[];
+    State.salesPeriod=r.period;
+    State.salesTmElapsed=r.elapsedWorkdays||0;
+    State.salesTmRemaining=r.remainingWorkdays||0;
+    State.salesTmTotal=r.totalWorkdays||0;
+  } else if (page==='sales-vendor'){
+    const d=State.salesDate || (new Date().toISOString().slice(0,10));
+    State.salesDate=d;
+    const r=await api(`/api/sales/vendor-daily?date=${d}`);
+    State.salesVendorRows=r.vendors||[];
+    State.salesDayMeta=r.meta||{recontact_completed:0,note:null};
+  }
+}
+
+async function navTo(key){
+  State.page=key;
+  State.selectedPersonId=null;
+  if (key && key.startsWith('sales-')){
+    try{ await loadSalesContext(key); }
+    catch(e){ console.error(e); showToast('데이터 로드 실패: '+e.message); }
+  }
+  renderApp();
+}
+
+// ─────── 요청 4: 거래 표 ───────
+function renderSalesOrders(){
+  const me=State.user;
+  const isPriv=me.role==='admin'||me.role==='manager';
+  const wrap=h('div');
+
+  // 툴바
+  const ymI=h('input',{type:'month',value:State.salesYm||todayYm()});
+  ymI.addEventListener('change',async()=>{
+    State.salesYm=ymI.value || todayYm();
+    await loadSalesContext('sales-orders'); renderApp();
+  });
+  const filterStatus=h('select',null,
+    h('option',{value:'ALL'},'전체 상태'),
+    ...ORDER_STATUS_LIST.map(s=>h('option',{value:s},ORDER_STATUS_LABEL[s]))
+  );
+  filterStatus.value=State.salesOrdersFilter.status;
+  filterStatus.addEventListener('change',()=>{State.salesOrdersFilter.status=filterStatus.value;renderApp();});
+
+  const filterTm=h('select',null,
+    h('option',{value:'ALL'},'전체 TM'),
+    ...State.users.map(u=>h('option',{value:String(u.id)},u.name))
+  );
+  filterTm.value=State.salesOrdersFilter.tm;
+  filterTm.addEventListener('change',()=>{State.salesOrdersFilter.tm=filterTm.value;renderApp();});
+
+  const filterVendor=h('select',null,
+    h('option',{value:'ALL'},'전체 디비'),
+    ...State.salesVendors.filter(v=>v.active).map(v=>h('option',{value:String(v.id)}, `${v.code}${v.parent_label?' · '+v.parent_label:''}`))
+  );
+  filterVendor.value=State.salesOrdersFilter.vendor;
+  filterVendor.addEventListener('change',()=>{State.salesOrdersFilter.vendor=filterVendor.value;renderApp();});
+
+  const searchI=h('input',{type:'text',placeholder:'고객명·전화·메모 검색',value:State.salesOrdersFilter.q});
+  searchI.addEventListener('input',()=>{State.salesOrdersFilter.q=searchI.value;debouncedRedraw();});
+  let debounceT; function debouncedRedraw(){ clearTimeout(debounceT); debounceT=setTimeout(()=>renderApp(),200); }
+
+  const addBtn=h('button',{class:'add-row-btn',onClick:()=>addNewOrder()},'＋ 새 거래');
+
+  const toolbar=h('div',{class:'sales-toolbar'},
+    h('span',{class:'label'},'월'), ymI,
+    filterStatus, filterTm, filterVendor,
+    h('div',{style:'flex:1;min-width:160px'}, searchI),
+    isPriv?addBtn:null
+  );
+  wrap.append(toolbar);
+
+  // 필터 적용
+  let rows=State.salesOrders.slice();
+  const f=State.salesOrdersFilter;
+  if (f.status!=='ALL') rows=rows.filter(r=>r.status===f.status);
+  if (f.tm!=='ALL') rows=rows.filter(r=>String(r.tm_user_id)===f.tm);
+  if (f.vendor!=='ALL') rows=rows.filter(r=>String(r.vendor_id)===f.vendor);
+  if (f.q.trim()){
+    const q=f.q.trim().toLowerCase();
+    rows=rows.filter(r=>
+      (r.customer_name||'').toLowerCase().includes(q) ||
+      (r.customer_phone||'').includes(q) ||
+      (r.note||'').toLowerCase().includes(q)
+    );
+  }
+
+  // 표
+  const cols=[
+    {k:'tm_user_id',label:'TM',type:'tm',w:80},
+    {k:'consult_date',label:'상담일',type:'date',w:96},
+    {k:'customer_name',label:'고객명',type:'text',w:90},
+    {k:'customer_phone',label:'전화번호',type:'text',w:120},
+    {k:'carrier',label:'통신사',type:'carrier',w:60},
+    {k:'vendor_id',label:'디비',type:'vendor',w:90},
+    {k:'amount',label:'금액',type:'amount',w:90},
+    {k:'payment_bank',label:'은행',type:'text',w:80},
+    {k:'payment_account',label:'계좌',type:'text',w:130},
+    {k:'payment_date',label:'입금일',type:'date',w:96},
+    {k:'status',label:'상태',type:'status',w:84},
+    {k:'note',label:'메모',type:'text',w:160},
+  ];
+  const thead=h('thead',null,h('tr',null,
+    ...cols.map(c=>h('th',{style:`width:${c.w}px`},c.label)),
+    isPriv?h('th',{style:'width:40px'},''):null
+  ));
+  const tbody=h('tbody');
+  if (!rows.length){
+    tbody.append(h('tr',null,
+      h('td',{colspan:cols.length+(isPriv?1:0),style:'padding:40px;text-align:center;color:var(--text-soft)'},
+        State.salesOrders.length?'필터에 맞는 거래가 없습니다':'아직 거래가 없습니다 · 우측 상단 ＋ 버튼으로 추가')));
+  }
+  for (const r of rows){
+    const tr=h('tr',{class:`row-status-${r.status}`});
+    for (const c of cols){
+      const td=h('td');
+      const cell=h('div',{class:'cell'});
+      td.append(cell);
+      const val=r[c.k];
+      cell.append(renderOrderCell(c, val, r));
+      cell.addEventListener('click',()=>startEditCell(td, cell, c, r, isPriv));
+      tr.append(td);
+    }
+    if (isPriv){
+      const td=h('td',null,h('div',{class:'cell',style:'justify-content:center;padding:10px 6px'},
+        h('button',{class:'btn btn-danger',style:'padding:4px 8px;font-size:11px',
+          onClick:async(e)=>{e.stopPropagation();
+            if(!confirm('이 거래를 삭제하시겠습니까?')) return;
+            try{
+              await api(`/api/sales/orders?id=${r.id}`,{method:'DELETE'});
+              State.salesOrders=State.salesOrders.filter(o=>o.id!==r.id);
+              renderApp(); showToast('삭제됨');
+            }catch(e){ alert(e.message); }
+          }
+        },'×')));
+      tr.append(td);
+    }
+    tbody.append(tr);
+  }
+
+  const tableWrap=h('div',{class:'orders-wrap',style:'overflow:auto'},
+    h('table',{class:'orders-table'}, thead, tbody)
+  );
+  wrap.append(tableWrap);
+  return wrap;
+}
+
+function renderOrderCell(col, val, row){
+  if (col.type==='tm') return h('span',null, row.tm_name||'—');
+  if (col.type==='vendor'){
+    if (!row.vendor_id) return h('span',{style:'color:var(--text-soft)'},'—');
+    return h('span',{class:'chip',style:`background:${(row.vendor_color||'#9b9a97')}20;color:${row.vendor_color||'#5b5750'};font-size:11px;padding:2px 7px;border-radius:5px;font-weight:700`}, row.vendor_code||'?');
+  }
+  if (col.type==='carrier'){
+    if (!val) return h('span',{style:'color:var(--text-soft)'},'—');
+    return h('span',{class:`carrier-${val}`}, val);
+  }
+  if (col.type==='status'){
+    return h('span',{class:`st-chip st-${val}`}, ORDER_STATUS_LABEL[val]||val);
+  }
+  if (col.type==='amount'){
+    return h('span',{style:'font-variant-numeric:tabular-nums;font-weight:600'}, val?fmtKRW(val):'—');
+  }
+  if (col.type==='date'){
+    return h('span',null, val? String(val).slice(0,10):'—');
+  }
+  return h('span',null, val||'—');
+}
+
+function startEditCell(td, cell, col, row, isPriv){
+  if (!isPriv && row.tm_user_id !== State.user.id) return;
+  if (cell.classList.contains('editing')) return;
+  cell.classList.add('editing');
+  let input;
+  const finish=async(commit, newVal)=>{
+    cell.classList.remove('editing');
+    cell.innerHTML='';
+    if (!commit){
+      cell.append(renderOrderCell(col, row[col.k], row));
+      return;
+    }
+    // 저장
+    try{
+      const body={...row, [col.k]: newVal};
+      // status는 ALL_STATUS, vendor_id/tm_user_id는 number
+      if (col.k==='vendor_id') body.vendor_id = newVal?Number(newVal):null;
+      if (col.k==='tm_user_id') body.tm_user_id = newVal?Number(newVal):null;
+      if (col.k==='amount') body.amount = Number(String(newVal).replace(/[^\d]/g,''))||0;
+      const r=await api('/api/sales/orders',{method:'POST',body});
+      Object.assign(row, r.order);
+      // 표 행 색상 업데이트 (status 변경 시)
+      const tr=cell.closest('tr');
+      if (tr) tr.className = `row-status-${row.status}`;
+      cell.append(renderOrderCell(col, row[col.k], row));
+      showToast('저장됨');
+    }catch(e){
+      cell.append(renderOrderCell(col, row[col.k], row));
+      alert(e.message);
+    }
+  };
+  if (col.type==='status'){
+    input=h('select',null, ...ORDER_STATUS_LIST.map(s=>h('option',{value:s},ORDER_STATUS_LABEL[s])));
+    input.value=row[col.k]||'UNPAID';
+    input.addEventListener('change',()=>finish(true, input.value));
+    input.addEventListener('blur',()=>finish(false));
+  } else if (col.type==='carrier'){
+    input=h('select',null, h('option',{value:''},'—'), ...CARRIER_LIST.map(c=>h('option',{value:c},c)));
+    input.value=row[col.k]||'';
+    input.addEventListener('change',()=>finish(true, input.value));
+    input.addEventListener('blur',()=>finish(false));
+  } else if (col.type==='tm'){
+    input=h('select',null, h('option',{value:''},'—'), ...State.users.map(u=>h('option',{value:String(u.id)},u.name)));
+    input.value=row.tm_user_id?String(row.tm_user_id):'';
+    input.addEventListener('change',()=>finish(true, input.value));
+    input.addEventListener('blur',()=>finish(false));
+  } else if (col.type==='vendor'){
+    input=h('select',null, h('option',{value:''},'—'),
+      ...State.salesVendors.filter(v=>v.active).map(v=>h('option',{value:String(v.id)},`${v.code}${v.parent_label?' · '+v.parent_label:''}`)));
+    input.value=row.vendor_id?String(row.vendor_id):'';
+    input.addEventListener('change',()=>finish(true, input.value));
+    input.addEventListener('blur',()=>finish(false));
+  } else if (col.type==='date'){
+    input=h('input',{type:'date',value:row[col.k]?String(row[col.k]).slice(0,10):''});
+    input.addEventListener('change',()=>finish(true, input.value||null));
+    input.addEventListener('blur',()=>finish(false));
+  } else if (col.type==='amount'){
+    input=h('input',{type:'text',value:row[col.k]?String(row[col.k]):'',inputmode:'numeric',placeholder:'0'});
+    input.addEventListener('keydown',(e)=>{ if(e.key==='Enter'){ input.blur(); }});
+    input.addEventListener('blur',()=>finish(true, input.value));
+  } else {
+    input=h('input',{type:'text',value:row[col.k]||''});
+    input.addEventListener('keydown',(e)=>{ if(e.key==='Enter'){ input.blur(); } if(e.key==='Escape'){ finish(false); }});
+    input.addEventListener('blur',()=>finish(true, input.value));
+  }
+  cell.append(input);
+  setTimeout(()=>{ try{ input.focus(); if(input.select)input.select(); }catch(_){} },10);
+}
+
+async function addNewOrder(){
+  const today=new Date().toISOString().slice(0,10);
+  try{
+    const r=await api('/api/sales/orders',{method:'POST',body:{
+      consult_date:today, status:'UNPAID', amount:0
+    }});
+    State.salesOrders.unshift(r.order);
+    renderApp(); showToast('새 거래 추가 — 셀 클릭으로 입력');
+  }catch(e){ alert(e.message); }
+}
+
+// ─────── 요청 2: TM 마감 보고 ───────
+function renderSalesTM(){
+  const me=State.user;
+  const isPriv=me.role==='admin'||me.role==='manager';
+  const wrap=h('div');
+
+  const ymI=h('input',{type:'month',value:State.salesYm||todayYm()});
+  ymI.addEventListener('change',async()=>{ State.salesYm=ymI.value; await loadSalesContext('sales-tm'); renderApp(); });
+  const cutoffI=h('input',{type:'date',value:State.salesCutoff||(new Date().toISOString().slice(0,10))});
+  cutoffI.addEventListener('change',async()=>{ State.salesCutoff=cutoffI.value; await loadSalesContext('sales-tm'); renderApp(); });
+
+  const period=State.salesPeriod||{};
+  const totalWdI=h('input',{type:'number',min:0,value:State.salesTmTotal||0,style:'width:70px'});
+  const unitPriceI=h('input',{type:'number',min:0,value:Number(period.unit_price||0),style:'width:120px',placeholder:'단가(₩)'});
+  const savePeriod=async()=>{
+    if(!isPriv) return;
+    try{
+      await api('/api/sales/period',{method:'POST',body:{
+        ym:State.salesYm, total_workdays:Number(totalWdI.value)||0, unit_price:Number(unitPriceI.value)||0
+      }});
+      await loadSalesContext('sales-tm'); renderApp(); showToast('기간 설정 저장');
+    }catch(e){ alert(e.message); }
+  };
+  totalWdI.addEventListener('blur', savePeriod);
+  unitPriceI.addEventListener('blur', savePeriod);
+
+  const toolbar=h('div',{class:'sales-toolbar'},
+    h('span',{class:'label'},'월'), ymI,
+    h('span',{class:'label'},'마감기준'), cutoffI,
+    h('span',{class:'label'},'총근무일'), totalWdI,
+    h('span',{class:'label'},'단가(₩/건)'), unitPriceI,
+    h('div',{style:'margin-left:auto;color:var(--text-soft);font-size:12px'},
+      `실 근무일 ${State.salesTmElapsed} · 남은 ${State.salesTmRemaining}`
+    )
+  );
+  wrap.append(toolbar);
+
+  const elapsed=State.salesTmElapsed;
+  const total=State.salesTmTotal;
+  const unitPrice=Number(period.unit_price||0);
+
+  // 각 행 함수 계산
+  const rows=State.salesTmRows.slice();
+  const computed=rows.map(r=>{
+    const offFloat = r.off_days + (r.half_days||0)*0.5;   // 반차 0.5
+    const denom = Math.max(0.0001, elapsed - offFloat);
+    const dayAvg = elapsed>0 ? r.total_count/denom : 0;
+    const dbAvg = elapsed>0 ? r.total_db/denom : 0;
+    const eff = r.total_db>0 ? r.total_count/r.total_db : 0;
+    const projected = dayAvg * Math.max(0, total - offFloat);
+    const expectedRevenue = projected * unitPrice;
+    const currentRevenue = r.total_count * unitPrice;
+    return {...r, offFloat, dayAvg, dbAvg, eff, projected, expectedRevenue, currentRevenue};
+  });
+
+  // 합계
+  const totalCount = computed.reduce((s,r)=>s+r.total_count,0);
+  const totalDb = computed.reduce((s,r)=>s+r.total_db,0);
+  const totalProjected = computed.reduce((s,r)=>s+r.projected,0);
+  const totalCurrentRev = computed.reduce((s,r)=>s+r.currentRevenue,0);
+  const totalExpectedRev = computed.reduce((s,r)=>s+r.expectedRevenue,0);
+  const totalDayAvg = elapsed>0 ? totalCount/elapsed : 0;
+  const totalDbAvg = elapsed>0 ? totalDb/elapsed : 0;
+  const totalEff = totalDb>0 ? totalCount/totalDb : 0;
+  const perPerson = computed.length>0 ? totalProjected/computed.length : 0;
+
+  // 표
+  const fmtNum=(n,d=0)=>(Number(n||0)).toLocaleString('ko-KR',{maximumFractionDigits:d});
+  const fmtPct=(n)=>((n||0)*100).toFixed(1)+'%';
+
+  const cols=['휴무','이름','총갯수','일평균','마감예상','총디비','디비평균','디비효율','매출(현재)','매출(예상)'];
+  const thead=h('thead',null,h('tr',null,...cols.map(c=>h('th',null,c))));
+  const tbody=h('tbody');
+  for (const r of computed){
+    const isSelf=r.user_id===me.id;
+    const offDisplay = r.offFloat===0 ? '0' : (r.offFloat%1?(-r.offFloat).toFixed(1):String(-r.offFloat));
+    const eff=r.eff;
+    const effColor = eff>=0.20?'#0f7b6c':eff>=0.15?'#1d4ed8':eff>=0.10?'#a96400':'#b91c1c';
+    tbody.append(h('tr',{class:isSelf?'row-self':''},
+      h('td',{class:'off-cell'}, offDisplay),
+      h('td',null,
+        h('span',{style:'display:inline-flex;align-items:center;gap:7px;cursor:pointer',
+          onClick:()=>{State.selectedPersonId=r.user_id;State.page='people';renderApp();}},
+          h('span',{class:'avatar',style:`width:22px;height:22px;font-size:10.5px;background:${nameColor(r.name)}`}, initial(r.name)),
+          r.name,
+          r.role==='manager'?h('span',{class:'role-badge role-manager',style:'margin-left:4px;font-size:10px'},'차장'):null
+        )
+      ),
+      h('td',null, fmtNum(r.total_count)),
+      h('td',null, fmtNum(r.dayAvg,1)),
+      h('td',null, fmtNum(r.projected,0)),
+      h('td',null, fmtNum(r.total_db)),
+      h('td',null, fmtNum(r.dbAvg,0)),
+      h('td',{class:'eff-cell',style:`color:${effColor}`}, fmtPct(eff)),
+      h('td',null, fmtKRW(r.currentRevenue)),
+      h('td',null, fmtKRW(r.expectedRevenue)),
+    ));
+  }
+  tbody.append(h('tr',{class:'total-row'},
+    h('td',null,'—'),
+    h('td',null,'합계'),
+    h('td',null, fmtNum(totalCount)),
+    h('td',null, fmtNum(totalDayAvg,1)),
+    h('td',null, fmtNum(totalProjected,0)),
+    h('td',null, fmtNum(totalDb)),
+    h('td',null, fmtNum(totalDbAvg,0)),
+    h('td',null, fmtPct(totalEff)),
+    h('td',null, fmtKRW(totalCurrentRev)),
+    h('td',null, fmtKRW(totalExpectedRev)),
+  ));
+
+  const table=h('table',{class:'tm-table'}, thead, tbody);
+  const tableWrap=h('div',{class:'orders-wrap'}, table);
+  wrap.append(tableWrap);
+
+  // 매출 카드
+  const cards=h('div',{class:'sales-cards',style:'padding:0 24px 60px'},
+    h('div',{class:'sales-card hl'}, h('div',{class:'lbl'},'한명 평균 마감예상'), h('div',{class:'val'}, fmtNum(perPerson,1)+'건')),
+    h('div',{class:'sales-card'}, h('div',{class:'lbl'},'현재 누적 매출'), h('div',{class:'val'}, fmtKRW(totalCurrentRev))),
+    h('div',{class:'sales-card'}, h('div',{class:'lbl'},'남은 예상 매출'), h('div',{class:'val'}, fmtKRW(totalExpectedRev-totalCurrentRev))),
+    h('div',{class:'sales-card green'}, h('div',{class:'lbl'},'총 예상 매출'), h('div',{class:'val'}, fmtKRW(totalExpectedRev))),
+  );
+  wrap.append(cards);
+
+  return wrap;
+}
+
+// ─────── 요청 3: 디비 평가 ───────
+function renderSalesVendor(){
+  const me=State.user;
+  const isPriv=me.role==='admin'||me.role==='manager';
+  const wrap=h('div');
+
+  const dateI=h('input',{type:'date',value:State.salesDate||(new Date().toISOString().slice(0,10))});
+  dateI.addEventListener('change',async()=>{ State.salesDate=dateI.value; await loadSalesContext('sales-vendor'); renderApp(); });
+
+  const recontactI=h('input',{type:'number',min:0,value:State.salesDayMeta?.recontact_completed||0,style:'width:70px'});
+  recontactI.addEventListener('blur',async()=>{
+    if(!isPriv) return;
+    try{
+      await api('/api/sales/vendor-daily?meta=1',{method:'POST',body:{
+        work_date:State.salesDate, recontact_completed:Number(recontactI.value)||0
+      }});
+      State.salesDayMeta={...State.salesDayMeta, recontact_completed:Number(recontactI.value)||0};
+      renderApp();
+    }catch(e){ alert(e.message); }
+  });
+
+  const toolbar=h('div',{class:'sales-toolbar'},
+    h('span',{class:'label'},'일자'), dateI,
+    h('span',{class:'label',style:'margin-left:14px'},'당일 재컨택 완료'), recontactI
+  );
+  wrap.append(toolbar);
+
+  // 상단 합계
+  const rows=State.salesVendorRows;
+  const sum = rows.reduce((s,r)=>{
+    s.db+=r.db_count; s.del+=r.deleted_count; s.rec+=r.received_count; s.cmp+=r.completed_count; return s;
+  }, {db:0,del:0,rec:0,cmp:0});
+  const eff = sum.db>0 ? sum.cmp/sum.db : 0;
+  const acc = sum.db>0 ? sum.rec/sum.db : 0;
+
+  const summary=h('div',{class:'day-summary'},
+    h('div',{class:'day-summary-row'},
+      h('div',{class:'day-stat'},
+        h('div',{class:'lbl'},'당일 디비 갯수'),
+        h('div',{class:'val'}, sum.db)),
+      h('div',{class:'day-stat'},
+        h('div',{class:'lbl'},'당일완료 (접수)'),
+        h('div',{class:'val'}, sum.rec)),
+      h('div',{class:'day-stat hl'},
+        h('div',{class:'lbl'},'완료'),
+        h('div',{class:'val'}, sum.cmp)),
+      h('div',{class:'day-stat'},
+        h('div',{class:'lbl'},'효율'),
+        h('div',{class:'val'}, ((eff)*100).toFixed(1)+'%')),
+      h('div',{class:'day-stat'},
+        h('div',{class:'lbl'},'접수율'),
+        h('div',{class:'val'}, ((acc)*100).toFixed(1)+'%')),
+      h('div',{class:'day-stat green'},
+        h('div',{class:'lbl'},'재컨택 완료'),
+        h('div',{class:'val'}, State.salesDayMeta?.recontact_completed||0)),
+    )
+  );
+  wrap.append(summary);
+
+  // vendor 카드들
+  const grid=h('div',{class:'vendor-grid'});
+  for (const v of rows){
+    const eff = (v.db_count - v.deleted_count) > 0 ? v.completed_count/(v.db_count - v.deleted_count) : 0;
+    const acc = (v.db_count - v.deleted_count) > 0 ? v.received_count/(v.db_count - v.deleted_count) : 0;
+    const card=h('div',{class:'vendor-card'},
+      h('div',{class:'vc-head',style:`background:${v.color||'#9b9a97'}`},
+        h('div',null, '▶ ', v.code, v.parent_label?h('span',{class:'vc-parent',style:'margin-left:6px'}, '('+v.parent_label+')'):null),
+        h('div',{style:'font-size:11px;font-weight:600;opacity:.9'}, v.completed_count + '건')
+      ),
+      h('div',{class:'vc-grid'},
+        vendorCell(v,'db_count','디비갯수', isPriv),
+        vendorCell(v,'deleted_count','삭제', isPriv),
+        vendorCell(v,'received_count','접수', isPriv),
+        vendorCell(v,'completed_count','완료', isPriv),
+      ),
+      h('div',{class:'vc-stats'},
+        h('div',{class:'vc-stat eff'}, h('span',null,'효율'), h('span',{class:'v'}, (eff*100).toFixed(1)+'%')),
+        h('div',{class:'vc-stat acc'}, h('span',null,'접수율'), h('span',{class:'v'}, (acc*100).toFixed(1)+'%')),
+      )
+    );
+    grid.append(card);
+  }
+  if (!rows.length){
+    grid.append(h('div',{class:'sales-empty'}, h('div',{class:'ico'},'🏷'), '디비 vendor 가 없습니다 — admin 에 시드 후 자동 생성'));
+  }
+  wrap.append(grid);
+  return wrap;
+}
+
+function vendorCell(v, key, label, isPriv){
+  const cell=h('div',{class:'vc-cell'},
+    h('div',{class:'lbl'}, label),
+    h('div',{class:'val'}, v[key]||0)
+  );
+  if (!isPriv) return cell;
+  cell.addEventListener('click', ()=>{
+    if (cell.classList.contains('editing')) return;
+    cell.classList.add('editing'); cell.innerHTML='';
+    const input=h('input',{type:'number',min:0,value:v[key]||0});
+    cell.append(input);
+    setTimeout(()=>{ try{ input.focus(); input.select(); }catch(_){} },10);
+    const finish=async(commit)=>{
+      cell.classList.remove('editing');
+      const newVal = commit?(Number(input.value)||0):v[key];
+      if (commit && newVal !== v[key]){
+        try{
+          await api('/api/sales/vendor-daily',{method:'POST',body:{
+            vendor_id:v.vendor_id, work_date:State.salesDate,
+            db_count:v.db_count, deleted_count:v.deleted_count,
+            received_count:v.received_count, remaining_count:v.remaining_count,
+            completed_count:v.completed_count,
+            [key]: newVal
+          }});
+          v[key] = newVal;
+          renderApp();
+        }catch(e){ alert(e.message); renderApp(); }
+        return;
+      }
+      cell.innerHTML='';
+      cell.append(h('div',{class:'lbl'}, label), h('div',{class:'val'}, v[key]||0));
+    };
+    input.addEventListener('blur',()=>finish(true));
+    input.addEventListener('keydown',e=>{
+      if(e.key==='Enter') input.blur();
+      if(e.key==='Escape') finish(false);
+    });
+  });
+  return cell;
 }
 
 // ───────── CSV 내보내기 ─────────

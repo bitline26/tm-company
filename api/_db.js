@@ -77,6 +77,104 @@ export async function ensureSchema() {
       )
     `;
 
+    // ───────── 영업 모듈 (요청 2,3,4) ─────────
+    // sales_period — 월 단위 기간/단가/총근무일 설정
+    await sql`
+      CREATE TABLE IF NOT EXISTS sales_period (
+        id SERIAL PRIMARY KEY,
+        year_month TEXT UNIQUE NOT NULL,           -- 'YYYY-MM'
+        start_date DATE,
+        end_date DATE,
+        total_workdays INT NOT NULL DEFAULT 0,
+        unit_price BIGINT NOT NULL DEFAULT 0,      -- 건당 평균 단가(₩)
+        off_dates DATE[] DEFAULT '{}',             -- 공휴일/지정 휴무
+        note TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+
+    // db_vendors — 디비 공급 업체(대행사) 마스터
+    await sql`
+      CREATE TABLE IF NOT EXISTS db_vendors (
+        id SERIAL PRIMARY KEY,
+        code TEXT UNIQUE NOT NULL,                 -- 'A-A', 'B-B' 등
+        label TEXT NOT NULL,
+        parent_label TEXT,                         -- '타미통신디비', '날짜디비B' 등 그룹
+        color TEXT DEFAULT '#9b9a97',
+        sort_order INT NOT NULL DEFAULT 0,
+        active BOOLEAN NOT NULL DEFAULT TRUE,
+        note TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+
+    // sales_orders — 거래 1건 1행 (요청 4: raw 로그)
+    // status: PAID(입금완료) / IN_PROGRESS(입금중) / UNPAID(미입금) / PARTIAL(일부납부) / CANCELLED(취소)
+    await sql`
+      CREATE TABLE IF NOT EXISTS sales_orders (
+        id SERIAL PRIMARY KEY,
+        tm_user_id INT REFERENCES users(id) ON DELETE SET NULL,
+        vendor_id INT REFERENCES db_vendors(id) ON DELETE SET NULL,
+        customer_name TEXT,
+        customer_phone TEXT,
+        carrier TEXT,                              -- SK / KT / LGU
+        consult_date DATE,                         -- 상담일자
+        payment_bank TEXT,
+        payment_account TEXT,
+        amount BIGINT NOT NULL DEFAULT 0,
+        payment_date DATE,                         -- 입금완료일자
+        status TEXT NOT NULL DEFAULT 'UNPAID'
+          CHECK (status IN ('PAID','IN_PROGRESS','UNPAID','PARTIAL','CANCELLED')),
+        note TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+
+    // sales_tm_daily — TM × 일자 보조 입력 (요청 2)
+    // closings는 sales_orders에서 derive, 여기는 db_count(받은 디비)/is_off만 입력
+    await sql`
+      CREATE TABLE IF NOT EXISTS sales_tm_daily (
+        id SERIAL PRIMARY KEY,
+        period_id INT REFERENCES sales_period(id) ON DELETE CASCADE,
+        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        work_date DATE NOT NULL,
+        db_count INT NOT NULL DEFAULT 0,           -- 그날 받은 디비 수
+        is_off BOOLEAN NOT NULL DEFAULT FALSE,     -- 그날 휴무 여부 (근태에서 자동 동기화 가능)
+        note TEXT,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(user_id, work_date)
+      )
+    `;
+
+    // sales_vendor_daily — vendor × 일자 (요청 3)
+    await sql`
+      CREATE TABLE IF NOT EXISTS sales_vendor_daily (
+        id SERIAL PRIMARY KEY,
+        vendor_id INT NOT NULL REFERENCES db_vendors(id) ON DELETE CASCADE,
+        work_date DATE NOT NULL,
+        db_count INT NOT NULL DEFAULT 0,
+        deleted_count INT NOT NULL DEFAULT 0,
+        received_count INT NOT NULL DEFAULT 0,
+        remaining_count INT NOT NULL DEFAULT 0,
+        completed_count INT NOT NULL DEFAULT 0,
+        note TEXT,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(vendor_id, work_date)
+      )
+    `;
+
+    // sales_day_meta — 일별 메타 (재컨택 완료 등)
+    await sql`
+      CREATE TABLE IF NOT EXISTS sales_day_meta (
+        work_date DATE PRIMARY KEY,
+        recontact_completed INT NOT NULL DEFAULT 0,
+        note TEXT,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+
     // 3단계: ALTER + 인덱스 (병렬)
     await Promise.all([
       sql`ALTER TABLE applications ADD COLUMN IF NOT EXISTS downloaded_at TIMESTAMPTZ NULL`,
@@ -86,6 +184,13 @@ export async function ensureSchema() {
       sql`CREATE INDEX IF NOT EXISTS idx_att_date ON attendance_records (work_date)`,
       sql`CREATE INDEX IF NOT EXISTS idx_att_user_date ON attendance_records (user_id, work_date)`,
       sql`CREATE INDEX IF NOT EXISTS idx_att_status ON attendance_records (status)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_orders_tm ON sales_orders (tm_user_id, consult_date DESC)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_orders_vendor ON sales_orders (vendor_id, consult_date DESC)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_orders_status ON sales_orders (status)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_orders_consult ON sales_orders (consult_date DESC)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_tmd_date ON sales_tm_daily (work_date)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_vd_date ON sales_vendor_daily (work_date)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_vendors_active ON db_vendors (active, sort_order)`,
     ]);
 
     // 4단계: 시드 (병렬)
@@ -109,7 +214,23 @@ export async function ensureSchema() {
         ON CONFLICT (name) DO NOTHING
       `;
     });
-    await Promise.all([adminUpsert, adminCleanup, ...presetInserts]);
+    // 디비 vendor 시드 (이미지 5월8일 기준)
+    const VENDOR_SEEDS = [
+      ['A-A',  'A-A',  '타미통신디비', '#7c3aed'],
+      ['A-B',  'A-B',  '타미통신디비', '#a78bfa'],
+      ['B-B',  'B-B',  '날짜디비B',    '#0f7b6c'],
+      ['B-C',  'B-C',  '날짜디비B',    '#0ea5e9'],
+      ['C-B',  'C-B',  null,           '#3271b6'],
+      ['TM-A', 'TM-A', '자체광고',     '#06b6d4'],
+    ];
+    const vendorInserts = VENDOR_SEEDS.map(([code,label,parent,color], i) =>
+      sql`
+        INSERT INTO db_vendors (code, label, parent_label, color, sort_order)
+        VALUES (${code}, ${label}, ${parent}, ${color}, ${i})
+        ON CONFLICT (code) DO NOTHING
+      `
+    );
+    await Promise.all([adminUpsert, adminCleanup, ...presetInserts, ...vendorInserts]);
 
     initialized = true;
   })();
