@@ -1178,25 +1178,25 @@ function renderMyClosing(){
     ),
   );
 
-  // 결과 한 행 (엑셀 워딩 그대로) — 표 형태
+  // 결과 한 행 — 컬럼: 이름 / 상태 / 총갯수 / 일평균 / 마감예상 / 총 디비 / 디비평균 / 디비 효율
   const cellStyleHt = 'padding:14px 12px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;font-size:18px';
   dayAvgEl.style.cssText = '';
   projectedEl.style.cssText = '';
   dbAvgEl.style.cssText = '';
   effEl.style.cssText = 'font-weight:800';
-  const offDisplay = autoOffDays===0 ? '0' : (autoOffDays%1?(-autoOffDays).toFixed(1):String(-autoOffDays));
+  const myStatus = getTodayStatus(me.id, State.records);
   const summaryTable = h('table',{style:'border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:14px 24px 0;width:calc(100% - 48px)'},
     h('thead',null, h('tr',null,
-      ...['휴무','구분','총갯수','일평균','마감예상','총 디비','디비평균','디비 효율'].map(t=>
+      ...['이름','상태','총갯수','일평균','마감예상','총 디비','디비평균','디비 효율'].map(t=>
         h('th',{style:'padding:10px 12px;background:#fbfaf8;color:var(--text-soft);font-size:11px;font-weight:700;letter-spacing:0.04em;text-align:right;border-bottom:1px solid var(--border-soft)'},t))
     )),
     h('tbody',null, h('tr',null,
-      h('td',{style:cellStyleHt+';color:'+(autoOffDays>0?'#b91c1c':'#5b5750')}, offDisplay),
       h('td',{style:'padding:14px 12px;text-align:left;font-weight:700;font-size:15px'},
         h('span',{style:'display:inline-flex;align-items:center;gap:8px'},
           h('span',{class:'avatar',style:`width:24px;height:24px;font-size:11px;background:${nameColor(me.name)}`}, initial(me.name)),
           me.name)
       ),
+      h('td',{style:'padding:14px 12px;text-align:left'}, statusBadge(myStatus)),
       h('td',{style:cellStyleHt}, tcEl),
       h('td',{style:cellStyleHt}, dayAvgEl),
       h('td',{style:cellStyleHt+';color:#1d4ed8'}, projectedEl),
@@ -1346,6 +1346,36 @@ function chipLegend(type,label){
   return h('span',{class:'legend-item'}, h('span',{class:`chip chip-${type}`}, label));
 }
 function statusLabel(s){return s==='APPROVED'?'승인':s==='REJECTED'?'반려':'요청'}
+
+// 오늘 직원 상태 (근태 attendance_records 기반)
+function getTodayStatus(userId, records){
+  const today = new Date().toISOString().slice(0,10);
+  const r = (records||[]).find(rec =>
+    rec.user_id===userId && String(rec.work_date).slice(0,10)===today
+  );
+  if (!r) return { label:'근무', kind:'WORK' };
+  if (r.status==='APPROVED') return { label: TYPE_LABELS[r.type]||'근무', kind:r.type };
+  if (r.status==='REQUESTED') return { label: (TYPE_LABELS[r.type]||'')+' 대기', kind:r.type+'_REQ' };
+  if (r.status==='REJECTED') return { label:'근무', kind:'WORK' };
+  return { label:'근무', kind:'WORK' };
+}
+function statusBadge(s){
+  const colors = {
+    WORK:        ['#e7f6e9','#0f7b6c'],
+    OFF:         ['#ebebe9','#5b5750'],
+    HALF_AM:     ['#fde8c8','#a96400'],
+    HALF_PM:     ['#fde8c8','#a96400'],
+    MONTHLY:     ['#dbe5f8','#1d4ed8'],
+    ANNUAL:      ['#dbe5f8','#1d4ed8'],
+    SICK:        ['#ffe2dd','#b91c1c'],
+    HOLIDAY:     ['#e8deee','#6940a5'],
+  };
+  const k = String(s.kind||'WORK').replace(/_REQ$/,'');
+  const [bg,fg] = colors[k] || colors.WORK;
+  return h('span',{
+    style:`display:inline-block;padding:4px 10px;border-radius:5px;font-size:12px;font-weight:700;background:${bg};color:${fg};${s.kind && s.kind.endsWith('_REQ')?'border:1px dashed '+fg:''}`
+  }, s.label);
+}
 
 function openCellDrawer(target,ymd,rec){
   const me=State.user;
@@ -2261,14 +2291,15 @@ function renderSalesTM(){
   const fmtNum=(n,d=0)=>(Number(n||0)).toLocaleString('ko-KR',{maximumFractionDigits:d});
   const fmtPct=(n)=>((n||0)*100).toFixed(1)+'%';
 
-  // 컬럼 = 이미지 그대로 (휴무 없음). 휴무는 attendance 자동값으로 내부 계산만.
-  const cols=['이름','총갯수','일평균','마감예상','총 디비','디비평균','디비 효율','매출(현재)','매출(예상)'];
+  // 컬럼 — 이름 / 상태 / 총갯수 / 일평균 / 마감예상 / 총 디비 / 디비평균 / 디비 효율 / 매출
+  const cols=['이름','상태','총갯수','일평균','마감예상','총 디비','디비평균','디비 효율','매출(현재)','매출(예상)'];
   const thead=h('thead',null,h('tr',null,...cols.map(c=>h('th',null,c))));
   const tbody=h('tbody');
   for (const r of computed){
     const isSelf=r.user_id===me.id;
     const eff=r.eff;
     const effColor = eff>=0.20?'#0f7b6c':eff>=0.15?'#1d4ed8':eff>=0.10?'#a96400':'#b91c1c';
+    const status = getTodayStatus(r.user_id, State.records);
     tbody.append(h('tr',{class:isSelf?'row-self':''},
       h('td',null,
         h('span',{style:'display:inline-flex;align-items:center;gap:7px;cursor:pointer',
@@ -2278,6 +2309,7 @@ function renderSalesTM(){
           r.role==='manager'?h('span',{class:'role-badge role-manager',style:'margin-left:4px;font-size:10px'},'차장'):null
         )
       ),
+      h('td',{style:'text-align:left'}, statusBadge(status)),
       h('td',null, fmtNum(r.total_count)),
       h('td',null, fmtNum(r.dayAvg,1)),
       h('td',null, fmtNum(r.projected,0)),
@@ -2290,6 +2322,7 @@ function renderSalesTM(){
   }
   tbody.append(h('tr',{class:'total-row'},
     h('td',null,'합계'),
+    h('td',null,'—'),
     h('td',null, fmtNum(totalCount)),
     h('td',null, fmtNum(totalDayAvg,1)),
     h('td',null, fmtNum(totalProjected,0)),
