@@ -1173,25 +1173,19 @@ function renderMyClosing(){
     ),
   );
 
-  // 자동 계산 결과 카드 (휴무 표시 포함)
-  const offText = autoOffDays === 0 ? '0일' : (Number.isInteger(autoOffDays) ? `-${autoOffDays}일` : `-${autoOffDays.toFixed(1)}일`);
-  const resultGrid = h('div',{style:'display:grid;grid-template-columns:repeat(5,1fr);gap:12px;padding:14px 24px 0'},
-    h('div',{style:cellStyle+';background:#fff7ec;border-color:#f4d99c'},
-      h('div',{style:labelStyle+';color:#a96400'},'휴무 (자동)'),
-      h('div',{style:'font-size:24px;font-weight:800;color:#a96400'}, offText),
-      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:4px'},'근태 휴가/월차/연차에서 자동')
-    ),
+  // 자동 계산 결과 카드 (휴무는 attendance 자동값으로 함수 내부에서만 사용, 화면 표시 X)
+  const resultGrid = h('div',{style:'display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:14px 24px 0'},
     h('div',{style:cellStyle+';background:#fafaf8'},
       h('div',{style:labelStyle},'일평균'), dayAvgEl,
-      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:4px'},`= 총갯수 / (${elapsed} − 휴무)`)
+      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:4px'},'= 총갯수 / 실근무일')
     ),
     h('div',{style:cellStyle+';background:#dbe5f8'},
       h('div',{style:labelStyle+';color:#1d4ed8'},'마감 예상'), projectedEl,
-      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:4px'},`= 일평균 × (${total} − 휴무)`)
+      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:4px'},'= 일평균 × 총근무일')
     ),
     h('div',{style:cellStyle+';background:#fafaf8'},
       h('div',{style:labelStyle},'디비평균'), dbAvgEl,
-      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:4px'},'= 총디비 / (실근무 − 휴무)')
+      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:4px'},'= 총디비 / 실근무일')
     ),
     h('div',{style:cellStyle+';background:#e7f6e9'},
       h('div',{style:labelStyle+';color:#0f7b6c'},'디비 효율'), effEl,
@@ -2269,16 +2263,15 @@ function renderSalesTM(){
   const fmtNum=(n,d=0)=>(Number(n||0)).toLocaleString('ko-KR',{maximumFractionDigits:d});
   const fmtPct=(n)=>((n||0)*100).toFixed(1)+'%';
 
-  const cols=['휴무','이름','총갯수','일평균','마감예상','총디비','디비평균','디비효율','매출(현재)','매출(예상)'];
+  // 컬럼 = 이미지 그대로 (휴무 없음). 휴무는 attendance 자동값으로 내부 계산만.
+  const cols=['이름','총갯수','일평균','마감예상','총디비','디비평균','디비효율','매출(현재)','매출(예상)'];
   const thead=h('thead',null,h('tr',null,...cols.map(c=>h('th',null,c))));
   const tbody=h('tbody');
   for (const r of computed){
     const isSelf=r.user_id===me.id;
-    const offDisplay = r.offFloat===0 ? '0' : (r.offFloat%1?(-r.offFloat).toFixed(1):String(-r.offFloat));
     const eff=r.eff;
     const effColor = eff>=0.20?'#0f7b6c':eff>=0.15?'#1d4ed8':eff>=0.10?'#a96400':'#b91c1c';
     tbody.append(h('tr',{class:isSelf?'row-self':''},
-      h('td',{class:'off-cell'}, offDisplay),
       h('td',null,
         h('span',{style:'display:inline-flex;align-items:center;gap:7px;cursor:pointer',
           onClick:()=>{State.selectedPersonId=r.user_id;State.page='people';renderApp();}},
@@ -2298,7 +2291,6 @@ function renderSalesTM(){
     ));
   }
   tbody.append(h('tr',{class:'total-row'},
-    h('td',null,'—'),
     h('td',null,'합계'),
     h('td',null, fmtNum(totalCount)),
     h('td',null, fmtNum(totalDayAvg,1)),
