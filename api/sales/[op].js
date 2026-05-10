@@ -222,21 +222,45 @@ export default requireAuth(async function handler(req, res) {
       period = ins[0] || (await sql`SELECT * FROM sales_period WHERE year_month = ${ym} LIMIT 1`)[0];
     }
 
-    // 결과표는 admin/manager 가 보거나 직원이 자기 행만 보거나 — UI 분기. 데이터는 12명 다 반환.
-    const users = await sql`SELECT id, name, role FROM users WHERE role <> 'admin' ORDER BY sort_order ASC, id ASC`;
-    const monthly = await sql`
-      SELECT user_id, total_count, total_db, off_days
-      FROM sales_tm_monthly WHERE year_month = ${ym}`;
+    // 결과표 데이터: 12명 합치기 (테스트 계정 '2'는 제외)
+    // - total_count, total_db: sales_tm_monthly (직원이 직접 입력)
+    // - off_days: attendance_records에서 자동 derive (APPROVED 휴가성 type 카운트, 반차는 0.5)
+    const users = await sql`
+      SELECT id, name, role FROM users
+      WHERE role <> 'admin' AND name <> '2'
+      ORDER BY sort_order ASC, id ASC`;
+    const userIds = users.map(u=>u.id);
+    const ny2 = m === 12 ? y+1 : y;
+    const nm2 = m === 12 ? 1 : m+1;
+    const monthEnd = `${ny2}-${String(nm2).padStart(2,'0')}-01`;
+
+    const [monthly, attAgg] = await Promise.all([
+      sql`SELECT user_id, total_count, total_db FROM sales_tm_monthly WHERE year_month = ${ym}`,
+      userIds.length ? sql`
+        SELECT user_id,
+          COALESCE(SUM(CASE WHEN type IN ('OFF','MONTHLY','ANNUAL','SICK','HOLIDAY') THEN 1 ELSE 0 END),0)::float AS off_full,
+          COALESCE(SUM(CASE WHEN type IN ('HALF_AM','HALF_PM') THEN 1 ELSE 0 END),0)::float AS off_half
+        FROM attendance_records
+        WHERE work_date >= ${start} AND work_date < ${monthEnd}
+          AND work_date <= ${cutoff}
+          AND status = 'APPROVED' AND user_id = ANY(${userIds})
+        GROUP BY user_id` : Promise.resolve([]),
+    ]);
+
     const map = {}; monthly.forEach(r => map[r.user_id] = r);
+    const attMap = {}; attAgg.forEach(r => attMap[r.user_id] = r);
 
     const rows = users.map(u => {
-      const m2 = map[u.id] || { total_count: 0, total_db: 0, off_days: 0 };
+      const m2 = map[u.id] || { total_count: 0, total_db: 0 };
+      const a  = attMap[u.id] || { off_full: 0, off_half: 0 };
+      // 휴무 일수 = 휴가/월차/연차/병가/공휴일 + 반차×0.5 (자동)
+      const offDays = Number(a.off_full) + Number(a.off_half) * 0.5;
       return {
         user_id: u.id, name: u.name, role: u.role,
         total_count: m2.total_count,
         total_db: m2.total_db,
-        off_days: m2.off_days,
-        half_days: 0,
+        off_days: offDays,
+        half_days: Number(a.off_half),
       };
     });
 

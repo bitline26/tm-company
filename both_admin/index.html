@@ -1063,10 +1063,14 @@ function renderMyClosing(){
   const unitPrice = Number(period.unit_price || 0);
 
   // 본인 행 (sales_tm_monthly에서)
-  const my = (State.myClosingRows||[]).find(r=>r.user_id===me.id) || { total_count:0, total_db:0, off_days:0 };
+  const my = (State.myClosingRows||[]).find(r=>r.user_id===me.id) || { total_count:0, total_db:0 };
+  // 휴무는 근태(요청 1)에서 자동 — tm-summary에서 계산된 본인 off_days
+  const summaryRow = (State.salesTmRows||[]).find(r=>r.user_id===me.id);
+  const autoOffDays = summaryRow ? summaryRow.off_days : 0;
 
-  // 함수식 (이미지 그대로)
-  const compute = (totalCount, totalDb, offDays) => {
+  // 함수식 (이미지 그대로) — 휴무는 자동값 사용
+  const compute = (totalCount, totalDb) => {
+    const offDays = autoOffDays;
     const denom = Math.max(0.0001, elapsed - offDays);
     const dayAvg = elapsed>0 ? totalCount/denom : 0;
     const dbAvg  = elapsed>0 ? totalDb/denom : 0;
@@ -1074,7 +1078,7 @@ function renderMyClosing(){
     const projected = dayAvg * Math.max(0, total - offDays);
     const revenue   = totalCount * unitPrice;
     const expectedRevenue = projected * unitPrice;
-    return { dayAvg, dbAvg, eff, projected, revenue, expectedRevenue };
+    return { dayAvg, dbAvg, eff, projected, revenue, expectedRevenue, offDays };
   };
 
   // 툴바: 월 picker
@@ -1092,13 +1096,11 @@ function renderMyClosing(){
       `실 근무일 ${elapsed} · 남은 ${remaining} · 총 ${total}일`)
   );
 
-  // 입력 필드
-  const offI   = h('input',{type:'number',min:0,value:my.off_days,
-    style:'width:100%;padding:13px 14px;border:1px solid var(--border);border-radius:9px;font-size:18px;font-weight:700;text-align:center;outline:none;font-variant-numeric:tabular-nums'});
+  // 입력 필드 (직원 입력 = 총갯수, 총디비 두 개만 / 휴무는 근태에서 자동)
   const cntI   = h('input',{type:'number',min:0,value:my.total_count,
-    style:'width:100%;padding:13px 14px;border:1px solid var(--border);border-radius:9px;font-size:22px;font-weight:800;text-align:center;outline:none;font-variant-numeric:tabular-nums'});
+    style:'width:100%;padding:14px 16px;border:1px solid var(--border);border-radius:10px;font-size:26px;font-weight:800;text-align:center;outline:none;font-variant-numeric:tabular-nums'});
   const dbI    = h('input',{type:'number',min:0,value:my.total_db,
-    style:'width:100%;padding:13px 14px;border:1px solid var(--border);border-radius:9px;font-size:22px;font-weight:800;text-align:center;outline:none;font-variant-numeric:tabular-nums'});
+    style:'width:100%;padding:14px 16px;border:1px solid var(--border);border-radius:10px;font-size:26px;font-weight:800;text-align:center;outline:none;font-variant-numeric:tabular-nums'});
 
   // 자동 계산 표시 영역 (입력 변할 때마다 갱신)
   const dayAvgEl   = h('div',{style:'font-size:24px;font-weight:800'},'');
@@ -1112,7 +1114,7 @@ function renderMyClosing(){
   const fmtPct=(n)=>((n||0)*100).toFixed(1)+'%';
 
   function repaint(){
-    const c = compute(Number(cntI.value)||0, Number(dbI.value)||0, Number(offI.value)||0);
+    const c = compute(Number(cntI.value)||0, Number(dbI.value)||0);
     dayAvgEl.textContent   = fmtNum(c.dayAvg, 1);
     projectedEl.textContent= fmtNum(c.projected, 0);
     dbAvgEl.textContent    = fmtNum(c.dbAvg, 0);
@@ -1133,14 +1135,13 @@ function renderMyClosing(){
         user_id: me.id, year_month: ym,
         total_count: Number(cntI.value)||0,
         total_db:    Number(dbI.value)||0,
-        off_days:    Number(offI.value)||0,
       }});
       flag.style.opacity='1'; setTimeout(()=>{ flag.style.opacity='0'; }, 1200);
       // 본인 행 캐시 갱신
       const idx = (State.myClosingRows||[]).findIndex(r=>r.user_id===me.id);
-      const obj = { user_id:me.id, total_count:Number(cntI.value)||0, total_db:Number(dbI.value)||0, off_days:Number(offI.value)||0 };
+      const obj = { user_id:me.id, total_count:Number(cntI.value)||0, total_db:Number(dbI.value)||0 };
       if (idx>=0) State.myClosingRows[idx] = obj; else (State.myClosingRows = State.myClosingRows||[]).push(obj);
-      // admin TM 마감도 무효화 (관리자가 보면 새 값 반영)
+      // admin TM 마감 캐시 무효화
       State.salesTmLoadedKey = null;
     }catch(e){ alert(e.message); }
   };
@@ -1151,45 +1152,42 @@ function renderMyClosing(){
   }
   cntI.addEventListener('input', onChange);
   dbI.addEventListener('input', onChange);
-  offI.addEventListener('input', onChange);
   cntI.addEventListener('blur', ()=>{ clearTimeout(saveT); save(); });
   dbI.addEventListener('blur', ()=>{ clearTimeout(saveT); save(); });
-  offI.addEventListener('blur', ()=>{ clearTimeout(saveT); save(); });
 
   // 라벨 + 헬퍼
   const labelStyle = 'font-size:11.5px;color:var(--text-soft);font-weight:700;letter-spacing:0.04em;margin-bottom:6px;text-transform:uppercase';
   const cellStyle = 'padding:18px;background:#fff;border:1px solid var(--border);border-radius:11px;display:flex;flex-direction:column';
 
-  const inputGrid = h('div',{style:'display:grid;grid-template-columns:1fr 1.2fr 1.2fr;gap:12px;padding:14px 24px 0'},
-    // 휴무
-    h('div',{style:cellStyle+';background:#fff7ec;border-color:#f4d99c'},
-      h('div',{style:labelStyle+';color:#a96400'},'휴무 (일)'),
-      offI,
-      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:6px'},'쉰 일수만큼 양수로 (예: 1일 휴무 → 1)')
-    ),
-    // 총갯수
+  // 입력은 2개 (총갯수 + 총디비) — 휴무는 근태에서 자동
+  const inputGrid = h('div',{style:'display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px 24px 0'},
     h('div',{style:cellStyle},
       h('div',{style:labelStyle},'총갯수 (마감 누적)'),
       cntI,
-      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:6px'},'이번 달 누적 마감 건수 직접 입력')
+      h('div',{style:'font-size:11.5px;color:var(--text-soft);margin-top:8px'},'이번 달 누적 마감 건수 입력')
     ),
-    // 총디비
     h('div',{style:cellStyle},
       h('div',{style:labelStyle},'총디비 (받은 디비 누적)'),
       dbI,
-      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:6px'},'이번 달 누적 받은 디비 수 직접 입력')
+      h('div',{style:'font-size:11.5px;color:var(--text-soft);margin-top:8px'},'이번 달 누적 받은 디비 수 입력')
     ),
   );
 
-  // 자동 계산 결과 카드
-  const resultGrid = h('div',{style:'display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:14px 24px 0'},
+  // 자동 계산 결과 카드 (휴무 표시 포함)
+  const offText = autoOffDays === 0 ? '0일' : (Number.isInteger(autoOffDays) ? `-${autoOffDays}일` : `-${autoOffDays.toFixed(1)}일`);
+  const resultGrid = h('div',{style:'display:grid;grid-template-columns:repeat(5,1fr);gap:12px;padding:14px 24px 0'},
+    h('div',{style:cellStyle+';background:#fff7ec;border-color:#f4d99c'},
+      h('div',{style:labelStyle+';color:#a96400'},'휴무 (자동)'),
+      h('div',{style:'font-size:24px;font-weight:800;color:#a96400'}, offText),
+      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:4px'},'근태 휴가/월차/연차에서 자동')
+    ),
     h('div',{style:cellStyle+';background:#fafaf8'},
       h('div',{style:labelStyle},'일평균'), dayAvgEl,
-      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:4px'},`= 총갯수 / (실근무 ${elapsed} − 휴무)`)
+      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:4px'},`= 총갯수 / (${elapsed} − 휴무)`)
     ),
     h('div',{style:cellStyle+';background:#dbe5f8'},
       h('div',{style:labelStyle+';color:#1d4ed8'},'마감 예상'), projectedEl,
-      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:4px'},`= 일평균 × (총근무 ${total} − 휴무)`)
+      h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:4px'},`= 일평균 × (${total} − 휴무)`)
     ),
     h('div',{style:cellStyle+';background:#fafaf8'},
       h('div',{style:labelStyle},'디비평균'), dbAvgEl,
@@ -1201,15 +1199,23 @@ function renderMyClosing(){
     ),
   );
 
-  // 매출
-  const revenueCard = h('div',{style:'margin:14px 24px 60px;padding:18px 22px;background:#0f0f0f;color:#fff;border-radius:12px;display:flex;align-items:center;justify-content:space-between'},
+  // 매출 카드 — 가독성: 밝은 그린톤 BG + 짙은 텍스트
+  const revenueCard = h('div',{
+    style:'margin:14px 24px 60px;padding:22px 24px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px'
+  },
     h('div',null,
-      h('div',{style:'font-size:11.5px;color:#a3a29e;font-weight:700;letter-spacing:0.04em'},'내 매출'),
-      revenueEl, expRevEl,
-      unitPrice===0 ? h('div',{style:'font-size:11px;color:#7a7570;margin-top:6px'}, '⚠ 단가가 설정되지 않음 — 관리자에게 단가 설정 요청') : null
+      h('div',{style:'font-size:12px;color:#0f7b6c;font-weight:700;letter-spacing:0.04em;text-transform:uppercase'},'💰 내 매출'),
+      h('div',{style:'display:flex;align-items:baseline;gap:14px;margin-top:6px;flex-wrap:wrap'},
+        h('div',{style:'font-size:30px;font-weight:800;color:#0f0f0f;font-variant-numeric:tabular-nums'}, revenueEl),
+        h('div',{style:'font-size:14px;color:#0f7b6c;font-weight:600'}, expRevEl)
+      ),
+      unitPrice===0 ? h('div',{style:'font-size:12px;color:#a96400;margin-top:8px;background:#fff7ec;padding:6px 10px;border-radius:6px;display:inline-block'}, '⚠ 단가가 설정되지 않음 — 관리자에게 단가 설정 요청') : null
     ),
     flag
   );
+  // revenueEl/expRevEl 스타일 reset (덮어쓰기)
+  revenueEl.style.cssText = 'font-size:30px;font-weight:800;color:#0f0f0f;font-variant-numeric:tabular-nums';
+  expRevEl.style.cssText = 'font-size:14px;color:#0f7b6c;font-weight:600';
 
   return h('div',null, toolbar, inputGrid, resultGrid, revenueCard);
 }
