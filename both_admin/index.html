@@ -496,6 +496,10 @@ const State = {
   salesVendorLoadedDate: null,
   salesVendorsLoaded: false,
 
+  // 오늘 입력 데이터 (TM 일별)
+  salesTmTodayMap: {},       // { user_id → {db_count, is_off} }
+  myTmToday: null,           // 본인 오늘 (employee home 용)
+
   // 로딩 인디케이터 (페이지별)
   loadingPage: null,
 };
@@ -581,6 +585,7 @@ async function bootstrap(){
       // 즉시 렌더 (월 데이터는 백그라운드에서)
       renderApp();
       loadMonth().then(()=>{ if(State.user) renderApp(); }).catch(console.error);
+      loadMyTmToday().then(()=>{ if(State.user) renderApp(); }).catch(()=>{});
     }else{
       renderAuth();
     }
@@ -588,6 +593,18 @@ async function bootstrap(){
     console.error(e);
     renderAuth();
   }
+}
+
+async function loadMyTmToday(){
+  const today = new Date().toISOString().slice(0,10);
+  const ym = today.slice(0,7);
+  try{
+    const d = await api(`/api/sales/tm-daily?ym=${ym}`);
+    const row = (d.rows||[]).find(r=>String(r.work_date).slice(0,10)===today);
+    State.myTmToday = row
+      ? { db_count: row.db_count, is_off: row.is_off }
+      : { db_count: 0, is_off: false };
+  }catch(_){ State.myTmToday = { db_count: 0, is_off: false }; }
 }
 
 function renderAuth(){
@@ -893,7 +910,48 @@ function renderMyHome(){
     cal
   );
 
-  return h('div',null, stats, calSection);
+  // ─── 오늘 디비 입력 카드 (영업) ───
+  const today = new Date().toISOString().slice(0,10);
+  const todayKr = new Date().toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});
+  const cur = State.myTmToday || { db_count: 0, is_off: false };
+  const dbI = h('input',{type:'number',min:0,value:cur.db_count,
+    style:'width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:9px;font-size:18px;font-weight:700;text-align:center;outline:none;font-variant-numeric:tabular-nums'});
+  const offI = h('input',{type:'checkbox', checked: !!cur.is_off});
+  const savedFlag = h('span',{style:'font-size:11.5px;color:#0f7b6c;opacity:0;transition:opacity .2s'},'✓ 저장됨');
+  const save = async()=>{
+    try{
+      await api('/api/sales/tm-daily',{method:'POST',body:{
+        user_id: me.id, work_date: today,
+        db_count: Number(dbI.value)||0, is_off: offI.checked
+      }});
+      State.myTmToday = { db_count: Number(dbI.value)||0, is_off: offI.checked };
+      savedFlag.style.opacity='1';
+      setTimeout(()=>{ savedFlag.style.opacity='0'; }, 1200);
+    }catch(e){ alert(e.message); }
+  };
+  dbI.addEventListener('blur', save);
+  dbI.addEventListener('keydown',(e)=>{ if(e.key==='Enter') dbI.blur(); });
+  offI.addEventListener('change', save);
+
+  const todayCard = h('section',{class:'pd-section'},
+    h('h3',null,'📥 오늘 입력 ',
+      h('span',{style:'color:var(--text-soft);font-weight:500;font-size:11.5px;margin-left:6px'}, todayKr),
+      savedFlag),
+    h('div',{style:'display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center'},
+      h('div',null,
+        h('div',{style:'font-size:11.5px;color:var(--text-soft);font-weight:600;letter-spacing:0.02em;margin-bottom:6px'},'오늘 받은 디비 개수'),
+        dbI
+      ),
+      h('label',{style:'display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 16px;background:#fafaf8;border-radius:9px;cursor:pointer'},
+        h('span',{style:'font-size:11.5px;color:var(--text-soft);font-weight:600'},'오늘 휴무'),
+        offI
+      )
+    ),
+    h('div',{style:'margin-top:10px;font-size:11.5px;color:var(--text-soft);line-height:1.5'},
+      '입력하면 자동 저장됩니다. 영업 마감 보고서에 합산됩니다.')
+  );
+
+  return h('div',null, stats, todayCard, calSection);
 }
 
 function renderMyHistory(){
@@ -1675,6 +1733,17 @@ async function loadSalesContext(page, force){
         State.salesTmTotal = r.totalWorkdays || 0;
         State.salesTmLoadedKey = key;
       }));
+      // 오늘의 TM 일별 입력값도 같이 (모달/패널에서 사용)
+      tasks.push(api(`/api/sales/tm-daily?ym=${ym}`).then(d=>{
+        const today = new Date().toISOString().slice(0,10);
+        const map = {};
+        (d.rows || []).forEach(r=>{
+          if (String(r.work_date).slice(0,10) === today){
+            map[r.user_id] = { db_count: r.db_count, is_off: r.is_off };
+          }
+        });
+        State.salesTmTodayMap = map;
+      }).catch(()=>{}));
     }
   } else if (page==='sales-vendor'){
     const d=State.salesDate || (new Date().toISOString().slice(0,10));
@@ -1769,7 +1838,7 @@ function renderSalesOrders(){
     h('span',{class:'label'},'월'), ymI,
     filterStatus, filterTm, filterVendor,
     h('div',{style:'flex:1;min-width:160px'}, searchI),
-    isPriv?addBtn:null
+    addBtn   // 직원도 본인 PB 추가 가능 (server: tm_user_id = me.id 자동)
   );
   wrap.append(toolbar);
 
@@ -2001,6 +2070,50 @@ function renderSalesTM(){
     )
   );
   wrap.append(toolbar);
+
+  // ─────── 오늘의 디비 입력 패널 (admin/manager) ───────
+  if (isPriv){
+    const today = new Date().toISOString().slice(0,10);
+    const todayKr = new Date().toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});
+    const inputGrid=h('div',{style:'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;padding:14px 24px 0'});
+    for (const u of State.salesTmRows){
+      const cur = State.salesTmTodayMap[u.user_id] || { db_count:0, is_off:false };
+      const dbI = h('input',{type:'number',min:0,value:cur.db_count,
+        style:'width:60px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;text-align:right;font-weight:600'});
+      const offI = h('input',{type:'checkbox', checked: !!cur.is_off});
+      const card = h('div',{style:'background:#fff;border:1px solid var(--border);border-radius:9px;padding:8px 10px;display:flex;align-items:center;gap:8px;font-size:12.5px'},
+        h('span',{style:'flex:1;font-weight:600;display:flex;align-items:center;gap:5px'},
+          h('span',{class:'avatar',style:`width:20px;height:20px;font-size:10px;background:${nameColor(u.name)}`}, initial(u.name)),
+          u.name
+        ),
+        dbI, h('label',{style:'display:flex;align-items:center;gap:3px;font-size:11px;color:var(--text-soft);cursor:pointer'}, offI, '휴무')
+      );
+      const save = async()=>{
+        try{
+          await api('/api/sales/tm-daily',{method:'POST',body:{
+            user_id: u.user_id, work_date: today,
+            db_count: Number(dbI.value)||0, is_off: offI.checked
+          }});
+          State.salesTmTodayMap[u.user_id] = { db_count: Number(dbI.value)||0, is_off: offI.checked };
+          card.style.background = '#e7f6e9'; setTimeout(()=>{ card.style.background='#fff'; }, 600);
+          // 변경 후 합계 재계산을 위해 summary 캐시 무효화 + 백그라운드 갱신
+          State.salesTmLoadedKey = null;
+          loadSalesContext('sales-tm').then(()=>renderApp()).catch(console.error);
+        }catch(e){ alert(e.message); }
+      };
+      dbI.addEventListener('blur', save);
+      dbI.addEventListener('keydown', (e)=>{ if(e.key==='Enter') dbI.blur(); });
+      offI.addEventListener('change', save);
+      inputGrid.append(card);
+    }
+    wrap.append(
+      h('div',{style:'padding:10px 24px 0;display:flex;align-items:center;gap:10px'},
+        h('span',{style:'font-size:13px;font-weight:700'},'📥 오늘 디비 입력'),
+        h('span',{style:'font-size:11.5px;color:var(--text-soft)'}, todayKr+' · 입력하면 자동 저장')
+      ),
+      inputGrid
+    );
+  }
 
   const elapsed=State.salesTmElapsed;
   const total=State.salesTmTotal;
