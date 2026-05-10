@@ -1028,7 +1028,7 @@ function renderTopbar(){
   );
 }
 
-// ─── 직원 '내 마감' 페이지 (요청 2 — 누적값 직접 입력) ───
+// ─── 직원 '내 마감' 페이지 (요청 2 — 일단위 입력 → 자동 월 누적) ───
 async function loadMyClosing(force){
   const ym = State.salesYm || todayYm();
   State.salesYm = ym;
@@ -1036,16 +1036,17 @@ async function loadMyClosing(force){
   try{
     const cutoff = new Date().toISOString().slice(0,10);
     const [r1, r2] = await Promise.all([
-      api(`/api/sales/tm-monthly?ym=${ym}`),  // 본인 누적 행
-      api(`/api/sales/tm-summary?ym=${ym}&cutoff=${cutoff}`),  // 메타 + 본인 휴무
+      api(`/api/sales/tm-daily?ym=${ym}`),    // 본인 일별 행 (오늘 채우기/수정)
+      api(`/api/sales/tm-summary?ym=${ym}&cutoff=${cutoff}`),  // 12명 + 본인 누적·휴무
     ]);
-    State.myClosingRows = r1.rows || [];   // [{ user_id, total_count, total_db }] 본인만
+    State.myClosingRows = r1.rows || [];
     State.salesPeriod = r2.period;
     State.salesTmElapsed = r2.elapsedWorkdays || 0;
     State.salesTmRemaining = r2.remainingWorkdays || 0;
     State.salesTmTotal = r2.totalWorkdays || 0;
-    const my = (r2.rows||[]).find(r=>r.user_id===State.user.id) || { off_days:0 };
-    State.myAutoOffDays = Number(my.off_days||0);
+    const mySummary = (r2.rows||[]).find(r=>r.user_id===State.user.id) || { off_days:0, total_count:0, total_db:0 };
+    State.myAutoOffDays = Number(mySummary.off_days||0);
+    State.myMonthSum = { total_count: Number(mySummary.total_count||0), total_db: Number(mySummary.total_db||0) };
     State.myClosingLoadedYm = ym;
   }catch(e){ console.error(e); }
 }
@@ -1063,11 +1064,28 @@ function renderMyClosing(){
   const remaining = State.salesTmRemaining || 0;
   const unitPrice = Number(period.unit_price || 0);
 
-  // 본인 누적 행 (직접 입력)
-  const my = (State.myClosingRows||[]).find(r=>r.user_id===me.id) || { total_count:0, total_db:0 };
+  // 일자 picker (기본 오늘) + 본인 그날 행
+  const todayYmd = new Date().toISOString().slice(0,10);
+  if (!State.myDay || String(State.myDay).slice(0,7) !== ym) State.myDay = todayYmd;
+  const sel = State.myDay;
+  const dayRow = (State.myClosingRows||[]).find(r=>String(r.work_date).slice(0,10)===sel)
+    || { count:0, db_count:0, is_off:false };
+
+  // 누적 (서버 SUM) — 본인 월 총갯수/총디비
+  const monthSum = State.myMonthSum || { total_count:0, total_db:0 };
   const autoOffDays = Number(State.myAutoOffDays||0);
 
-  // 함수식 (이미지 그대로 — 휴무는 attendance 자동 derive)
+  // 낙관적 누적 미리보기 (선택일자 입력 변화량 반영)
+  function previewSums(){
+    const baseCount = monthSum.total_count - (dayRow.count||0);
+    const baseDb    = monthSum.total_db    - (dayRow.db_count||0);
+    return {
+      total_count: baseCount + (Number(cntI.value)||0),
+      total_db:    baseDb    + (Number(dbI.value)||0),
+    };
+  }
+
+  // 함수식 (월 누적 기반 — 휴무는 attendance 자동)
   const compute = (totalCount, totalDb) => {
     const denom = Math.max(0.0001, elapsed - autoOffDays);
     const dayAvg = elapsed>0 ? totalCount/denom : 0;
@@ -1077,25 +1095,33 @@ function renderMyClosing(){
     return { dayAvg, dbAvg, eff, projected };
   };
 
-  // 툴바: 월 picker (일자는 누적값 직접 입력이라 불필요)
+  // 툴바: 월 + 일자 picker (일단위 입력)
   const ymI = h('input',{type:'month',value:ym});
   ymI.addEventListener('change', async()=>{
     State.salesYm = ymI.value || todayYm();
-    State.myClosingLoadedYm = null;
+    State.myClosingLoadedYm = null; State.myDay = null;
     State.loadingPage='my-closing'; renderApp();
     await loadMyClosing(true);
     State.loadingPage=null; renderApp();
   });
+  const dateI = h('input',{type:'date',value:sel,min:ym+'-01',max:todayYmd});
+  dateI.addEventListener('change',()=>{ State.myDay = dateI.value; renderApp(); });
+  const dowKr = ['일','월','화','수','목','금','토'][new Date(sel+'T00:00:00').getDay()];
+  const isToday = (sel === todayYmd);
+
   const toolbar = h('div',{class:'sales-toolbar'},
     h('span',{class:'label'},'월'), ymI,
+    h('span',{class:'label',style:'margin-left:14px'},'일자'), dateI,
+    h('span',{style:'font-size:11.5px;color:var(--text-soft);margin-left:6px'}, '('+dowKr+')',
+      isToday?h('span',{style:'margin-left:4px;color:#0f7b6c;font-weight:700'},'· 오늘'):null),
     h('div',{style:'margin-left:auto;color:var(--text-soft);font-size:12px'},
       `실 근무일 ${elapsed} · 남은 ${remaining} · 총 ${total}일`)
   );
 
-  // 입력 = 누적값 (총갯수, 총 디비) — 직원이 직접 입력 (Excel 시트 그대로)
-  const cntI   = h('input',{type:'number',min:0,value:my.total_count,
+  // 입력 = 선택된 일자(기본 오늘) 그날 마감/디비
+  const cntI   = h('input',{type:'number',min:0,value:dayRow.count||0,
     style:'width:100%;padding:14px 16px;border:1px solid var(--border);border-radius:10px;font-size:26px;font-weight:800;text-align:center;outline:none;font-variant-numeric:tabular-nums'});
-  const dbI    = h('input',{type:'number',min:0,value:my.total_db,
+  const dbI    = h('input',{type:'number',min:0,value:dayRow.db_count||0,
     style:'width:100%;padding:14px 16px;border:1px solid var(--border);border-radius:10px;font-size:26px;font-weight:800;text-align:center;outline:none;font-variant-numeric:tabular-nums'});
 
   // 자동 계산 표시 영역 (입력 변할 때마다 갱신)
@@ -1110,37 +1136,40 @@ function renderMyClosing(){
   const fmtNum=(n,d=0)=>(Number(n||0)).toLocaleString('ko-KR',{maximumFractionDigits:d});
   const fmtPct=(n)=>((n||0)*100).toFixed(1)+'%';
 
-  // 입력값으로 자동 계산 (누적값 직접 입력이므로 그대로 사용)
+  // 누적값(서버 SUM 반영) + 입력 즉시 함수 갱신
   function repaint(){
-    const tc = Number(cntI.value)||0;
-    const td = Number(dbI.value)||0;
-    const c = compute(tc, td);
-    tcEl.textContent = fmtNum(tc);
-    tdEl.textContent = fmtNum(td);
-    dayAvgEl.textContent    = tc>0 ? c.dayAvg.toFixed(1) : '0.0';
+    const s = previewSums();
+    tcEl.textContent = fmtNum(s.total_count);
+    tdEl.textContent = fmtNum(s.total_db);
+    const c = compute(s.total_count, s.total_db);
+    dayAvgEl.textContent    = s.total_count>0 ? c.dayAvg.toFixed(1) : '0.0';
     projectedEl.textContent = fmtNum(Math.round(c.projected));
     dbAvgEl.textContent     = fmtNum(Math.round(c.dbAvg));
     const e = c.eff;
-    effEl.textContent = td>0 ? Math.round(e*100)+'%' : '—';
+    effEl.textContent = s.total_db>0 ? Math.round(e*100)+'%' : '—';
     effEl.style.color = e>=0.20?'#0f7b6c':e>=0.15?'#1d4ed8':e>=0.10?'#a96400':'#b91c1c';
   }
   repaint();
 
-  // 저장 (디바운스 — 누적값을 sales_tm_monthly 에 upsert)
+  // 저장 (디바운스 — 선택일자 행 sales_tm_daily upsert)
   let saveT;
   const flag = h('span',{style:'margin-left:8px;font-size:12px;color:#0f7b6c;opacity:0;transition:opacity .2s'},'✓ 저장됨');
   const save = async()=>{
-    const tc = Number(cntI.value)||0;
-    const td = Number(dbI.value)||0;
+    const newCount = Number(cntI.value)||0;
+    const newDb    = Number(dbI.value)||0;
     try{
-      await api('/api/sales/tm-monthly',{method:'POST',body:{
-        user_id: me.id, year_month: ym,
-        total_count: tc, total_db: td,
+      await api('/api/sales/tm-daily',{method:'POST',body:{
+        user_id: me.id, work_date: sel,
+        count: newCount, db_count: newDb,
       }});
       flag.style.opacity='1'; setTimeout(()=>{ flag.style.opacity='0'; }, 1200);
-      const idx = (State.myClosingRows||[]).findIndex(r=>r.user_id===me.id);
-      const obj = { user_id:me.id, total_count:tc, total_db:td };
+      // 캐시 행 갱신 + 누적 SUM 낙관적 갱신
+      const idx = (State.myClosingRows||[]).findIndex(r=>String(r.work_date).slice(0,10)===sel);
+      const obj = { user_id:me.id, work_date:sel, count:newCount, db_count:newDb, is_off:false };
       if (idx>=0) State.myClosingRows[idx] = obj; else (State.myClosingRows = State.myClosingRows||[]).push(obj);
+      const newSums = previewSums();
+      State.myMonthSum = newSums;
+      dayRow.count = newCount; dayRow.db_count = newDb;
       // admin TM 마감 캐시 무효화 → 즉시 반영
       State.salesTmLoadedKey = null;
     }catch(e){ alert(e.message); }
@@ -1159,22 +1188,23 @@ function renderMyClosing(){
   const labelStyle = 'font-size:11.5px;color:var(--text-soft);font-weight:700;letter-spacing:0.04em;margin-bottom:6px;text-transform:uppercase';
   const cellStyle = 'padding:18px;background:#fff;border:1px solid var(--border);border-radius:11px;display:flex;flex-direction:column';
 
-  // 입력 헤더 + 2칸 (총갯수 + 총 디비 누적값 직접 입력) — 자동 저장
+  // 입력 헤더 + 2칸 (그날 마감 + 그날 디비) — 자동 저장 후 월 누적 자동 합산
+  const dayLabel = `${sel.slice(5,7)}/${sel.slice(8,10)} (${dowKr})`;
   const inputHead = h('div',{style:'padding:14px 24px 0;display:flex;align-items:center;gap:10px'},
-    h('div',{style:'font-size:14px;font-weight:800;color:#0f0f0f'}, '📥 입력 (이번 달 누적)'),
-    h('div',{style:'font-size:11.5px;color:var(--text-soft)'}, '입력하면 자동 저장 → 함수 즉시 적용 + 관리자 결과표 반영'),
+    h('div',{style:'font-size:14px;font-weight:800;color:#0f0f0f'}, isToday?'📥 오늘 입력':`📥 ${dayLabel} 입력`),
+    h('div',{style:'font-size:11.5px;color:var(--text-soft)'}, '그날 마감/디비 입력 → 월 누적 자동 합산 → 함수/관리자 결과표 즉시 반영'),
     flag
   );
   const inputGrid = h('div',{style:'display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:8px 24px 0'},
     h('div',{style:cellStyle+';background:#fffaf0;border-color:#fef3c7'},
-      h('div',{style:labelStyle+';color:#a96400'}, '총갯수'),
+      h('div',{style:labelStyle+';color:#a96400'}, dayLabel + ' · 마감 건수'),
       cntI,
-      h('div',{style:'font-size:11.5px;color:var(--text-soft);margin-top:8px'},'이번 달 마감 누적 건수 (직접 입력)')
+      h('div',{style:'font-size:11.5px;color:var(--text-soft);margin-top:8px'},'그날 마감한 건수만 입력 (월 누적은 자동)')
     ),
     h('div',{style:cellStyle+';background:#fffaf0;border-color:#fef3c7'},
-      h('div',{style:labelStyle+';color:#a96400'}, '총 디비'),
+      h('div',{style:labelStyle+';color:#a96400'}, dayLabel + ' · 받은 디비'),
       dbI,
-      h('div',{style:'font-size:11.5px;color:var(--text-soft);margin-top:8px'},'이번 달 받은 디비 누적 수 (직접 입력)')
+      h('div',{style:'font-size:11.5px;color:var(--text-soft);margin-top:8px'},'그날 받은 디비만 입력 (월 누적은 자동)')
     ),
   );
 

@@ -222,9 +222,7 @@ export default requireAuth(async function handler(req, res) {
       period = ins[0] || (await sql`SELECT * FROM sales_period WHERE year_month = ${ym} LIMIT 1`)[0];
     }
 
-    // 결과표 데이터: 12명 (테스트 계정 '2' 제외)
-    // - total_count, total_db: sales_tm_monthly (직원이 누적값 직접 입력)
-    // - off_days: attendance_records에서 자동 derive
+    // 결과표 = sales_tm_daily 일별 입력값을 SUM으로 월 누적 (직원이 매일 그날 입력)
     const users = await sql`
       SELECT id, name, role FROM users
       WHERE role <> 'admin' AND name <> '2'
@@ -234,8 +232,16 @@ export default requireAuth(async function handler(req, res) {
     const nm2 = m === 12 ? 1 : m+1;
     const monthEnd = `${ny2}-${String(nm2).padStart(2,'0')}-01`;
 
-    const [monthly, attAgg] = await Promise.all([
-      sql`SELECT user_id, total_count, total_db FROM sales_tm_monthly WHERE year_month = ${ym}`,
+    const [dailyAgg, attAgg] = await Promise.all([
+      userIds.length ? sql`
+        SELECT user_id,
+          COALESCE(SUM(count),0)::int AS total_count,
+          COALESCE(SUM(db_count),0)::int AS total_db
+        FROM sales_tm_daily
+        WHERE work_date >= ${start} AND work_date < ${monthEnd}
+          AND work_date <= ${cutoff}
+          AND user_id = ANY(${userIds})
+        GROUP BY user_id` : Promise.resolve([]),
       userIds.length ? sql`
         SELECT user_id,
           COALESCE(SUM(CASE WHEN type IN ('OFF','MONTHLY','ANNUAL','SICK','HOLIDAY') THEN 1 ELSE 0 END),0)::float AS off_full,
@@ -247,17 +253,17 @@ export default requireAuth(async function handler(req, res) {
         GROUP BY user_id` : Promise.resolve([]),
     ]);
 
-    const mMap = {}; monthly.forEach(r => mMap[r.user_id] = r);
+    const dMap = {}; dailyAgg.forEach(r => dMap[r.user_id] = r);
     const attMap = {}; attAgg.forEach(r => attMap[r.user_id] = r);
 
     const rows = users.map(u => {
-      const m2 = mMap[u.id] || { total_count: 0, total_db: 0 };
+      const d = dMap[u.id] || { total_count: 0, total_db: 0 };
       const a = attMap[u.id] || { off_full: 0, off_half: 0 };
       const offDays = Number(a.off_full) + Number(a.off_half) * 0.5;
       return {
         user_id: u.id, name: u.name, role: u.role,
-        total_count: m2.total_count,
-        total_db: m2.total_db,
+        total_count: d.total_count,
+        total_db: d.total_db,
         off_days: offDays,
         half_days: Number(a.off_half),
       };
