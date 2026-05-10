@@ -1126,8 +1126,6 @@ function renderMyClosing(){
   const projectedEl = h('div',{style:'font-size:24px;font-weight:800;color:#1d4ed8'},'');
   const dbAvgEl    = h('div',{style:'font-size:24px;font-weight:800'},'');
   const effEl      = h('div',{style:'font-size:28px;font-weight:800'},'');
-  const revenueEl  = h('div',{style:'font-size:18px;font-weight:700;color:#0f7b6c'},'');
-  const expRevEl   = h('div',{style:'font-size:14px;font-weight:600;color:var(--text-soft);margin-top:2px'},'');
 
   const fmtNum=(n,d=0)=>(Number(n||0)).toLocaleString('ko-KR',{maximumFractionDigits:d});
   const fmtPct=(n)=>((n||0)*100).toFixed(1)+'%';
@@ -1157,8 +1155,6 @@ function renderMyClosing(){
     const e = c.eff;
     effEl.textContent = fmtPct(e);
     effEl.style.color = e>=0.20?'#0f7b6c':e>=0.15?'#1d4ed8':e>=0.10?'#a96400':'#b91c1c';
-    revenueEl.textContent = fmtKRW(c.revenue);
-    expRevEl.textContent  = '예상 ' + fmtKRW(c.expectedRevenue);
   }
   repaint();
 
@@ -1219,22 +1215,13 @@ function renderMyClosing(){
     ),
   );
 
-  // 누적 카드 (이번 달 합계 — 자동 SUM)
-  const cumGrid = h('div',{style:'display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px 24px 0'},
-    h('div',{style:cellStyle+';background:#0f0f0f;color:#fff;border-color:#0f0f0f'},
-      h('div',{style:labelStyle+';color:#a3a29e'}, `이번 달 누적 총갯수 (${ym})`),
-      cumCntEl,
-      h('div',{style:'font-size:11px;color:#7a7570;margin-top:4px'},'= 매일 입력한 마감 건수의 합')
-    ),
-    h('div',{style:cellStyle+';background:#0f0f0f;color:#fff;border-color:#0f0f0f'},
-      h('div',{style:labelStyle+';color:#a3a29e'}, '이번 달 누적 총디비'),
-      cumDbEl,
-      h('div',{style:'font-size:11px;color:#7a7570;margin-top:4px'},'= 매일 입력한 디비 수의 합')
-    ),
+  // 누적 작은 텍스트 (검정 카드 제거 — 가벼운 라인으로)
+  cumCntEl.style.cssText = 'font-size:14px;font-weight:800;color:#0f0f0f;display:inline-block;font-variant-numeric:tabular-nums';
+  cumDbEl.style.cssText  = 'font-size:14px;font-weight:800;color:#0f0f0f;display:inline-block;font-variant-numeric:tabular-nums';
+  const cumLine = h('div',{style:'padding:14px 24px 0;display:flex;gap:18px;align-items:center;font-size:12px;color:var(--text-soft)'},
+    h('div',null, h('span',{style:'font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;margin-right:6px'},'이번 달 총갯수'), cumCntEl),
+    h('div',null, h('span',{style:'font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;margin-right:6px'},'이번 달 총디비'), cumDbEl)
   );
-  // 카드 내 폰트색 통일
-  cumCntEl.style.color = '#fff';
-  cumDbEl.style.color = '#fff';
 
   // 자동 계산 결과 카드 (휴무는 attendance 자동값으로 함수 내부에서만 사용, 화면 표시 X)
   const resultGrid = h('div',{style:'display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:14px 24px 0'},
@@ -1256,25 +1243,9 @@ function renderMyClosing(){
     ),
   );
 
-  // 매출 카드 — 가독성: 밝은 그린톤 BG + 짙은 텍스트
-  const revenueCard = h('div',{
-    style:'margin:14px 24px 60px;padding:22px 24px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px'
-  },
-    h('div',null,
-      h('div',{style:'font-size:12px;color:#0f7b6c;font-weight:700;letter-spacing:0.04em;text-transform:uppercase'},'💰 내 매출'),
-      h('div',{style:'display:flex;align-items:baseline;gap:14px;margin-top:6px;flex-wrap:wrap'},
-        h('div',{style:'font-size:30px;font-weight:800;color:#0f0f0f;font-variant-numeric:tabular-nums'}, revenueEl),
-        h('div',{style:'font-size:14px;color:#0f7b6c;font-weight:600'}, expRevEl)
-      ),
-      unitPrice===0 ? h('div',{style:'font-size:12px;color:#a96400;margin-top:8px;background:#fff7ec;padding:6px 10px;border-radius:6px;display:inline-block'}, '⚠ 단가가 설정되지 않음 — 관리자에게 단가 설정 요청') : null
-    ),
-    flag
-  );
-  // revenueEl/expRevEl 스타일 reset (덮어쓰기)
-  revenueEl.style.cssText = 'font-size:30px;font-weight:800;color:#0f0f0f;font-variant-numeric:tabular-nums';
-  expRevEl.style.cssText = 'font-size:14px;color:#0f7b6c;font-weight:600';
+  // 매출 카드는 직원 페이지에서 제거 (대표/관리자만 봄)
 
-  return h('div',null, toolbar, inputHead, inputGrid, cumGrid, resultGrid, revenueCard);
+  return h('div',null, toolbar, inputHead, inputGrid, cumLine, resultGrid);
 }
 
 // 헤더 위젯 (오늘 부재 / 본인 사용량) ─────────────────
