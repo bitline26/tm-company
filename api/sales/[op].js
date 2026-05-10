@@ -222,46 +222,21 @@ export default requireAuth(async function handler(req, res) {
       period = ins[0] || (await sql`SELECT * FROM sales_period WHERE year_month = ${ym} LIMIT 1`)[0];
     }
 
-    const users = isPriv
-      ? await sql`SELECT id, name, role FROM users WHERE role <> 'admin' ORDER BY sort_order ASC, id ASC`
-      : [{ id: me.id, name: me.name, role: me.role }];
-    const userIds = users.map(u=>u.id);
-
-    const orderAgg = userIds.length ? await sql`
-      SELECT tm_user_id AS user_id, COUNT(*)::int AS cnt, COALESCE(SUM(amount),0)::bigint AS amount_sum
-      FROM sales_orders
-      WHERE consult_date >= ${start} AND consult_date <= ${cutoff}
-        AND status <> 'CANCELLED' AND tm_user_id = ANY(${userIds})
-      GROUP BY tm_user_id` : [];
-    const tmAgg = userIds.length ? await sql`
-      SELECT user_id, COALESCE(SUM(db_count),0)::int AS db_sum,
-             COALESCE(SUM(CASE WHEN is_off THEN 1 ELSE 0 END),0)::int AS off_days
-      FROM sales_tm_daily
-      WHERE work_date >= ${start} AND work_date <= ${cutoff} AND user_id = ANY(${userIds})
-      GROUP BY user_id` : [];
-    const attAgg = userIds.length ? await sql`
-      SELECT user_id,
-             COALESCE(SUM(CASE WHEN type IN ('OFF','MONTHLY','ANNUAL','SICK','HOLIDAY') THEN 1 ELSE 0 END),0)::int AS att_off,
-             COALESCE(SUM(CASE WHEN type IN ('HALF_AM','HALF_PM') THEN 1 ELSE 0 END),0)::int AS att_half
-      FROM attendance_records
-      WHERE work_date >= ${start} AND work_date <= ${cutoff}
-        AND status = 'APPROVED' AND user_id = ANY(${userIds})
-      GROUP BY user_id` : [];
-
-    const orderMap = {}; orderAgg.forEach(r => orderMap[r.user_id] = r);
-    const tmMap = {};    tmAgg.forEach(r => tmMap[r.user_id] = r);
-    const attMap = {};   attAgg.forEach(r => attMap[r.user_id] = r);
+    // 결과표는 admin/manager 가 보거나 직원이 자기 행만 보거나 — UI 분기. 데이터는 12명 다 반환.
+    const users = await sql`SELECT id, name, role FROM users WHERE role <> 'admin' ORDER BY sort_order ASC, id ASC`;
+    const monthly = await sql`
+      SELECT user_id, total_count, total_db, off_days
+      FROM sales_tm_monthly WHERE year_month = ${ym}`;
+    const map = {}; monthly.forEach(r => map[r.user_id] = r);
 
     const rows = users.map(u => {
-      const o = orderMap[u.id] || { cnt: 0, amount_sum: 0 };
-      const t = tmMap[u.id] || { db_sum: 0, off_days: 0 };
-      const a = attMap[u.id] || { att_off: 0, att_half: 0 };
+      const m2 = map[u.id] || { total_count: 0, total_db: 0, off_days: 0 };
       return {
         user_id: u.id, name: u.name, role: u.role,
-        total_count: o.cnt, amount_sum: Number(o.amount_sum),
-        total_db: t.db_sum,
-        off_days: t.off_days + a.att_off,
-        half_days: a.att_half,
+        total_count: m2.total_count,
+        total_db: m2.total_db,
+        off_days: m2.off_days,
+        half_days: 0,
       };
     });
 
@@ -281,7 +256,39 @@ export default requireAuth(async function handler(req, res) {
     return res.status(200).json({ ym, cutoff, period, elapsedWorkdays, remainingWorkdays, totalWorkdays, rows });
   }
 
-  // ───────── tm-daily ─────────
+  // ───────── tm-monthly (직원이 본인 행 입력 — 총갯수/총디비/휴무) ─────────
+  if (op === 'tm-monthly') {
+    if (req.method === 'GET') {
+      const ym = String(req.query.ym || '').match(/^\d{4}-\d{2}$/)?.[0];
+      if (!ym) return res.status(400).json({ error: 'ym required' });
+      const rows = isPriv
+        ? await sql`SELECT * FROM sales_tm_monthly WHERE year_month = ${ym}`
+        : await sql`SELECT * FROM sales_tm_monthly WHERE year_month = ${ym} AND user_id = ${me.id}`;
+      return res.status(200).json({ rows });
+    }
+    if (req.method === 'POST') {
+      const b = await readJson(req);
+      const userId = Number(b.user_id || me.id);
+      if (!isPriv && userId !== me.id) return res.status(403).json({ error: '본인 행만 입력 가능' });
+      const ym = String(b.year_month || b.ym || '').match(/^\d{4}-\d{2}$/)?.[0];
+      if (!ym) return res.status(400).json({ error: 'year_month required (YYYY-MM)' });
+      const rows = await sql`
+        INSERT INTO sales_tm_monthly (user_id, year_month, total_count, total_db, off_days, updated_at)
+        VALUES (${userId}, ${ym},
+                ${Number(b.total_count||0)}, ${Number(b.total_db||0)}, ${Number(b.off_days||0)}, NOW())
+        ON CONFLICT (user_id, year_month) DO UPDATE SET
+          total_count = EXCLUDED.total_count,
+          total_db = EXCLUDED.total_db,
+          off_days = EXCLUDED.off_days,
+          updated_at = NOW()
+        RETURNING *`;
+      return res.status(200).json({ ok: true, row: rows[0] });
+    }
+    res.setHeader('Allow', 'GET,POST');
+    return res.status(405).json({ error: 'method not allowed' });
+  }
+
+  // ───────── tm-daily (deprecated — 데이터 보존만) ─────────
   if (op === 'tm-daily') {
     if (req.method === 'GET') {
       const ym = String(req.query.ym || '').match(/^\d{4}-\d{2}$/)?.[0];
@@ -314,7 +321,7 @@ export default requireAuth(async function handler(req, res) {
   }
 
   // ───────── vendor-daily ─────────
-  // 작성 권한: admin/manager 만. 직원은 read-only (결과 조회만 가능)
+  // 작성 권한: 직원/차장(편집), 대표(admin)는 결과 조회만
   if (op === 'vendor-daily') {
     if (req.method === 'GET') {
       const d = String(req.query.date || '').match(/^\d{4}-\d{2}-\d{2}$/)?.[0];
@@ -339,7 +346,7 @@ export default requireAuth(async function handler(req, res) {
       }));
       return res.status(200).json({ date: d, vendors: merged, meta });
     }
-    if (!isPriv) return res.status(403).json({ error: '관리자 전용' });
+    if (me.role === 'admin') return res.status(403).json({ error: '대표 계정은 결과만 조회 가능 (편집은 직원/차장)' });
     if (req.method === 'POST') {
       if (req.query.meta) {
         const b = await readJson(req);

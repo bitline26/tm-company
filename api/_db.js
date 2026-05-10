@@ -30,12 +30,25 @@ const ADMIN_DEFAULT_PW = '1';
 const EMP_TEST_NAME = '2';
 const EMP_TEST_PW = '2';
 
+// 스키마 마커 — 이 버전이 DB에 기록되어 있으면 ensureSchema 풀실행 스킵
+const SCHEMA_VERSION = 5;
+
 let initialized = false;
 let initPromise = null;
 export async function ensureSchema() {
   if (initialized) return;
   if (initPromise) return initPromise;        // 동시 호출 시 1회만 실행
   initPromise = (async () => {
+    // ─── 빠른 경로: 마커 테이블에 현재 버전 기록되어 있으면 풀 DDL 스킵
+    try {
+      const m = await sql`SELECT version FROM _schema_init LIMIT 1`;
+      if (m[0]?.version >= SCHEMA_VERSION) {
+        initialized = true;
+        return;
+      }
+    } catch (_) {
+      // _schema_init 테이블 없음 — 첫 콜드 스타트, 전체 DDL 실행
+    }
     // 1단계: 테이블 생성 (병렬 — 서로 의존 없음 except attendance→users)
     await Promise.all([
       sql`
@@ -135,19 +148,34 @@ export async function ensureSchema() {
       )
     `;
 
-    // sales_tm_daily — TM × 일자 보조 입력 (요청 2)
-    // closings는 sales_orders에서 derive, 여기는 db_count(받은 디비)/is_off만 입력
+    // sales_tm_daily — (deprecated) 일별 입력, 더 이상 신규 사용 안 함. 데이터 보존용.
     await sql`
       CREATE TABLE IF NOT EXISTS sales_tm_daily (
         id SERIAL PRIMARY KEY,
         period_id INT REFERENCES sales_period(id) ON DELETE CASCADE,
         user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         work_date DATE NOT NULL,
-        db_count INT NOT NULL DEFAULT 0,           -- 그날 받은 디비 수
-        is_off BOOLEAN NOT NULL DEFAULT FALSE,     -- 그날 휴무 여부 (근태에서 자동 동기화 가능)
+        db_count INT NOT NULL DEFAULT 0,
+        is_off BOOLEAN NOT NULL DEFAULT FALSE,
         note TEXT,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE(user_id, work_date)
+      )
+    `;
+
+    // sales_tm_monthly — 월간 누적 입력 (요청 2 핵심)
+    // 직원이 본인 행의 total_count(총갯수=마감), total_db(총디비), off_days(휴무) 직접 입력
+    // 자동 계산: 일평균/마감예상/디비평균/디비효율 (서버는 raw만 저장, 클라이언트가 계산)
+    await sql`
+      CREATE TABLE IF NOT EXISTS sales_tm_monthly (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        year_month TEXT NOT NULL,                  -- 'YYYY-MM'
+        total_count INT NOT NULL DEFAULT 0,        -- 총갯수 (누적 마감 건수)
+        total_db INT NOT NULL DEFAULT 0,           -- 총디비 (누적 받은 디비)
+        off_days INT NOT NULL DEFAULT 0,           -- 휴무 일수 (양수 저장, 표시는 -N)
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(user_id, year_month)
       )
     `;
 
@@ -192,6 +220,8 @@ export async function ensureSchema() {
       sql`CREATE INDEX IF NOT EXISTS idx_orders_status ON sales_orders (status)`,
       sql`CREATE INDEX IF NOT EXISTS idx_orders_consult ON sales_orders (consult_date DESC)`,
       sql`CREATE INDEX IF NOT EXISTS idx_tmd_date ON sales_tm_daily (work_date)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_tmm_ym ON sales_tm_monthly (year_month)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_tmm_user ON sales_tm_monthly (user_id, year_month)`,
       sql`CREATE INDEX IF NOT EXISTS idx_vd_date ON sales_vendor_daily (work_date)`,
       sql`CREATE INDEX IF NOT EXISTS idx_vendors_active ON db_vendors (active, sort_order)`,
     ]);
@@ -245,6 +275,19 @@ export async function ensureSchema() {
       `
     );
     await Promise.all([adminUpsert, adminCleanup, empTestUpsert, ...presetInserts, ...vendorInserts]);
+
+    // 5단계: 마커 기록 (이후 콜드 스타트는 풀 DDL 스킵)
+    await sql`
+      CREATE TABLE IF NOT EXISTS _schema_init (
+        version INT PRIMARY KEY,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+    await sql`
+      INSERT INTO _schema_init (version, updated_at)
+      VALUES (${SCHEMA_VERSION}, NOW())
+      ON CONFLICT (version) DO UPDATE SET updated_at = NOW()
+    `;
 
     initialized = true;
   })();
