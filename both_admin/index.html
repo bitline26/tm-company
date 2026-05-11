@@ -358,29 +358,52 @@
   .orders-table .cell input,.orders-table .cell select,.orders-table .cell textarea{
     width:100%;padding:10px 12px;border:none;outline:2px solid #0f0f0f;outline-offset:-2px;background:#fff;font-size:13px;font-family:inherit;border-radius:0;
   }
-  .orders-table tr.row-status-PAID td{background:#e7f6e9}
-  .orders-table tr.row-status-PAID:hover td{background:#daf0dd}
+  /* 행 배경 — 카테고리별 색상 (좌측 4px 컬러 바로 강조) */
+  .orders-table tr[class^="row-status-"] td:first-child,
+  .orders-table tr[class*=" row-status-"] td:first-child{position:relative}
+  .orders-table tr[class^="row-status-"] td:first-child::before,
+  .orders-table tr[class*=" row-status-"] td:first-child::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+  }
+  .orders-table tr.row-status-PAID td{background:#d1fae5}
+  .orders-table tr.row-status-PAID:hover td{background:#a7f3d0}
+  .orders-table tr.row-status-PAID td:first-child::before{background:#10b981}
+
+  .orders-table tr.row-status-UNPAID td{background:#fef2f2}
+  .orders-table tr.row-status-UNPAID:hover td{background:#fee2e2}
+  .orders-table tr.row-status-UNPAID td:first-child::before{background:#ef4444}
+
+  .orders-table tr.row-status-UNPAID_PROOF td{background:#ffedd5}
+  .orders-table tr.row-status-UNPAID_PROOF:hover td{background:#fed7aa}
+  .orders-table tr.row-status-UNPAID_PROOF td:first-child::before{background:#f97316}
+
   .orders-table tr.row-status-IN_PROGRESS td{background:#fef3c7}
-  .orders-table tr.row-status-IN_PROGRESS:hover td{background:#fde9a0}
-  .orders-table tr.row-status-UNPAID td{background:#fff}
+  .orders-table tr.row-status-IN_PROGRESS:hover td{background:#fde68a}
+  .orders-table tr.row-status-IN_PROGRESS td:first-child::before{background:#f59e0b}
+
   .orders-table tr.row-status-PARTIAL td{background:#e0e7ff}
-  .orders-table tr.row-status-PARTIAL:hover td{background:#cdd5fb}
-  .orders-table tr.row-status-CANCELLED td{background:#fee2e2;color:#9a3a3a}
-  .orders-table tr.row-status-CANCELLED .cell{text-decoration:line-through}
+  .orders-table tr.row-status-PARTIAL:hover td{background:#c7d2fe}
+  .orders-table tr.row-status-PARTIAL td:first-child::before{background:#6366f1}
+
+  .orders-table tr.row-status-CANCELLED td{background:#f3f4f6;color:#6b7280}
+  .orders-table tr.row-status-CANCELLED td:first-child::before{background:#9ca3af}
+  .orders-table tr.row-status-CANCELLED .cell{text-decoration:line-through;opacity:.65}
 
   /* 상태 칩 (orders status) */
-  .st-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:5px;font-size:11px;font-weight:700;letter-spacing:-0.005em;white-space:nowrap}
+  .st-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:5px;font-size:11px;font-weight:700;letter-spacing:-0.005em;white-space:nowrap;border:1px solid transparent}
   .st-chip::before{content:"";width:6px;height:6px;border-radius:50%;display:inline-block}
-  .st-PAID{background:#d1fae5;color:#0f7b6c}
-  .st-PAID::before{background:#0f7b6c}
-  .st-IN_PROGRESS{background:#fef3c7;color:#a96400}
-  .st-IN_PROGRESS::before{background:#d49426}
-  .st-UNPAID{background:#f1f1ef;color:#5b5750}
-  .st-UNPAID::before{background:#9b9a97}
-  .st-PARTIAL{background:#e0e7ff;color:#4338ca}
+  .st-PAID{background:#d1fae5;color:#065f46;border-color:#6ee7b7}
+  .st-PAID::before{background:#10b981}
+  .st-UNPAID{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
+  .st-UNPAID::before{background:#ef4444}
+  .st-UNPAID_PROOF{background:#ffedd5;color:#9a3412;border-color:#fdba74}
+  .st-UNPAID_PROOF::before{background:#f97316}
+  .st-IN_PROGRESS{background:#fef3c7;color:#92400e;border-color:#fcd34d}
+  .st-IN_PROGRESS::before{background:#f59e0b}
+  .st-PARTIAL{background:#e0e7ff;color:#3730a3;border-color:#a5b4fc}
   .st-PARTIAL::before{background:#6366f1}
-  .st-CANCELLED{background:#fee2e2;color:#b91c1c}
-  .st-CANCELLED::before{background:#b91c1c}
+  .st-CANCELLED{background:#f3f4f6;color:#4b5563;border-color:#d1d5db}
+  .st-CANCELLED::before{background:#9ca3af}
 
   /* 통신사 칩 */
   .carrier-SK{background:#fef2f2;color:#dc2626;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px}
