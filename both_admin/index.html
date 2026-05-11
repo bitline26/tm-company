@@ -504,6 +504,9 @@ const State = {
   myClosingRows: [],         // 본인 sales_tm_daily 월별 행
   myClosingLoadedYm: null,
 
+  // 가입 승인 (admin 전용)
+  signupPending: null,       // 승인 대기 사용자 배열 (null=미로드)
+
   // 로딩 인디케이터 (페이지별)
   loadingPage: null,
 };
@@ -539,23 +542,29 @@ const daysInMonth=(y,m)=>new Date(y,m,0).getDate();
 
 const TYPE_LABELS={
   WORK:'정상출근', OFF:'휴무', HALF_AM:'오전반차', HALF_PM:'오후반차',
-  MONTHLY:'월차', ANNUAL:'연차', SICK:'병가', HOLIDAY:'공휴일',
+  MONTHLY:'월차', ANNUAL:'연차', SICK:'병가', HOLIDAY:'공휴일', UNAUTHORIZED:'무단결근',
 };
 const TYPE_SHORT={
   WORK:'', OFF:'휴', HALF_AM:'반', HALF_PM:'반',
-  MONTHLY:'월', ANNUAL:'연', SICK:'병', HOLIDAY:'공',
+  MONTHLY:'월', ANNUAL:'연', SICK:'병', HOLIDAY:'공', UNAUTHORIZED:'무',
 };
 // 셀 칩에 표시할 짧은 라벨 (노션 DB 태그 톤)
 const TYPE_SHORT_FULL={
   WORK:'정상', OFF:'휴무', HALF_AM:'오전반차', HALF_PM:'오후반차',
-  MONTHLY:'월차', ANNUAL:'연차', SICK:'병가', HOLIDAY:'공가',
+  MONTHLY:'월차', ANNUAL:'연차', SICK:'병가', HOLIDAY:'공가', UNAUTHORIZED:'무단결근',
 };
 // 더 짧은 라벨(좁은 셀용)
 const TYPE_TINY={
   WORK:'', OFF:'휴무', HALF_AM:'오반', HALF_PM:'오반',
-  MONTHLY:'월차', ANNUAL:'연차', SICK:'병가', HOLIDAY:'공가',
+  MONTHLY:'월차', ANNUAL:'연차', SICK:'병가', HOLIDAY:'공가', UNAUTHORIZED:'무단',
 };
-const REQUESTABLE_TYPES=['OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK'];
+// 분류별 신청 가능 종류 — 1차직원 = 휴무/무단결근, 2차직원 = 기존 그대로
+const REQUESTABLE_T1=['OFF','UNAUTHORIZED'];
+const REQUESTABLE_T2=['OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK'];
+function requestableTypesFor(u){
+  const t=Number(u?.tier);
+  return t===1 ? REQUESTABLE_T1 : REQUESTABLE_T2;
+}
 
 function showToast(msg, ms=2200){
   const old=$('.toast'); if(old) old.remove();
@@ -622,6 +631,10 @@ function preloadSalesPages(){
   setTimeout(()=>{
     try{ loadSalesContext('sales-tm').catch(()=>{}); }catch(_){}
     try{ loadSalesContext('sales-vendor').catch(()=>{}); }catch(_){}
+    // 대표만: 가입 승인 대기 목록 카운트 뱃지용 백그라운드 로드
+    if(u.role==='admin' && typeof loadSignupPending==='function'){
+      loadSignupPending().then(()=>{ if(State.user) renderApp(); }).catch(()=>{});
+    }
   }, 50);
 }
 
@@ -721,32 +734,40 @@ function loginForm(){
 
 function signupForm(){
   const wrap=h('div');
-  const sel=h('select',null,
-    h('option',{value:''},'— 이름 선택 —'),
-    ...State.availableNames.map(n=>h('option',{value:n},n))
+  const nameI=h('input',{type:'text',autocomplete:'username',placeholder:'이름'});
+  const tierSel=h('select',null,
+    h('option',{value:''},'— 분류 선택 —'),
+    h('option',{value:'1'},'1차직원'),
+    h('option',{value:'2'},'2차직원'),
   );
   const pwI=h('input',{type:'password',autocomplete:'new-password',placeholder:'비밀번호 (4자 이상)'});
   const pw2I=h('input',{type:'password',autocomplete:'new-password',placeholder:'비밀번호 확인'});
   const msg=h('div',{class:'auth-msg'});
   const submit=async()=>{
     msg.textContent='';
-    if(!sel.value){ msg.textContent='이름을 선택하세요'; return; }
+    const nm=nameI.value.trim();
+    if(!nm){ msg.textContent='이름을 입력하세요'; return; }
+    if(!tierSel.value){ msg.textContent='1차/2차 직원을 선택하세요'; return; }
     if(pwI.value.length<4){ msg.textContent='비밀번호 4자 이상'; return; }
     if(pwI.value!==pw2I.value){ msg.textContent='비밀번호 확인이 일치하지 않습니다'; return; }
     try{
-      const r=await api('/api/auth/signup',{method:'POST',body:{name:sel.value,password:pwI.value}});
-      State.user=r.user;
-      State.ym=todayYm();
-      renderApp();
-      loadMonth().then(()=>{ if(State.user) renderApp(); }).catch(console.error);
-    }catch(e){ msg.textContent=e.message; }
+      const r=await api('/api/auth/signup',{method:'POST',body:{name:nm,password:pwI.value,tier:Number(tierSel.value)}});
+      // 즉시 로그인 안 됨 — 관리자 승인 대기
+      msg.style.color='var(--green,#0f7b6c)';
+      msg.textContent = r.message || '가입 신청 완료. 관리자 승인 후 로그인할 수 있습니다.';
+      nameI.value=''; pwI.value=''; pw2I.value=''; tierSel.value='';
+    }catch(e){
+      msg.style.color='';
+      msg.textContent=e.message;
+    }
   };
   wrap.append(
-    h('div',{class:'field'},sel),
+    h('div',{class:'field'},nameI),
+    h('div',{class:'field'},tierSel),
     h('div',{class:'field'},pwI),
     h('div',{class:'field'},pw2I),
     msg,
-    h('button',{class:'btn btn-primary btn-block',onClick:submit},'가입하기')
+    h('button',{class:'btn btn-primary btn-block',onClick:submit},'가입 신청')
   );
   return wrap;
 }
@@ -795,6 +816,7 @@ function renderAdminApp(){
       h('div',{class:'nav-group-h'},'인사'),
       navItem('people','직원','👥'),
       isPriv?navItem('approval','승인 대기','✔︎',pendingCount||null):null,
+      State.user.role==='admin'?navItem('signup-approval','가입 승인','👤',(State.signupPending&&State.signupPending.length)||null):null,
       navItem('grid','팀 캘린더','📅'),
       h('div',{class:'nav-group-h'},'실적'),
       navItem('sales-orders','PB 내역','📋'),
@@ -814,6 +836,7 @@ function renderAdminApp(){
   else if(State.page==='people') content=renderPeople();
   else if(State.page==='grid') content=renderGrid();
   else if(State.page==='approval') content=renderApproval();
+  else if(State.page==='signup-approval') content=renderSignupApproval();
   else if(State.page==='sales-orders') content=renderSalesOrders();
   else if(State.page==='sales-tm') content=renderSalesTM();
   else if(State.page==='sales-vendor') content=renderSalesVendor();
@@ -843,7 +866,7 @@ function renderEmployeeApp(){
       h('div',{class:'side-user-name'},
         h('span',{class:'avatar',style:`width:24px;height:24px;font-size:11px;background:${nameColor(me.name)}`}, initial(me.name)),
         me.name,
-        h('span',{class:'role-badge'},'직원')
+        h('span',{class:'role-badge'}, Number(me.tier)===1?'1차직원':'2차직원')
       ),
       h('div',{class:'side-user-meta'},'티엠컴퍼니')
     ),
@@ -1039,7 +1062,7 @@ function _renderHistoryOnly(u){
 
 function renderTopbar(){
   const titleMap={
-    people:'직원',approval:'승인 대기',grid:'팀 캘린더',
+    people:'직원',approval:'승인 대기','signup-approval':'가입 승인',grid:'팀 캘린더',
     'sales-orders':'PB 내역','sales-tm':'TM 마감 보고','sales-vendor':'유입 분석'
   };
   let title=titleMap[State.page]||'';
@@ -1467,7 +1490,7 @@ function openCellDrawer(target,ymd,rec){
   let typeGrid;
   function repaint(){
     typeGrid.innerHTML='';
-    REQUESTABLE_TYPES.forEach(t=>typeGrid.append(typeBtn(t)));
+    requestableTypesFor(target).forEach(t=>typeGrid.append(typeBtn(t)));
   }
   function typeBtn(t){
     return h('button',{
@@ -1892,6 +1915,72 @@ function renderPersonDetail(){
   );
   wrap.append(detail);
   return wrap;
+}
+
+async function loadSignupPending(){
+  try{
+    const r=await api('/api/auth/pending');
+    State.signupPending = r.pending || [];
+  }catch(e){
+    State.signupPending = [];
+    showToast(e.message);
+  }
+}
+
+function renderSignupApproval(){
+  if(State.signupPending===null){
+    loadSignupPending().then(()=>{ if(State.user) renderApp(); });
+    return h('div',{class:'empty'},'⏳ 가입 신청 불러오는 중…');
+  }
+  const list=State.signupPending;
+  if(!list.length) return h('div',{class:'empty'},'가입 승인 대기 중인 신청이 없습니다');
+
+  const tierBadge=(t)=>{
+    const n=Number(t);
+    const label=n===1?'1차직원':n===2?'2차직원':'미지정';
+    const bg=n===1?'#fdecc8':n===2?'#d3e5ef':'#ebeced';
+    const fg=n===1?'#cb912f':n===2?'#0b6e99':'#787774';
+    return h('span',{style:`display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:${bg};color:${fg}`},label);
+  };
+
+  const items=list.map(u=>{
+    const when=u.created_at?new Date(u.created_at).toLocaleString('ko-KR',{dateStyle:'medium',timeStyle:'short'}):'';
+    const approveBtn=h('button',{class:'btn btn-primary',style:'padding:6px 14px'},'승인');
+    const rejectBtn=h('button',{class:'btn btn-danger',style:'padding:6px 14px'},'거부');
+    approveBtn.addEventListener('click',async()=>{
+      if(!confirm(`${u.name} (${Number(u.tier)===1?'1차직원':'2차직원'}) 를 승인합니다`)) return;
+      try{
+        await api('/api/auth/pending',{method:'POST',body:{id:u.id,action:'approve'}});
+        State.signupPending=null;
+        renderApp();
+        showToast('승인 완료');
+      }catch(e){ showToast(e.message); }
+    });
+    rejectBtn.addEventListener('click',async()=>{
+      if(!confirm(`${u.name} 의 가입 신청을 거부합니다`)) return;
+      try{
+        await api('/api/auth/pending',{method:'POST',body:{id:u.id,action:'reject'}});
+        State.signupPending=null;
+        renderApp();
+        showToast('거부 완료');
+      }catch(e){ showToast(e.message); }
+    });
+    return h('div',{class:'card',style:'display:flex;align-items:center;justify-content:space-between;padding:14px 18px;margin-bottom:8px;background:#fff;border:1px solid var(--border);border-radius:10px'},
+      h('div',{style:'display:flex;align-items:center;gap:12px'},
+        h('span',{class:'avatar',style:`width:32px;height:32px;font-size:13px;background:${nameColor(u.name)}`}, initial(u.name)),
+        h('div',null,
+          h('div',{style:'font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px'},u.name,tierBadge(u.tier)),
+          h('div',{style:'font-size:11.5px;color:var(--text-soft);margin-top:2px'},'신청 ',when)
+        )
+      ),
+      h('div',{style:'display:flex;gap:6px'},approveBtn,rejectBtn)
+    );
+  });
+
+  return h('div',{style:'padding:20px;max-width:720px'},
+    h('h2',{style:'margin:0 0 16px;font-size:20px;font-weight:700'},`가입 승인 대기 (${list.length})`),
+    h('div',null,...items)
+  );
 }
 
 function renderApproval(){

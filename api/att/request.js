@@ -1,6 +1,9 @@
 import { sql, requireAuth, readJson } from '../_db.js';
 
-const VALID_TYPES = new Set(['WORK','OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK','HOLIDAY']);
+const VALID_TYPES = new Set(['WORK','OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK','HOLIDAY','UNAUTHORIZED']);
+// 직급별 신청 가능 종류 — 서버 측 강제 (관리자 외)
+const TIER1_REQUESTABLE = new Set(['OFF','UNAUTHORIZED']);
+const TIER2_REQUESTABLE = new Set(['OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK']);
 
 // POST /api/att/request
 // body: { user_id?, work_date, type, note? }
@@ -22,6 +25,14 @@ export default requireAuth(async function handler(req, res) {
     const isPriv = me.role === 'admin' || me.role === 'manager';
     if (targetId !== me.id && !isPriv) {
       return res.status(403).json({ error: '본인 일정만 등록할 수 있습니다' });
+    }
+    // 직급별 신청 가능 종류 강제 — 본인 신청 시에만 (관리자가 직접 입력 시는 자유)
+    if (!isPriv && targetId === me.id) {
+      const tier = Number(me.tier) || 2;
+      const allowed = tier === 1 ? TIER1_REQUESTABLE : TIER2_REQUESTABLE;
+      if (!allowed.has(type)) {
+        return res.status(403).json({ error: `${tier}차직원이 신청할 수 없는 종류입니다` });
+      }
     }
 
     // 관리자/실장이 직접 등록한 건 즉시 승인 처리

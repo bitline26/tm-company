@@ -29,7 +29,7 @@ export default async function handler(req) {
       });
     }
 
-    const user = { id: session.uid, name: session.name, role: session.role, registered: true };
+    const user = { id: session.uid, name: session.name, role: session.role, tier: session.tier, registered: true };
 
     if (!url.searchParams.get('bootstrap')) {
       return json({ user });
@@ -44,7 +44,7 @@ export default async function handler(req) {
     if (isPriv) {
       [users, records, salesVendors, salesOrders] = await Promise.all([
         sql`
-          SELECT id, name, role, registered
+          SELECT id, name, role, registered, tier
           FROM users WHERE role <> 'admin'
           ORDER BY sort_order ASC, id ASC`,
         sql`
@@ -68,7 +68,7 @@ export default async function handler(req) {
           ORDER BY o.consult_date DESC, o.id DESC`,
       ]);
     } else {
-      users = [{ id: user.id, name: user.name, role: user.role, registered: true }];
+      users = [{ id: user.id, name: user.name, role: user.role, tier: user.tier, registered: true }];
       [records, salesVendors] = await Promise.all([
         sql`
           SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,

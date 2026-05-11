@@ -31,7 +31,7 @@ const EMP_TEST_NAME = '2';
 const EMP_TEST_PW = '2';
 
 // 스키마 마커 — 이 버전이 DB에 기록되어 있으면 ensureSchema 풀실행 스킵
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 let initialized = false;
 let initPromise = null;
@@ -41,7 +41,7 @@ export async function ensureSchema() {
   initPromise = (async () => {
     // ─── 빠른 경로: 마커 테이블에 현재 버전 기록되어 있으면 풀 DDL 스킵
     try {
-      const m = await sql`SELECT version FROM _schema_init LIMIT 1`;
+      const m = await sql`SELECT MAX(version) AS version FROM _schema_init`;
       if (m[0]?.version >= SCHEMA_VERSION) {
         initialized = true;
         return;
@@ -214,6 +214,12 @@ export async function ensureSchema() {
     // 3단계: ALTER + 인덱스 (병렬)
     await Promise.all([
       sql`ALTER TABLE applications ADD COLUMN IF NOT EXISTS downloaded_at TIMESTAMPTZ NULL`,
+      // 직원 직급 구분 (1차직원 / 2차직원) — 가입 시 선택, NULL = 미선택 = 레거시(2차 기본)
+      sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tier INT`,
+      // attendance type CHECK 갱신: UNAUTHORIZED(무단결근) 추가 — 1차직원 신청 가능
+      sql`ALTER TABLE attendance_records DROP CONSTRAINT IF EXISTS attendance_records_type_check`,
+      sql`ALTER TABLE attendance_records ADD CONSTRAINT attendance_records_type_check
+          CHECK (type IN ('WORK','OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK','HOLIDAY','UNAUTHORIZED'))`,
       sql`CREATE INDEX IF NOT EXISTS idx_apps_created ON applications (created_at DESC)`,
       sql`CREATE INDEX IF NOT EXISTS idx_users_name ON users (name)`,
       sql`CREATE INDEX IF NOT EXISTS idx_users_role ON users (role)`,

@@ -20,10 +20,10 @@ export default async function handler(req) {
 
     // user 인증 쿼리 + 전체 bootstrap 쿼리(att/sales) 동시 발사 → 1 RTT로 마무리
     const userP = sql`
-      SELECT id, name, role, registered, password_hash, password_salt
+      SELECT id, name, role, registered, tier, password_hash, password_salt
       FROM users WHERE name = ${name} LIMIT 1`;
     const usersP = sql`
-      SELECT id, name, role, registered
+      SELECT id, name, role, registered, tier
       FROM users WHERE role <> 'admin'
       ORDER BY sort_order ASC, id ASC`;
     const recordsP = sql`
@@ -50,19 +50,20 @@ export default async function handler(req) {
     const userRows = await userP;
     const u = userRows[0];
     if (!u) return json({ error: '이름 또는 비밀번호가 올바르지 않습니다' }, { status: 401 });
-    if (!u.registered) return json({ error: '아직 가입되지 않은 직원입니다 (회원가입 필요)' }, { status: 401 });
+    if (!u.password_hash) return json({ error: '아직 가입되지 않은 이름입니다 (회원가입 필요)' }, { status: 401 });
+    if (!u.registered) return json({ error: '관리자 승인 대기 중입니다' }, { status: 403 });
     if (!(await verifyPasswordEdge(String(password), u.password_hash, u.password_salt))) {
       return json({ error: '이름 또는 비밀번호가 올바르지 않습니다' }, { status: 401 });
     }
 
     const isPriv = u.role === 'admin' || u.role === 'manager';
-    const token = await signSessionEdge({ uid: u.id, name: u.name, role: u.role });
+    const token = await signSessionEdge({ uid: u.id, name: u.name, role: u.role, tier: u.tier });
 
     let users, records, salesVendors, salesOrders;
     if (isPriv) {
       [users, records, salesVendors, salesOrders] = await Promise.all([usersP, recordsP, vendorsP, ordersP]);
     } else {
-      users = [{ id: u.id, name: u.name, role: u.role, registered: true }];
+      users = [{ id: u.id, name: u.name, role: u.role, tier: u.tier, registered: true }];
       const [allRecords, vendors] = await Promise.all([recordsP, vendorsP]);
       records = allRecords.filter(r => r.user_id === u.id);
       salesVendors = vendors;
@@ -71,7 +72,7 @@ export default async function handler(req) {
 
     return json({
       ok: true,
-      user: { id: u.id, name: u.name, role: u.role },
+      user: { id: u.id, name: u.name, role: u.role, tier: u.tier },
       bootstrap: { ym: ymOk, users, records, isPriv, salesVendors, salesOrders },
     }, { headers: { 'set-cookie': sessionCookie(token) } });
   } catch (e) {
