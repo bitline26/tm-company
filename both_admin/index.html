@@ -2489,12 +2489,12 @@ function renderSalesOrders(){
 
   const quickBar=h('div',{class:'sales-toolbar',style:'gap:6px;flex-wrap:wrap'},
     h('span',{class:'label'},'빠른 날짜'),
-    quickBtn('오늘',     ()=>applyDateRange(thisYm,  todayYmd,         todayYmd),         isToday),
-    quickBtn('어제',     ()=>applyDateRange(thisYm,  yesterdayYmd,     yesterdayYmd),     isYday),
-    quickBtn('당월',     ()=>applyDateRange(thisYm,  '',               ''),               isThisM),
-    quickBtn('전월',     ()=>applyDateRange(prevYm,  '',               ''),               isPrevM),
-    quickBtn('최근 3개월',()=>applyDateRange('ALL',   threeMonthsBackYmd, todayYmd),       is3M),
-    quickBtn('전체',     ()=>applyDateRange('ALL',   '',               ''),               isAll),
+    quickBtn('오늘',              ()=>applyDateRange(thisYm,  todayYmd,         todayYmd),         isToday),
+    quickBtn('어제',              ()=>applyDateRange(thisYm,  yesterdayYmd,     yesterdayYmd),     isYday),
+    quickBtn('당월',              ()=>applyDateRange(thisYm,  '',               ''),               isThisM),
+    quickBtn('전월',              ()=>applyDateRange(prevYm,  '',               ''),               isPrevM),
+    quickBtn('당일날짜부터 3개월치',()=>applyDateRange('ALL',   threeMonthsBackYmd, todayYmd),       is3M),
+    quickBtn('전체',              ()=>applyDateRange('ALL',   '',               ''),               isAll),
     h('span',{class:'label',style:'margin-left:8px'},'기간'),
     fromI, h('span',null,'~'), toI,
   );
@@ -2763,12 +2763,12 @@ function renderSalesTM(){
   const curYmT=State.salesYm||_curYm, curCutT=State.salesCutoff||_todayYmd;
   const quickBarT = h('div',{class:'sales-toolbar',style:'gap:6px;flex-wrap:wrap'},
     h('span',{class:'label'},'빠른 날짜'),
-    qBtnT('오늘',      ()=>applyTmRange(_curYm, _todayYmd),    curYmT===_curYm && curCutT===_todayYmd),
-    qBtnT('어제',      ()=>applyTmRange(_curYm, _ydYmd),       curYmT===_curYm && curCutT===_ydYmd),
-    qBtnT('당월',      ()=>applyTmRange(_curYm, _todayYmd),    curYmT===_curYm && curCutT===_todayYmd),
-    qBtnT('전월',      ()=>applyTmRange(_prevYm,_prevLastYmd), curYmT===_prevYm && curCutT===_prevLastYmd),
-    qBtnT('최근 3개월', ()=>applyTmRange(_curYm, _todayYmd),    false),
-    qBtnT('전체(초기화)',()=>applyTmRange(_curYm, _todayYmd),    false),
+    qBtnT('오늘',                ()=>applyTmRange(_curYm, _todayYmd),    curYmT===_curYm && curCutT===_todayYmd),
+    qBtnT('어제',                ()=>applyTmRange(_curYm, _ydYmd),       curYmT===_curYm && curCutT===_ydYmd),
+    qBtnT('당월',                ()=>applyTmRange(_curYm, _todayYmd),    curYmT===_curYm && curCutT===_todayYmd),
+    qBtnT('전월',                ()=>applyTmRange(_prevYm,_prevLastYmd), curYmT===_prevYm && curCutT===_prevLastYmd),
+    qBtnT('당일날짜부터 3개월치',  ()=>applyTmRange(_curYm, _todayYmd),    false),
+    qBtnT('전체',                ()=>applyTmRange(_curYm, _todayYmd),    false),
     h('span',{style:'margin-left:8px;color:var(--text-soft);font-size:11px'},
       `※ TM 마감은 월(${curYmT}) + 마감기준(${curCutT}) 기준`)
   );
@@ -2923,12 +2923,12 @@ function renderSalesTMDaily(){
   }
   const quickBarD = h('div',{class:'sales-toolbar',style:'gap:6px;flex-wrap:wrap'},
     h('span',{class:'label'},'빠른 날짜'),
-    qBtnD('오늘',         ()=>applyDailyDate(_dToday),      d===_dToday),
-    qBtnD('어제',         ()=>applyDailyDate(_dYesterday),  d===_dYesterday),
-    qBtnD('당월 1일',     ()=>applyDailyDate(_dMonthStart), d===_dMonthStart),
-    qBtnD('전월 말일',    ()=>applyDailyDate(_dPrevLast),   d===_dPrevLast),
-    qBtnD('3개월 전',     ()=>applyDailyDate(_d3mYmd),      d===_d3mYmd),
-    qBtnD('초기화',       ()=>applyDailyDate(_dToday),      false),
+    qBtnD('오늘',                ()=>applyDailyDate(_dToday),       d===_dToday),
+    qBtnD('어제',                ()=>applyDailyDate(_dYesterday),   d===_dYesterday),
+    qBtnD('당월',                ()=>applyDailyDate(_dMonthStart),  d===_dMonthStart),
+    qBtnD('전월',                ()=>applyDailyDate(_dPrevLast),    d===_dPrevLast),
+    qBtnD('당일날짜부터 3개월치',  ()=>applyDailyDate(_d3mYmd),       d===_d3mYmd),
+    qBtnD('전체',                ()=>applyDailyDate(_dToday),       false),
   );
   const toolbar=h('div',{class:'sales-toolbar'},
     h('span',{class:'label'},'일자'), dateI,
@@ -3084,15 +3084,9 @@ function renderSalesVendor(){
     title:`수식: 당일 실적 마감(${State.salesDayClosingTotal||0}) - 유입분석 당일 완료(${dayVendorCompleted})`
   }, `${autoDailyRecontact.toLocaleString('ko-KR')}건`);
 
-  const curYmLabel = (State.salesDate||(new Date().toISOString().slice(0,10))).slice(0,7);
-  const monthlyBadge = h('span',{
-    style:'display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:#dcfce7;color:#15803d;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums',
-    title:`수식: 당월 실적 마감(${State.salesMonthClosingTotal||0}) - 유입분석 당월 완료(${State.salesMonthVendorCompletedTotal||0})`
-  }, `당월(${curYmLabel}) 재컨택 ${autoMonthRecontact.toLocaleString('ko-KR')}건`);
   const toolbar=h('div',{class:'sales-toolbar'},
     h('span',{class:'label'},'일자'), dateI,
     h('span',{class:'label',style:'margin-left:14px'},'당일 재컨택 (자동)'), recontactBox,
-    monthlyBadge,
     h('span',{style:'margin-left:8px;color:var(--text-soft);font-size:11px'},
       '※ 자동 계산 = 실적 마감 − 유입분석 완료')
   );
@@ -3120,12 +3114,12 @@ function renderSalesVendor(){
   const curDateV = State.salesDate || _vToday;
   const quickBarV = h('div',{class:'sales-toolbar',style:'gap:6px;flex-wrap:wrap'},
     h('span',{class:'label'},'빠른 날짜'),
-    qBtnV('오늘',         ()=>applyVendorDate(_vToday),     curDateV===_vToday),
-    qBtnV('어제',         ()=>applyVendorDate(_vYesterday), curDateV===_vYesterday),
-    qBtnV('당월 1일',     ()=>applyVendorDate(_vMonthStart),curDateV===_vMonthStart),
-    qBtnV('전월 말일',    ()=>applyVendorDate(_vPrevLast),  curDateV===_vPrevLast),
-    qBtnV('3개월 전',     ()=>applyVendorDate(_v3mYmd),     curDateV===_v3mYmd),
-    qBtnV('초기화',       ()=>applyVendorDate(_vToday),     false),
+    qBtnV('오늘',                ()=>applyVendorDate(_vToday),      curDateV===_vToday),
+    qBtnV('어제',                ()=>applyVendorDate(_vYesterday),  curDateV===_vYesterday),
+    qBtnV('당월',                ()=>applyVendorDate(_vMonthStart), curDateV===_vMonthStart),
+    qBtnV('전월',                ()=>applyVendorDate(_vPrevLast),   curDateV===_vPrevLast),
+    qBtnV('당일날짜부터 3개월치',  ()=>applyVendorDate(_v3mYmd),      curDateV===_v3mYmd),
+    qBtnV('전체',                ()=>applyVendorDate(_vToday),      false),
     h('span',{style:'margin-left:8px;color:var(--text-soft);font-size:11px'},
       `※ 유입 분석은 단일 일자(${curDateV}) 기준`)
   );
