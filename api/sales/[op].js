@@ -361,13 +361,24 @@ export default requireAuth(async function handler(req, res) {
     if (req.method === 'GET') {
       const d = String(req.query.date || '').match(/^\d{4}-\d{2}-\d{2}$/)?.[0];
       if (!d) return res.status(400).json({ error: 'date required (YYYY-MM-DD)' });
-      const vendors = await sql`
-        SELECT id, code, label, parent_label, color, sort_order
-        FROM db_vendors WHERE active = TRUE
-        ORDER BY sort_order ASC, id ASC`;
-      const rows = await sql`SELECT * FROM sales_vendor_daily WHERE work_date = ${d}`;
-      const meta = (await sql`SELECT * FROM sales_day_meta WHERE work_date = ${d} LIMIT 1`)[0]
-        || { work_date: d, recontact_completed: 0, note: null };
+      // 선택 일자가 속한 달의 범위 (당월 재컨택 합계용)
+      const [yy, mm] = d.split('-').map(Number);
+      const monthStart = `${yy}-${String(mm).padStart(2,'0')}-01`;
+      const nyy = mm === 12 ? yy + 1 : yy;
+      const nmm = mm === 12 ? 1 : mm + 1;
+      const monthEnd = `${nyy}-${String(nmm).padStart(2,'0')}-01`;
+      const [vendors, rows, dayMetaRows, monthAgg] = await Promise.all([
+        sql`SELECT id, code, label, parent_label, color, sort_order
+            FROM db_vendors WHERE active = TRUE
+            ORDER BY sort_order ASC, id ASC`,
+        sql`SELECT * FROM sales_vendor_daily WHERE work_date = ${d}`,
+        sql`SELECT * FROM sales_day_meta WHERE work_date = ${d} LIMIT 1`,
+        sql`SELECT COALESCE(SUM(recontact_completed),0)::int AS total
+            FROM sales_day_meta
+            WHERE work_date >= ${monthStart} AND work_date < ${monthEnd}`,
+      ]);
+      const meta = dayMetaRows[0] || { work_date: d, recontact_completed: 0, note: null };
+      const monthlyRecontact = monthAgg[0]?.total || 0;
       const map = {}; rows.forEach(r => map[r.vendor_id] = r);
       const merged = vendors.map(v => ({
         vendor_id: v.id, code: v.code, label: v.label, parent_label: v.parent_label, color: v.color,
@@ -379,7 +390,7 @@ export default requireAuth(async function handler(req, res) {
         note: map[v.id]?.note || null,
         _exists: !!map[v.id],
       }));
-      return res.status(200).json({ date: d, vendors: merged, meta });
+      return res.status(200).json({ date: d, vendors: merged, meta, monthlyRecontact });
     }
     if (req.method === 'POST') {
       if (req.query.meta) {

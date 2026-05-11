@@ -488,6 +488,7 @@ const State = {
   salesTmTotal: 0,
   salesVendorRows: [],     // vendor-daily 응답
   salesDayMeta: null,      // {recontact_completed, note}
+  salesMonthlyRecontact: 0,// 선택 일자가 속한 월의 재컨택 총합
   salesOrdersFilter: { status:'ALL', tm:'ALL', vendor:'ALL', q:'', dateFrom:'', dateTo:'' },
 
   // 캐시 키 (로드된 컨텍스트 추적 — 같은 키면 페치 스킵)
@@ -2356,6 +2357,7 @@ async function loadSalesContext(page, force){
       tasks.push(api(`/api/sales/vendor-daily?date=${d}`).then(r=>{
         State.salesVendorRows = r.vendors || [];
         State.salesDayMeta = r.meta || { recontact_completed: 0, note: null };
+        State.salesMonthlyRecontact = r.monthlyRecontact || 0;
         State.salesVendorLoadedDate = d;
       }));
     }
@@ -3071,18 +3073,27 @@ function renderSalesVendor(){
     readonly: !canEdit});
   if (canEdit) recontactI.addEventListener('blur',async()=>{
     try{
+      const oldVal = Number(State.salesDayMeta?.recontact_completed||0);
+      const newVal = Number(recontactI.value)||0;
       await api('/api/sales/vendor-daily?meta=1',{method:'POST',body:{
-        work_date:State.salesDate, recontact_completed:Number(recontactI.value)||0
+        work_date:State.salesDate, recontact_completed:newVal
       }});
-      State.salesDayMeta={...State.salesDayMeta, recontact_completed:Number(recontactI.value)||0};
+      State.salesDayMeta={...State.salesDayMeta, recontact_completed:newVal};
+      // 당월 재컨택 총합 즉시 반영 (서버 재요청 없이 diff만큼 가감)
+      State.salesMonthlyRecontact = Math.max(0, Number(State.salesMonthlyRecontact||0) + (newVal - oldVal));
       renderApp();
     }catch(e){ alert(e.message); }
   });
 
+  const monthlyRecontact = Number(State.salesMonthlyRecontact||0);
+  const curYmLabel = (State.salesDate||(new Date().toISOString().slice(0,10))).slice(0,7);
+  const monthlyBadge = h('span',{
+    style:'display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:8px;background:#dcfce7;color:#15803d;font-size:12.5px;font-weight:700'
+  }, `당월(${curYmLabel}) 재컨택 ${monthlyRecontact.toLocaleString('ko-KR')}건`);
   const toolbar=h('div',{class:'sales-toolbar'},
     h('span',{class:'label'},'일자'), dateI,
     h('span',{class:'label',style:'margin-left:14px'},'당일 재컨택 완료'), recontactI,
-    null
+    monthlyBadge
   );
 
   // 빠른 날짜 필터 — 유입 분석은 단일 일자 기준
