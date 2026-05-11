@@ -214,15 +214,15 @@ export async function ensureSchema() {
       )
     `;
 
-    // 3단계: ALTER + 인덱스 (병렬)
+    // 3단계: ALTER + 인덱스
+    // attendance_records type CHECK 갱신은 DROP → ADD 순차 (병렬 시 race로 충돌)
+    await sql`ALTER TABLE attendance_records DROP CONSTRAINT IF EXISTS attendance_records_type_check`;
+    await sql`ALTER TABLE attendance_records ADD CONSTRAINT attendance_records_type_check
+        CHECK (type IN ('WORK','OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK','HOLIDAY','UNAUTHORIZED'))`;
     await Promise.all([
       sql`ALTER TABLE applications ADD COLUMN IF NOT EXISTS downloaded_at TIMESTAMPTZ NULL`,
-      // 직원 직급 구분 (1차직원 / 2차직원) — 가입 시 선택, NULL = 미선택 = 레거시(2차 기본)
+      // 직원 분류 구분 (1차직원 / 2차직원) — 가입 시 선택, NULL = 미선택 = 레거시(2차 기본)
       sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tier INT`,
-      // attendance type CHECK 갱신: UNAUTHORIZED(무단결근) 추가 — 1차직원 신청 가능
-      sql`ALTER TABLE attendance_records DROP CONSTRAINT IF EXISTS attendance_records_type_check`,
-      sql`ALTER TABLE attendance_records ADD CONSTRAINT attendance_records_type_check
-          CHECK (type IN ('WORK','OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK','HOLIDAY','UNAUTHORIZED'))`,
       sql`CREATE INDEX IF NOT EXISTS idx_apps_created ON applications (created_at DESC)`,
       sql`CREATE INDEX IF NOT EXISTS idx_users_name ON users (name)`,
       sql`CREATE INDEX IF NOT EXISTS idx_users_role ON users (role)`,
