@@ -2840,6 +2840,18 @@ function renderSalesOrders(){
   );
   wrap.append(toolbar);
 
+  // 중복 검출 — 동일 전화번호로 2건 이상이면 중복 의심
+  const phoneCount={};
+  State.salesOrders.forEach(o=>{
+    const ph = String(o.customer_phone||'').replace(/[^0-9]/g,'');
+    if (ph.length>=8) phoneCount[ph] = (phoneCount[ph]||0)+1;
+  });
+  const dupPhones = new Set(Object.keys(phoneCount).filter(k=>phoneCount[k]>1));
+  function isDupRow(r){
+    const ph = String(r.customer_phone||'').replace(/[^0-9]/g,'');
+    return ph.length>=8 && dupPhones.has(ph);
+  }
+
   // 중복 의심 배너 — 전화번호 동일 PB 2건 이상
   if (dupPhones.size > 0){
     const dupBanner = h('div',{
@@ -2852,18 +2864,6 @@ function renderSalesOrders(){
           '동일 고객에게 중복 입금되지 않도록 ☢ 표시된 행을 확인하세요')),
     );
     wrap.append(dupBanner);
-  }
-
-  // 중복 검출 — 동일 전화번호로 2건 이상이면 중복 의심
-  const phoneCount={};
-  State.salesOrders.forEach(o=>{
-    const ph = String(o.customer_phone||'').replace(/[^0-9]/g,'');
-    if (ph.length>=8) phoneCount[ph] = (phoneCount[ph]||0)+1;
-  });
-  const dupPhones = new Set(Object.keys(phoneCount).filter(k=>phoneCount[k]>1));
-  function isDupRow(r){
-    const ph = String(r.customer_phone||'').replace(/[^0-9]/g,'');
-    return ph.length>=8 && dupPhones.has(ph);
   }
 
   // 필터 적용
