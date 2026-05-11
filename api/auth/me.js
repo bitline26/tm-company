@@ -29,7 +29,36 @@ export default async function handler(req) {
       });
     }
 
-    const user = { id: session.uid, name: session.name, role: session.role, tier: session.tier, registered: true };
+    // 🔒 DB 재검증 — 쿠키만 신뢰하면 안 됨 (거부/정지/퇴사된 계정도 쿠키 유효기간 동안 통과되는 버그)
+    const dbRows = await sql`
+      SELECT id, name, role, tier, registered, status, password_hash
+      FROM users WHERE id = ${session.uid} LIMIT 1`;
+    const dbUser = dbRows[0];
+
+    // 차단 조건: 계정 없음 / 가입 거부 후 password_hash null / 미승인 (registered=false) / 정지·퇴사
+    const blocked =
+      !dbUser ||
+      !dbUser.password_hash ||
+      !dbUser.registered ||
+      (dbUser.role !== 'admin' && (dbUser.status === 'suspended' || dbUser.status === 'resigned'));
+
+    if (blocked) {
+      // 쿠키 무효화 + 미로그인 응답
+      return new Response(JSON.stringify({
+        user: null,
+        availableNames: PRESET_NAMES,
+        presetNames: PRESET_NAMES,
+      }), {
+        status: 200,
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'set-cookie': 'tm_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0',
+        },
+      });
+    }
+
+    // DB 기준 최신 정보 사용 (role/tier 변경된 경우 반영)
+    const user = { id: dbUser.id, name: dbUser.name, role: dbUser.role, tier: dbUser.tier, registered: true };
 
     if (!url.searchParams.get('bootstrap')) {
       return json({ user });
