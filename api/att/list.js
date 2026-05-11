@@ -20,24 +20,25 @@ export default requireAuth(async function handler(req, res) {
     const me = req.user;
     const isPriv = me.role === 'admin' || me.role === 'manager';
 
-    // 권한 분리: 일반 직원 = 본인 데이터만, admin/manager = 전체
     let users, records;
     if (isPriv) {
-      users = await sql`
-        SELECT id, name, role, registered
-        FROM users
-        WHERE role <> 'admin'
-        ORDER BY sort_order ASC, id ASC
-      `;
-      records = await sql`
-        SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,
-               a.approved_by, a.approved_at, a.reject_reason, a.requested_at,
-               u.name AS approver_name
-        FROM attendance_records a
-        LEFT JOIN users u ON u.id = a.approved_by
-        WHERE a.work_date >= ${start} AND a.work_date < ${end}
-        ORDER BY a.work_date ASC, a.user_id ASC
-      `;
+      [users, records] = await Promise.all([
+        sql`
+          SELECT id, name, role, registered
+          FROM users
+          WHERE role <> 'admin'
+          ORDER BY sort_order ASC, id ASC
+        `,
+        sql`
+          SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,
+                 a.approved_by, a.approved_at, a.reject_reason, a.requested_at,
+                 u.name AS approver_name
+          FROM attendance_records a
+          LEFT JOIN users u ON u.id = a.approved_by
+          WHERE a.work_date >= ${start} AND a.work_date < ${end}
+          ORDER BY a.work_date ASC, a.user_id ASC
+        `,
+      ]);
     } else {
       users = [{ id: me.id, name: me.name, role: me.role, registered: true }];
       records = await sql`
