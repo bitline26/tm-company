@@ -587,6 +587,44 @@ const fmtYmd=(y,m,d)=>`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,
 const todayYm=()=>fmtYm(new Date());
 const daysInMonth=(y,m)=>new Date(y,m,0).getDate();
 
+// 한국 공휴일 (data.go.kr 한국천문연구원 특일정보 기준) — 빨간날
+// 외부 API 호출 없이 정적 매핑 (연 1회 업데이트로 충분)
+const KR_HOLIDAYS = new Set([
+  // 2025
+  '2025-01-01','2025-01-28','2025-01-29','2025-01-30',  // 신정·설날 연휴
+  '2025-03-01','2025-03-03',                              // 삼일절(토)·대체
+  '2025-05-01','2025-05-05','2025-05-06',                 // 근로자의날·어린이날·부처님오신날
+  '2025-06-06',                                           // 현충일
+  '2025-08-15',                                           // 광복절
+  '2025-10-03','2025-10-06','2025-10-07','2025-10-08','2025-10-09', // 개천절·추석연휴·대체·한글날
+  '2025-12-25',                                           // 성탄절
+  // 2026
+  '2026-01-01',                                           // 신정 (목)
+  '2026-02-16','2026-02-17','2026-02-18',                 // 설날 연휴 (월화수)
+  '2026-03-01','2026-03-02',                              // 삼일절(일)·대체(월)
+  '2026-05-01','2026-05-05',                              // 근로자의날(금)·어린이날(화)
+  '2026-05-24','2026-05-25',                              // 부처님오신날(일)·대체(월)
+  '2026-06-06',                                           // 현충일 (토)
+  '2026-08-15',                                           // 광복절 (토)
+  '2026-09-24','2026-09-25','2026-09-26',                 // 추석 연휴 (목금토)
+  '2026-10-03','2026-10-09',                              // 개천절(토)·한글날(금)
+  '2026-12-25',                                           // 성탄절 (금)
+]);
+function isKrHoliday(ymd){ return KR_HOLIDAYS.has(ymd); }
+function computeKrWorkdays(ym){
+  const [y,m] = ym.split('-').map(Number);
+  const last = daysInMonth(y,m);
+  let count = 0;
+  for (let d=1; d<=last; d++){
+    const dt = new Date(y, m-1, d);
+    const dow = dt.getDay();             // 0=일,6=토
+    if (dow===0 || dow===6) continue;
+    if (isKrHoliday(fmtYmd(y,m,d))) continue;
+    count++;
+  }
+  return count;
+}
+
 const TYPE_LABELS={
   WORK:'정상출근', OFF:'휴무', HALF_AM:'오전반차', HALF_PM:'오후반차',
   MONTHLY:'월차', ANNUAL:'연차', SICK:'병가', HOLIDAY:'공휴일', UNAUTHORIZED:'무단결근',
@@ -3509,12 +3547,20 @@ function renderSalesTM(){
   const [_yY,_mM] = currentYm.split('-').map(Number);
   const monthFirst = `${currentYm}-01`;
   const monthLast  = `${currentYm}-${String(new Date(_yY,_mM,0).getDate()).padStart(2,'0')}`;
-  // cutoff가 선택 월의 범위를 벗어나면 말일로 클램프 (당월이면 오늘로 클램프)
-  let cutoffDefault = State.salesCutoff || new Date().toISOString().slice(0,10);
-  if (cutoffDefault < monthFirst) cutoffDefault = monthFirst;
-  if (cutoffDefault > monthLast)  cutoffDefault = monthLast;
-  const todayLocal = new Date().toISOString().slice(0,10);
-  if (currentYm === todayLocal.slice(0,7) && cutoffDefault > todayLocal) cutoffDefault = todayLocal;
+  // 로컬(한국) 기준 오늘 — UTC slice 쓰면 KST 새벽에 하루 어긋남
+  const _td = new Date();
+  const todayLocal = `${_td.getFullYear()}-${String(_td.getMonth()+1).padStart(2,'0')}-${String(_td.getDate()).padStart(2,'0')}`;
+  const todayYmLocal = todayLocal.slice(0,7);
+  // cutoff = 당월이면 무조건 오늘(자동 업데이트), 그 외엔 저장값 또는 말일
+  let cutoffDefault;
+  if (currentYm === todayYmLocal) {
+    cutoffDefault = todayLocal;            // 당월: 늘 오늘 (12일 → 13일 자동)
+    State.salesCutoff = todayLocal;        // 다음 렌더에서도 항상 오늘로 고정
+  } else {
+    cutoffDefault = State.salesCutoff || monthLast;
+    if (cutoffDefault < monthFirst) cutoffDefault = monthFirst;
+    if (cutoffDefault > monthLast)  cutoffDefault = monthLast;
+  }
 
   const ymI=h('input',{type:'month',value:currentYm});
   ymI.addEventListener('change',async()=>{
@@ -3538,7 +3584,9 @@ function renderSalesTM(){
   });
 
   const period=State.salesPeriod||{};
-  const totalWdI=h('input',{type:'number',min:0,value:State.salesTmTotal||0,style:'width:70px'});
+  // 빨간날(공휴일) 제외 자동 산정 — 외부 API 없이 하드코딩 (data.go.kr 한국천문연구원 기준)
+  const autoWd = computeKrWorkdays(currentYm);
+  const totalWdI=h('input',{type:'number',min:0,value:autoWd,style:'width:70px',title:'자동 산정 (빨간날·주말 제외)'});
   const savePeriod=async()=>{
     if(!isPriv) return;
     try{
@@ -3551,6 +3599,10 @@ function renderSalesTM(){
     }catch(e){ alert(e.message); }
   };
   totalWdI.addEventListener('blur', savePeriod);
+  // 저장된 값과 자동 산정이 다르면 자동 산정으로 한 번 동기화 (백그라운드 저장)
+  if (isPriv && Number(State.salesTmTotal||0) !== autoWd) {
+    setTimeout(()=>{ totalWdI.value = autoWd; savePeriod(); }, 200);
+  }
 
   const toolbar=h('div',{class:'sales-toolbar'},
     h('span',{class:'label'},'월'), ymI,
