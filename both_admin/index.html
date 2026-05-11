@@ -118,7 +118,9 @@
   .icon-btn{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);background:#fff;border-radius:6px;color:var(--text-soft);font-size:14px}
   .icon-btn:hover{background:var(--hover)}
 
-  .content{padding:18px 24px 60px;flex:1;overflow:auto}
+  .content{padding:18px 24px 60px;flex:1;overflow:auto;contain:layout style}
+  .orders-wrap{contain:layout style}
+  .tm-table{contain:layout style}
 
   /* ───── 그리드 (노션 DB 캘린더 + 트렐로 보드 톤) ───── */
   .grid-wrap{border:1px solid var(--border);border-radius:10px;background:#fff;overflow:auto;max-width:100%}
@@ -885,8 +887,19 @@ async function loadMonth(){
   State.records=r.records;
 }
 
+// renderApp 호출을 다음 프레임에서 1번만 — 같은 클릭에서 여러 핸들러가 renderApp 호출해도 1회로 머지
+let _renderPending = false;
 function renderApp(){
+  if (_renderPending) return;
+  _renderPending = true;
+  requestAnimationFrame(()=>{
+    _renderPending = false;
+    _renderAppNow();
+  });
+}
+function _renderAppNow(){
   const me=State.user;
+  if(!me) return;
   const isPriv=me.role==='admin'||me.role==='manager';
   // 직원 모드: 본인 페이지만 (신청/이력) — 디렉토리·팀 캘린더·승인 모두 숨김
   if(!isPriv) return renderEmployeeApp();
@@ -2863,13 +2876,22 @@ function renderSalesOrders(){
   );
   wrap.append(toolbar);
 
-  // 중복 검출 — 동일 전화번호로 2건 이상이면 중복 의심
-  const phoneCount={};
-  State.salesOrders.forEach(o=>{
-    const ph = String(o.customer_phone||'').replace(/[^0-9]/g,'');
-    if (ph.length>=8) phoneCount[ph] = (phoneCount[ph]||0)+1;
-  });
-  const dupPhones = new Set(Object.keys(phoneCount).filter(k=>phoneCount[k]>1));
+  // 중복 검출 — State.salesOrders 가 변하지 않으면 재계산 스킵 (메모이제이션)
+  const _dup = (function(){
+    if (renderSalesOrders._dupCache && renderSalesOrders._dupCache.ref === State.salesOrders) {
+      return renderSalesOrders._dupCache;
+    }
+    const phoneCount={};
+    State.salesOrders.forEach(o=>{
+      const ph = String(o.customer_phone||'').replace(/[^0-9]/g,'');
+      if (ph.length>=8) phoneCount[ph] = (phoneCount[ph]||0)+1;
+    });
+    const dupPhones = new Set(Object.keys(phoneCount).filter(k=>phoneCount[k]>1));
+    const cache = { ref: State.salesOrders, dupPhones };
+    renderSalesOrders._dupCache = cache;
+    return cache;
+  })();
+  const dupPhones = _dup.dupPhones;
   function isDupRow(r){
     const ph = String(r.customer_phone||'').replace(/[^0-9]/g,'');
     return ph.length>=8 && dupPhones.has(ph);
