@@ -364,26 +364,25 @@ export function clearSessionCookie(res) {
   res.setHeader('Set-Cookie', 'tm_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
 }
 
+// 세션 쿠키 자체가 HMAC 서명된 {uid,name,role,exp}를 들고 있으므로
+// 매 요청마다 users 테이블 조회할 필요 없음 → 인증 API 라운드트립 -1
 export async function getCurrentUser(req) {
   const cookies = parseCookies(req);
   const session = verifySession(cookies.tm_session);
   if (!session?.uid) return null;
-  const rows = await sql`
-    SELECT id, name, role, registered
-    FROM users WHERE id = ${session.uid} LIMIT 1
-  `;
-  return rows[0] || null;
+  return { id: session.uid, name: session.name, role: session.role, registered: true };
 }
 
 export function requireAuth(handler) {
   return async (req, res) => {
-    await ensureSchema();
     const user = await getCurrentUser(req);
     if (!user) {
       res.status(401).json({ error: 'unauthorized' });
       return;
     }
     req.user = user;
+    // 스키마는 캐시되어 있으면 즉시 반환 — 핸들러 시작과 동시에 비동기로 보장
+    await ensureSchema();
     return handler(req, res);
   };
 }

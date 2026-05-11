@@ -591,8 +591,17 @@ async function bootstrap(){
       if(me.bootstrap){
         State.users=me.bootstrap.users||[];
         State.records=me.bootstrap.records||[];
+        if(me.bootstrap.salesVendors){
+          State.salesVendors=me.bootstrap.salesVendors;
+          State.salesVendorsLoaded=true;
+        }
+        if(me.bootstrap.salesOrders){
+          State.salesOrders=me.bootstrap.salesOrders;
+          State.salesOrdersLoadedYm=ym;
+          State.salesYm=ym;
+        }
       }
-      renderApp();   // 한 번에 풀데이터 렌더 (placeholder 렌더 생략)
+      renderApp();   // 풀데이터 즉시 렌더
       loadMyTmToday().then(()=>{ if(State.user) renderApp(); }).catch(()=>{});
     }else{
       renderAuth();
@@ -658,6 +667,15 @@ function loginForm(){
       if(r.bootstrap){
         State.users=r.bootstrap.users||[];
         State.records=r.bootstrap.records||[];
+        if(r.bootstrap.salesVendors){
+          State.salesVendors=r.bootstrap.salesVendors;
+          State.salesVendorsLoaded=true;
+        }
+        if(r.bootstrap.salesOrders){
+          State.salesOrders=r.bootstrap.salesOrders;
+          State.salesOrdersLoadedYm=ym;
+          State.salesYm=ym;
+        }
       }
       renderApp();   // 풀데이터 즉시 렌더 (추가 라운드트립 없음)
       loadMyTmToday().then(()=>{ if(State.user) renderApp(); }).catch(()=>{});

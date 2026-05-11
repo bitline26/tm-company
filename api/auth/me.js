@@ -40,14 +40,13 @@ export default async function handler(req, res) {
     const { start, end } = ymToRange(ym);
     const isPriv = user.role === 'admin' || user.role === 'manager';
 
-    let users, records;
+    let users, records, salesVendors = [], salesOrders = null;
     if (isPriv) {
-      [users, records] = await Promise.all([
+      [users, records, salesVendors, salesOrders] = await Promise.all([
         sql`
           SELECT id, name, role, registered
           FROM users WHERE role <> 'admin'
-          ORDER BY sort_order ASC, id ASC
-        `,
+          ORDER BY sort_order ASC, id ASC`,
         sql`
           SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,
                  a.approved_by, a.approved_at, a.reject_reason, a.requested_at,
@@ -55,26 +54,40 @@ export default async function handler(req, res) {
           FROM attendance_records a
           LEFT JOIN users uu ON uu.id = a.approved_by
           WHERE a.work_date >= ${start} AND a.work_date < ${end}
-          ORDER BY a.work_date ASC, a.user_id ASC
-        `,
+          ORDER BY a.work_date ASC, a.user_id ASC`,
+        sql`
+          SELECT id, code, label, parent_label, color, sort_order, active, note
+          FROM db_vendors ORDER BY active DESC, sort_order ASC, id ASC`,
+        sql`
+          SELECT o.*, uu.name AS tm_name, v.code AS vendor_code, v.label AS vendor_label,
+                 v.parent_label, v.color AS vendor_color
+          FROM sales_orders o
+          LEFT JOIN users uu ON uu.id = o.tm_user_id
+          LEFT JOIN db_vendors v ON v.id = o.vendor_id
+          WHERE o.consult_date >= ${start} AND o.consult_date < ${end}
+          ORDER BY o.consult_date DESC, o.id DESC`,
       ]);
     } else {
       users = [{ id: user.id, name: user.name, role: user.role, registered: true }];
-      records = await sql`
-        SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,
-               a.approved_by, a.approved_at, a.reject_reason, a.requested_at,
-               uu.name AS approver_name
-        FROM attendance_records a
-        LEFT JOIN users uu ON uu.id = a.approved_by
-        WHERE a.work_date >= ${start} AND a.work_date < ${end}
-          AND a.user_id = ${user.id}
-        ORDER BY a.work_date ASC
-      `;
+      [records, salesVendors] = await Promise.all([
+        sql`
+          SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,
+                 a.approved_by, a.approved_at, a.reject_reason, a.requested_at,
+                 uu.name AS approver_name
+          FROM attendance_records a
+          LEFT JOIN users uu ON uu.id = a.approved_by
+          WHERE a.work_date >= ${start} AND a.work_date < ${end}
+            AND a.user_id = ${user.id}
+          ORDER BY a.work_date ASC`,
+        sql`
+          SELECT id, code, label, parent_label, color, sort_order, active, note
+          FROM db_vendors ORDER BY active DESC, sort_order ASC, id ASC`,
+      ]);
     }
 
     return res.status(200).json({
       user,
-      bootstrap: { ym, users, records, isPriv },
+      bootstrap: { ym, users, records, isPriv, salesVendors, salesOrders },
     });
   } catch (e) {
     console.error('me error:', e);
