@@ -2548,23 +2548,18 @@ function renderSalesOrders(){
   ];
   const thead=h('thead',null,h('tr',null,
     ...cols.map(c=>h('th',{style:`width:${c.w}px`},c.label)),
-    isPriv?h('th',{style:'width:40px'},''):null
+    h('th',{style:'width:80px'},'')   // 수정/삭제 액션 컬럼
   ));
   const tbody=h('tbody');
   if (!rows.length){
     tbody.append(h('tr',null,
-      h('td',{colspan:cols.length+(isPriv?1:0),style:'padding:40px;text-align:center;color:var(--text-soft)'},
+      h('td',{colspan:cols.length+1,style:'padding:40px;text-align:center;color:var(--text-soft)'},
         State.salesOrders.length?'필터에 맞는 내역이 없습니다':'아직 PB 내역이 없습니다 · 우측 상단 ＋ 버튼으로 추가')));
   }
   for (const r of rows){
     const canEditThis = isPriv || r.tm_user_id === State.user.id;
-    const tr=h('tr',{class:`row-status-${r.status}`,
-      style: canEditThis?'cursor:pointer':'',
-      title: canEditThis?'클릭하여 수정':'본인 PB만 수정 가능'});
-    if (canEditThis) tr.addEventListener('click',(e)=>{
-      if (e.target.closest('button')) return; // 삭제 버튼 클릭은 무시
-      openOrderModal(r);
-    });
+    // 시트(행) 자체는 클릭해도 아무 동작 없음 — 수정은 행 끝 ✎ 버튼으로만
+    const tr=h('tr',{class:`row-status-${r.status}`});
     for (const c of cols){
       const td=h('td');
       const cell=h('div',{class:'cell'});
@@ -2573,17 +2568,31 @@ function renderSalesOrders(){
       tr.append(td);
     }
     if (isPriv){
-      const td=h('td',null,h('div',{class:'cell',style:'justify-content:center;padding:10px 6px'},
-        h('button',{class:'btn btn-danger',style:'padding:4px 8px;font-size:11px',
-          onClick:async(e)=>{e.stopPropagation();
-            if(!confirm('이 PB 내역을 삭제하시겠습니까?')) return;
-            try{
-              await api(`/api/sales/orders?id=${r.id}`,{method:'DELETE'});
-              State.salesOrders=State.salesOrders.filter(o=>o.id!==r.id);
-              renderApp(); showToast('삭제됨');
-            }catch(e){ alert(e.message); }
-          }
-        },'×')));
+      const editBtn = h('button',{class:'btn',style:'padding:4px 8px;font-size:11px;margin-right:4px',
+        title:'수정',
+        onClick:(e)=>{ e.stopPropagation(); if (canEditThis) openOrderModal(r); }
+      },'✎');
+      const delBtn = h('button',{class:'btn btn-danger',style:'padding:4px 8px;font-size:11px',
+        title:'삭제',
+        onClick:async(e)=>{e.stopPropagation();
+          if(!confirm('이 PB 내역을 삭제하시겠습니까?')) return;
+          try{
+            await api(`/api/sales/orders?id=${r.id}`,{method:'DELETE'});
+            State.salesOrders=State.salesOrders.filter(o=>o.id!==r.id);
+            renderApp(); showToast('삭제됨');
+          }catch(e){ alert(e.message); }
+        }
+      },'×');
+      const td=h('td',null,h('div',{class:'cell',style:'justify-content:center;padding:10px 6px;display:flex;gap:0'},
+        editBtn, delBtn));
+      tr.append(td);
+    } else if (canEditThis) {
+      // 직원이 본인 PB 수정 (admin 외)
+      const editBtn = h('button',{class:'btn',style:'padding:4px 8px;font-size:11px',
+        title:'수정',
+        onClick:(e)=>{ e.stopPropagation(); openOrderModal(r); }
+      },'✎');
+      const td=h('td',null,h('div',{class:'cell',style:'justify-content:center;padding:10px 6px'},editBtn));
       tr.append(td);
     }
     tbody.append(tr);
