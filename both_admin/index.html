@@ -3233,14 +3233,32 @@ function renderSalesTM(){
       h('div',null,'TM 마감 데이터 로딩 중…'));
   }
 
-  const ymI=h('input',{type:'month',value:State.salesYm||todayYm()});
+  // 선택된 월(ym)의 첫일/말일 — cutoff 입력 범위 제한용
+  const currentYm = State.salesYm || todayYm();
+  const [_yY,_mM] = currentYm.split('-').map(Number);
+  const monthFirst = `${currentYm}-01`;
+  const monthLast  = `${currentYm}-${String(new Date(_yY,_mM,0).getDate()).padStart(2,'0')}`;
+  // cutoff가 선택 월의 범위를 벗어나면 말일로 클램프 (당월이면 오늘로 클램프)
+  let cutoffDefault = State.salesCutoff || new Date().toISOString().slice(0,10);
+  if (cutoffDefault < monthFirst) cutoffDefault = monthFirst;
+  if (cutoffDefault > monthLast)  cutoffDefault = monthLast;
+  const todayLocal = new Date().toISOString().slice(0,10);
+  if (currentYm === todayLocal.slice(0,7) && cutoffDefault > todayLocal) cutoffDefault = todayLocal;
+
+  const ymI=h('input',{type:'month',value:currentYm});
   ymI.addEventListener('change',async()=>{
-    State.salesYm=ymI.value; State.salesTmLoadedKey=null;
+    State.salesYm=ymI.value;
+    // 월 바뀌면 cutoff를 새 월의 말일(또는 오늘)로 자동 정정
+    const [yy,mm]=ymI.value.split('-').map(Number);
+    const newLast = `${ymI.value}-${String(new Date(yy,mm,0).getDate()).padStart(2,'0')}`;
+    const tl = new Date().toISOString().slice(0,10);
+    State.salesCutoff = (ymI.value === tl.slice(0,7) && tl < newLast) ? tl : newLast;
+    State.salesTmLoadedKey=null;
     State.loadingPage='sales-tm'; renderApp();
     await loadSalesContext('sales-tm');
     State.loadingPage=null; renderApp();
   });
-  const cutoffI=h('input',{type:'date',value:State.salesCutoff||(new Date().toISOString().slice(0,10))});
+  const cutoffI=h('input',{type:'date',value:cutoffDefault,min:monthFirst,max:monthLast});
   cutoffI.addEventListener('change',async()=>{
     State.salesCutoff=cutoffI.value; State.salesTmLoadedKey=null;
     State.loadingPage='sales-tm'; renderApp();
