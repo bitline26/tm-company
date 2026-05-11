@@ -3752,7 +3752,14 @@ function renderSalesTMDaily(){
   const isPriv=me.role==='admin'||me.role==='manager';
   const wrap=h('div');
 
-  const d = State.salesTmDailyDate || new Date().toISOString().slice(0,10);
+  // 로컬(KST) 오늘 — UTC slice 쓰면 새벽에 하루 어긋남. 항상 실시간 오늘로 자동 갱신
+  const _dNow = new Date();
+  const todayLocalD = `${_dNow.getFullYear()}-${String(_dNow.getMonth()+1).padStart(2,'0')}-${String(_dNow.getDate()).padStart(2,'0')}`;
+  // 저장값이 어제 이전이면 자동으로 오늘로 (날짜 바뀌면 실시간 반영)
+  if (!State.salesTmDailyDate || State.salesTmDailyDate < todayLocalD) {
+    State.salesTmDailyDate = todayLocalD;
+  }
+  const d = State.salesTmDailyDate;
   if (State.loadingPage==='sales-tm-daily' && State.salesTmDailyLoadedYm===null){
     return h('div',{class:'sales-empty',style:'padding:80px 20px'},
       h('div',{class:'ico'},'⏳'),
