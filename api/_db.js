@@ -34,7 +34,7 @@ const EMP_T2_NAME = '3';
 const EMP_T2_PW = '3';
 
 // 스키마 마커 — 이 버전이 DB에 기록되어 있으면 ensureSchema 풀실행 스킵
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 
 let initialized = false;
 let initPromise = null;
@@ -219,6 +219,9 @@ export async function ensureSchema() {
     await sql`ALTER TABLE attendance_records DROP CONSTRAINT IF EXISTS attendance_records_type_check`;
     await sql`ALTER TABLE attendance_records ADD CONSTRAINT attendance_records_type_check
         CHECK (type IN ('WORK','OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK','HOLIDAY','UNAUTHORIZED'))`;
+    // 정리: 미가입 + 비밀번호 없는 시드 직원(PRESET_NAMES) 일괄 삭제
+    // → 디렉토리에서 '미가입' 카드 제거. 가입 신청 후 대기 중인 사용자(비밀번호 있음)는 유지.
+    await sql`DELETE FROM users WHERE registered = FALSE AND password_hash IS NULL`;
     await Promise.all([
       sql`ALTER TABLE applications ADD COLUMN IF NOT EXISTS downloaded_at TIMESTAMPTZ NULL`,
       // 직원 분류 구분 (1차직원 / 2차직원) — 가입 시 선택, NULL = 미선택 = 레거시(2차 기본)
@@ -277,14 +280,9 @@ export async function ensureSchema() {
             registered = TRUE,
             tier = 2
     `;
-    const presetInserts = PRESET_NAMES.map((name, i) => {
-      const role = MANAGER_NAMES.has(name) ? 'manager' : 'employee';
-      return sql`
-        INSERT INTO users (name, role, registered, sort_order)
-        VALUES (${name}, ${role}, FALSE, ${i})
-        ON CONFLICT (name) DO NOTHING
-      `;
-    });
+    // PRESET_NAMES 시드 비활성화 — 신규 직원은 회원가입 페이지에서 직접 신청
+    // (기존 미가입 PRESET 직원은 위 DELETE에서 제거됨)
+    const presetInserts = [];
     // 디비 vendor 시드 (이미지 5월8일 기준)
     const VENDOR_SEEDS = [
       ['A-A',  'A-A',  '타미통신디비', '#7c3aed'],

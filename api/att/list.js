@@ -26,7 +26,7 @@ export default requireAuth(async function handler(req, res) {
         sql`
           SELECT id, name, role, registered
           FROM users
-          WHERE role <> 'admin'
+          WHERE role <> 'admin' AND registered = TRUE
           ORDER BY sort_order ASC, id ASC
         `,
         sql`

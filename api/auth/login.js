@@ -24,7 +24,7 @@ export default async function handler(req) {
       FROM users WHERE name = ${name} LIMIT 1`;
     const usersP = sql`
       SELECT id, name, role, registered, tier
-      FROM users WHERE role <> 'admin'
+      FROM users WHERE role <> 'admin' AND registered = TRUE
       ORDER BY sort_order ASC, id ASC`;
     const recordsP = sql`
       SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,
