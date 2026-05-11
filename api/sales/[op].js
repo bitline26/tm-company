@@ -381,7 +381,6 @@ export default requireAuth(async function handler(req, res) {
       }));
       return res.status(200).json({ date: d, vendors: merged, meta });
     }
-    if (me.role === 'admin') return res.status(403).json({ error: '대표 계정은 결과만 조회 가능 (편집은 직원/차장)' });
     if (req.method === 'POST') {
       if (req.query.meta) {
         const b = await readJson(req);

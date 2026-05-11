@@ -488,7 +488,7 @@ const State = {
   salesTmTotal: 0,
   salesVendorRows: [],     // vendor-daily 응답
   salesDayMeta: null,      // {recontact_completed, note}
-  salesOrdersFilter: { status:'ALL', tm:'ALL', vendor:'ALL', q:'' },
+  salesOrdersFilter: { status:'ALL', tm:'ALL', vendor:'ALL', q:'', dateFrom:'', dateTo:'' },
 
   // 캐시 키 (로드된 컨텍스트 추적 — 같은 키면 페치 스킵)
   salesOrdersLoadedYm: null,
@@ -2301,7 +2301,8 @@ async function loadSalesContext(page, force){
   if (page==='sales-orders'){
     const ym=State.salesYm || todayYm(); State.salesYm=ym;
     if (force || State.salesOrdersLoadedYm !== ym){
-      tasks.push(api(`/api/sales/orders?ym=${ym}`).then(r=>{
+      const url = ym === 'ALL' ? '/api/sales/orders' : `/api/sales/orders?ym=${ym}`;
+      tasks.push(api(url).then(r=>{
         State.salesOrders = r.orders || []; State.salesOrdersLoadedYm = ym;
       }));
     }
@@ -2418,6 +2419,60 @@ function renderSalesOrders(){
 
   const addBtn=h('button',{class:'add-row-btn',onClick:()=>addNewOrder()},'＋ 새 PB');
 
+  // 빠른 날짜 필터 + 기간 범위 (대표가 자주 쓰는 프리셋)
+  const fmtYmdLocal=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  async function applyDateRange(ym, from, to){
+    State.salesYm = ym;
+    State.salesOrdersFilter.dateFrom = from || '';
+    State.salesOrdersFilter.dateTo   = to   || '';
+    State.salesOrdersLoadedYm = null;
+    State.loadingPage = 'sales-orders';
+    renderApp();
+    await loadSalesContext('sales-orders');
+    State.loadingPage = null;
+    renderApp();
+  }
+  function quickBtn(label, onClick, active){
+    return h('button',{class:'btn'+(active?' btn-primary':''), style:'padding:6px 12px;font-size:12px',
+      onClick}, label);
+  }
+  const today=new Date();
+  const todayYmd=fmtYmdLocal(today);
+  const ydt=new Date(today); ydt.setDate(ydt.getDate()-1);
+  const yesterdayYmd=fmtYmdLocal(ydt);
+  const thisYm = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  const prevMonthDate=new Date(today.getFullYear(), today.getMonth()-1, 1);
+  const prevYm=`${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth()+1).padStart(2,'0')}`;
+  const threeMonthsBack=new Date(today); threeMonthsBack.setMonth(threeMonthsBack.getMonth()-3);
+  const threeMonthsBackYmd=fmtYmdLocal(threeMonthsBack);
+
+  const dfFilter=State.salesOrdersFilter;
+  const curYm=State.salesYm||thisYm;
+  const isToday = curYm===thisYm && dfFilter.dateFrom===todayYmd && dfFilter.dateTo===todayYmd;
+  const isYday  = dfFilter.dateFrom===yesterdayYmd && dfFilter.dateTo===yesterdayYmd;
+  const isThisM = curYm===thisYm && !dfFilter.dateFrom && !dfFilter.dateTo;
+  const isPrevM = curYm===prevYm && !dfFilter.dateFrom && !dfFilter.dateTo;
+  const is3M    = curYm==='ALL' && dfFilter.dateFrom===threeMonthsBackYmd && dfFilter.dateTo===todayYmd;
+  const isAll   = curYm==='ALL' && !dfFilter.dateFrom && !dfFilter.dateTo;
+
+  const fromI=h('input',{type:'date',value:dfFilter.dateFrom||'',style:'width:140px'});
+  const toI=h('input',{type:'date',value:dfFilter.dateTo||'',style:'width:140px'});
+  fromI.addEventListener('change',()=>{ State.salesOrdersFilter.dateFrom=fromI.value; renderApp(); });
+  toI.addEventListener('change',()=>{ State.salesOrdersFilter.dateTo=toI.value; renderApp(); });
+
+  const quickBar=h('div',{class:'sales-toolbar',style:'gap:6px;flex-wrap:wrap'},
+    h('span',{class:'label'},'빠른 날짜'),
+    quickBtn('오늘',     ()=>applyDateRange(thisYm,  todayYmd,         todayYmd),         isToday),
+    quickBtn('어제',     ()=>applyDateRange(thisYm,  yesterdayYmd,     yesterdayYmd),     isYday),
+    quickBtn('당월',     ()=>applyDateRange(thisYm,  '',               ''),               isThisM),
+    quickBtn('전월',     ()=>applyDateRange(prevYm,  '',               ''),               isPrevM),
+    quickBtn('최근 3개월',()=>applyDateRange('ALL',   threeMonthsBackYmd, todayYmd),       is3M),
+    quickBtn('전체',     ()=>applyDateRange('ALL',   '',               ''),               isAll),
+    h('span',{class:'label',style:'margin-left:8px'},'기간'),
+    fromI, h('span',null,'~'), toI,
+  );
+  wrap.append(quickBar);
+
   const toolbar=h('div',{class:'sales-toolbar'},
     h('span',{class:'label'},'월'), ymI,
     filterStatus, filterTm, filterVendor,
@@ -2432,6 +2487,8 @@ function renderSalesOrders(){
   if (f.status!=='ALL') rows=rows.filter(r=>r.status===f.status);
   if (f.tm!=='ALL') rows=rows.filter(r=>String(r.tm_user_id)===f.tm);
   if (f.vendor!=='ALL') rows=rows.filter(r=>String(r.vendor_id)===f.vendor);
+  if (f.dateFrom) rows=rows.filter(r=>String(r.consult_date||'').slice(0,10)>=f.dateFrom);
+  if (f.dateTo)   rows=rows.filter(r=>String(r.consult_date||'').slice(0,10)<=f.dateTo);
   if (f.q.trim()){
     const q=f.q.trim().toLowerCase();
     rows=rows.filter(r=>
@@ -2757,7 +2814,8 @@ function renderSalesTM(){
 // 권한: 직원/차장 = 편집, 대표(admin) = 결과만 보기
 function renderSalesVendor(){
   const me=State.user;
-  const canEdit = me.role !== 'admin';   // 대표만 read-only
+  // 대표(admin)도 편집 가능 — 대표가 직접 작성하는 페이지
+  const canEdit = me.role === 'admin' || me.role === 'manager' || me.role === 'employee';
   const wrap=h('div');
   if (State.loadingPage==='sales-vendor' && State.salesVendorLoadedDate===null){
     return h('div',{class:'sales-empty',style:'padding:80px 20px'},
@@ -2789,7 +2847,7 @@ function renderSalesVendor(){
   const toolbar=h('div',{class:'sales-toolbar'},
     h('span',{class:'label'},'일자'), dateI,
     h('span',{class:'label',style:'margin-left:14px'},'당일 재컨택 완료'), recontactI,
-    canEdit?null:h('span',{style:'margin-left:auto;font-size:11.5px;color:var(--text-soft)'}, '🔒 결과만 보기 (편집은 직원/차장)')
+    null
   );
   wrap.append(toolbar);
 
