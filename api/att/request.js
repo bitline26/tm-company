@@ -1,8 +1,10 @@
 import { sql, requireAuth, readJson } from '../_db.js';
 
 const VALID_TYPES = new Set(['WORK','OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK','HOLIDAY','UNAUTHORIZED']);
-// 직급별 신청 가능 종류 — 서버 측 강제 (관리자 외)
-const TIER1_REQUESTABLE = new Set(['OFF','UNAUTHORIZED']);
+// 분류별 신청 가능 종류 — 서버 측 강제 (관리자 외)
+// 1차직원: 휴무만 신청 가능 (무단결근은 관리자가 표시)
+// 2차직원: 연차/월차/반차/병가/휴무
+const TIER1_REQUESTABLE = new Set(['OFF']);
 const TIER2_REQUESTABLE = new Set(['OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK']);
 
 // POST /api/att/request

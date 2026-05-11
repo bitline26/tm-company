@@ -320,13 +320,25 @@ export default requireAuth(async function handler(req, res) {
   // ───────── tm-daily (직원이 매일 그날 입력 — 일일보고) ─────────
   if (op === 'tm-daily') {
     if (req.method === 'GET') {
-      const ym = String(req.query.ym || '').match(/^\d{4}-\d{2}$/)?.[0];
-      if (!ym) return res.status(400).json({ error: 'ym required' });
-      const start = `${ym}-01`;
-      const [y,m] = ym.split('-').map(Number);
-      const ny = m === 12 ? y+1 : y;
-      const nm = m === 12 ? 1 : m+1;
-      const end = `${ny}-${String(nm).padStart(2,'0')}-01`;
+      // 범위 지정 지원: from/to 가 있으면 그 구간, 없으면 ym 한 달
+      const fromQ = String(req.query.from || '').match(/^\d{4}-\d{2}-\d{2}$/)?.[0];
+      const toQ   = String(req.query.to   || '').match(/^\d{4}-\d{2}-\d{2}$/)?.[0];
+      let start, end;
+      if (fromQ && toQ) {
+        start = fromQ;
+        // end는 exclusive — to + 1일
+        const td = new Date(toQ + 'T00:00:00');
+        td.setDate(td.getDate() + 1);
+        end = td.toISOString().slice(0,10);
+      } else {
+        const ym = String(req.query.ym || '').match(/^\d{4}-\d{2}$/)?.[0];
+        if (!ym) return res.status(400).json({ error: 'ym or from/to required' });
+        start = `${ym}-01`;
+        const [y,m] = ym.split('-').map(Number);
+        const ny = m === 12 ? y+1 : y;
+        const nm = m === 12 ? 1 : m+1;
+        end = `${ny}-${String(nm).padStart(2,'0')}-01`;
+      }
       const rows = isPriv
         ? await sql`SELECT id, user_id, work_date, db_count, count, is_off, note FROM sales_tm_daily WHERE work_date >= ${start} AND work_date < ${end} ORDER BY work_date ASC, user_id ASC`
         : await sql`SELECT id, user_id, work_date, db_count, count, is_off, note FROM sales_tm_daily WHERE work_date >= ${start} AND work_date < ${end} AND user_id = ${me.id} ORDER BY work_date ASC`;
