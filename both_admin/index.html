@@ -2715,24 +2715,23 @@ function renderSalesTM(){
 
   const period=State.salesPeriod||{};
   const totalWdI=h('input',{type:'number',min:0,value:State.salesTmTotal||0,style:'width:70px'});
-  const unitPriceI=h('input',{type:'number',min:0,value:Number(period.unit_price||0),style:'width:120px',placeholder:'단가(₩)'});
   const savePeriod=async()=>{
     if(!isPriv) return;
     try{
+      // 단가는 기존 값 유지 (UI에서 제거됨)
       await api('/api/sales/period',{method:'POST',body:{
-        ym:State.salesYm, total_workdays:Number(totalWdI.value)||0, unit_price:Number(unitPriceI.value)||0
+        ym:State.salesYm, total_workdays:Number(totalWdI.value)||0,
+        unit_price:Number(period.unit_price||0)
       }});
       await loadSalesContext('sales-tm'); renderApp(); showToast('기간 설정 저장');
     }catch(e){ alert(e.message); }
   };
   totalWdI.addEventListener('blur', savePeriod);
-  unitPriceI.addEventListener('blur', savePeriod);
 
   const toolbar=h('div',{class:'sales-toolbar'},
     h('span',{class:'label'},'월'), ymI,
     h('span',{class:'label'},'마감기준'), cutoffI,
     h('span',{class:'label'},'총근무일'), totalWdI,
-    h('span',{class:'label'},'단가(₩/건)'), unitPriceI,
     h('div',{style:'margin-left:auto;color:var(--text-soft);font-size:12px'},
       `실 근무일 ${State.salesTmElapsed} · 남은 ${State.salesTmRemaining}`
     )
