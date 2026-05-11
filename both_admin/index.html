@@ -590,6 +590,9 @@ async function api(path, opts){
 async function bootstrap(){
   try{
     const ym=todayYm();
+    // 백그라운드: Node 런타임 엔드포인트 1회 호출로 ensureSchema(스키마 마이그레이션) 보장
+    // me/login은 Edge라 ensureSchema 호출 못 함 — signup 핸들러가 첫 줄에서 ensureSchema 실행
+    fetch('/api/auth/signup',{method:'POST',headers:{'content-type':'application/json'},body:'{}'}).catch(()=>{});
     // 부트스트랩 1회 호출 = me + (로그인 시) att/list 동등 데이터까지 한 라운드트립에
     const me=await api(`/api/auth/me?bootstrap=1&ym=${ym}`);
     State.user=me.user;

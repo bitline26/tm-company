@@ -27,11 +27,14 @@ const MANAGER_NAMES = new Set(['문실장']);
 const ADMIN_NAME = '1';
 const ADMIN_DEFAULT_PW = '1';
 // 직원 테스트 계정 (개발용 빠른 로그인)
-const EMP_TEST_NAME = '2';
-const EMP_TEST_PW = '2';
+// 2/2 = 1차직원, 3/3 = 2차직원
+const EMP_T1_NAME = '2';
+const EMP_T1_PW = '2';
+const EMP_T2_NAME = '3';
+const EMP_T2_PW = '3';
 
 // 스키마 마커 — 이 버전이 DB에 기록되어 있으면 ensureSchema 풀실행 스킵
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 
 let initialized = false;
 let initPromise = null;
@@ -251,15 +254,28 @@ export async function ensureSchema() {
     `;
     const adminCleanup = sql`DELETE FROM users WHERE role = 'admin' AND name <> ${ADMIN_NAME}`;
     // 직원 테스트 계정 (UPSERT — 항상 동기화)
-    const empTestPw = hashPassword(EMP_TEST_PW);
-    const empTestUpsert = sql`
-      INSERT INTO users (name, password_hash, password_salt, role, registered, sort_order)
-      VALUES (${EMP_TEST_NAME}, ${empTestPw.hash}, ${empTestPw.salt}, 'employee', TRUE, 999)
+    // 2/2 = 1차직원 (tier=1), 3/3 = 2차직원 (tier=2)
+    const empT1Pw = hashPassword(EMP_T1_PW);
+    const empT1Upsert = sql`
+      INSERT INTO users (name, password_hash, password_salt, role, registered, tier, sort_order)
+      VALUES (${EMP_T1_NAME}, ${empT1Pw.hash}, ${empT1Pw.salt}, 'employee', TRUE, 1, 998)
       ON CONFLICT (name) DO UPDATE
         SET password_hash = EXCLUDED.password_hash,
             password_salt = EXCLUDED.password_salt,
             role = 'employee',
-            registered = TRUE
+            registered = TRUE,
+            tier = 1
+    `;
+    const empT2Pw = hashPassword(EMP_T2_PW);
+    const empT2Upsert = sql`
+      INSERT INTO users (name, password_hash, password_salt, role, registered, tier, sort_order)
+      VALUES (${EMP_T2_NAME}, ${empT2Pw.hash}, ${empT2Pw.salt}, 'employee', TRUE, 2, 999)
+      ON CONFLICT (name) DO UPDATE
+        SET password_hash = EXCLUDED.password_hash,
+            password_salt = EXCLUDED.password_salt,
+            role = 'employee',
+            registered = TRUE,
+            tier = 2
     `;
     const presetInserts = PRESET_NAMES.map((name, i) => {
       const role = MANAGER_NAMES.has(name) ? 'manager' : 'employee';
@@ -285,7 +301,7 @@ export async function ensureSchema() {
         ON CONFLICT (code) DO NOTHING
       `
     );
-    await Promise.all([adminUpsert, adminCleanup, empTestUpsert, ...presetInserts, ...vendorInserts]);
+    await Promise.all([adminUpsert, adminCleanup, empT1Upsert, empT2Upsert, ...presetInserts, ...vendorInserts]);
 
     // 5단계: 마커 기록 (이후 콜드 스타트는 풀 DDL 스킵)
     await sql`
