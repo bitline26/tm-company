@@ -44,7 +44,7 @@ export default async function handler(req) {
     if (isPriv) {
       [users, records, salesVendors, salesOrders] = await Promise.all([
         sql`
-          SELECT id, name, role, registered, tier
+          SELECT id, name, role, registered, tier, status, allowed_ips
           FROM users WHERE role <> 'admin' AND registered = TRUE
           ORDER BY sort_order ASC, id ASC`,
         sql`

@@ -20,10 +20,11 @@ export default async function handler(req) {
 
     // user 인증 쿼리 + 전체 bootstrap 쿼리(att/sales) 동시 발사 → 1 RTT로 마무리
     const userP = sql`
-      SELECT id, name, role, registered, tier, password_hash, password_salt
+      SELECT id, name, role, registered, tier, status, allowed_ips,
+             password_hash, password_salt
       FROM users WHERE name = ${name} LIMIT 1`;
     const usersP = sql`
-      SELECT id, name, role, registered, tier
+      SELECT id, name, role, registered, tier, status, allowed_ips
       FROM users WHERE role <> 'admin' AND registered = TRUE
       ORDER BY sort_order ASC, id ASC`;
     const recordsP = sql`
@@ -52,6 +53,19 @@ export default async function handler(req) {
     if (!u) return json({ error: '이름 또는 비밀번호가 올바르지 않습니다' }, { status: 401 });
     if (!u.password_hash) return json({ error: '아직 가입되지 않은 이름입니다 (회원가입 필요)' }, { status: 401 });
     if (!u.registered) return json({ error: '관리자 승인 대기 중입니다' }, { status: 403 });
+    // 계정 상태 차단 (admin은 예외 — 대표는 항상 로그인 가능해야 함)
+    if (u.role !== 'admin') {
+      if (u.status === 'suspended') return json({ error: '계정이 정지되었습니다. 대표에게 문의하세요.' }, { status: 403 });
+      if (u.status === 'resigned')  return json({ error: '퇴사 처리된 계정입니다.' }, { status: 403 });
+      // 허용 IP 화이트리스트 (비어있으면 제한 없음)
+      if (Array.isArray(u.allowed_ips) && u.allowed_ips.length > 0) {
+        const xf = req.headers.get('x-forwarded-for') || '';
+        const clientIp = xf.split(',')[0].trim() || req.headers.get('x-real-ip') || '';
+        if (!u.allowed_ips.includes(clientIp)) {
+          return json({ error: `허용되지 않은 위치에서의 접속입니다 (IP: ${clientIp || '알 수 없음'})` }, { status: 403 });
+        }
+      }
+    }
     if (!(await verifyPasswordEdge(String(password), u.password_hash, u.password_salt))) {
       return json({ error: '이름 또는 비밀번호가 올바르지 않습니다' }, { status: 401 });
     }

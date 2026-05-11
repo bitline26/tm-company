@@ -34,7 +34,7 @@ const EMP_T2_NAME = '3';
 const EMP_T2_PW = '3';
 
 // 스키마 마커 — 이 버전이 DB에 기록되어 있으면 ensureSchema 풀실행 스킵
-const SCHEMA_VERSION = 9;
+const SCHEMA_VERSION = 10;
 
 let initialized = false;
 let initPromise = null;
@@ -222,6 +222,13 @@ export async function ensureSchema() {
     // 정리: 미가입 + 비밀번호 없는 시드 직원(PRESET_NAMES) 일괄 삭제
     // → 디렉토리에서 '미가입' 카드 제거. 가입 신청 후 대기 중인 사용자(비밀번호 있음)는 유지.
     await sql`DELETE FROM users WHERE registered = FALSE AND password_hash IS NULL`;
+    // 계정 상태 + 허용 IP (대표가 직원 관리 페이지에서 컨트롤)
+    // status: active(활성) / suspended(정지) / resigned(퇴사) — 로그인 차단
+    // allowed_ips: 비어있으면 제한 없음, 1개 이상이면 그 IP에서만 로그인 가능
+    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'`;
+    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_ips TEXT[] DEFAULT '{}'`;
+    await sql`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_status_check`;
+    await sql`ALTER TABLE users ADD CONSTRAINT users_status_check CHECK (status IN ('active','suspended','resigned'))`;
     await Promise.all([
       sql`ALTER TABLE applications ADD COLUMN IF NOT EXISTS downloaded_at TIMESTAMPTZ NULL`,
       // 직원 분류 구분 (1차직원 / 2차직원) — 가입 시 선택, NULL = 미선택 = 레거시(2차 기본)
