@@ -936,7 +936,7 @@ function renderAdminApp(){
 function renderEmployeeApp(){
   const root=$('#app'); root.innerHTML='';
   const me=State.user;
-  if(!['my','history','my-closing'].includes(State.page)) State.page='my';
+  if(!['my','history','sales-tm-daily'].includes(State.page)) State.page='my';
 
   const navItem=(key,label,icon)=>h('button',{
     class:'nav-item '+(State.page===key?'on':''),
@@ -959,7 +959,7 @@ function renderEmployeeApp(){
       navItem('my','내 근태','👤'),
       navItem('history','신청 이력','🕘'),
       h('div',{class:'nav-group-h'},'실적'),
-      navItem('my-closing','내 마감','📊'),
+      navItem('sales-tm-daily','마감 보고','📅'),
     ),
     h('div',{class:'side-foot'},
       h('button',{class:'nav-item',onClick:logout},
@@ -968,7 +968,7 @@ function renderEmployeeApp(){
     )
   );
 
-  const titleMap={my:'내 근태',history:'신청 이력','my-closing':'내 마감'};
+  const titleMap={my:'내 근태',history:'신청 이력','sales-tm-daily':'마감 보고'};
   const title=titleMap[State.page];
   const actions=h('div',{class:'top-actions'});
   if(State.page==='my'){
@@ -1000,6 +1000,7 @@ function renderEmployeeApp(){
   if(State.page==='my') content=renderMyHome();
   else if(State.page==='history') content=renderMyHistory();
   else if(State.page==='sales-orders') content=renderSalesOrders();
+  else if(State.page==='sales-tm-daily') content=renderSalesTMDaily();
   else if(State.page==='my-closing') content=renderMyClosing();
   else if(State.page==='sales-vendor') content=renderSalesVendor();
 
