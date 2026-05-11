@@ -938,7 +938,6 @@ function renderAdminApp(){
       h('div',{class:'nav-group-h'},'인사'),
       navItem('people','직원','👥'),
       isPriv?navItem('approval','승인 대기','✔︎',pendingCount||null):null,
-      State.user.role==='admin'?navItem('signup-approval','가입 승인','👤',(State.signupPending&&State.signupPending.length)||null):null,
       State.user.role==='admin'?navItem('employee-mgmt','직원 관리','🛡️'):null,
       navItem('grid','팀 캘린더','📅'),
       h('div',{class:'nav-group-h'},'실적'),
@@ -961,7 +960,7 @@ function renderAdminApp(){
   else if(State.page==='people') content=renderPeople();
   else if(State.page==='grid') content=renderGrid();
   else if(State.page==='approval') content=renderApproval();
-  else if(State.page==='signup-approval') content=renderSignupApproval();
+  else if(State.page==='signup-approval') { State.page='employee-mgmt'; content=renderEmployeeMgmt(); }
   else if(State.page==='employee-mgmt') content=renderEmployeeMgmt();
   else if(State.page==='sales-orders') content=renderSalesOrders();
   else if(State.page==='sales-tm') content=renderSalesTM();
@@ -2491,18 +2490,18 @@ function renderEmployeeMgmt(){
     ipBtn.addEventListener('click',()=>openIpModal(u));
 
     const isSus = u.status==='suspended';
-    const isRes = u.status==='resigned';
     const susBtn = h('button',{class:'btn '+(isSus?'btn-primary':''),style:'padding:5px 10px;font-size:11.5px'},
       isSus?'정지 해제':'정지');
     susBtn.addEventListener('click',()=>{
       if(!confirm(`${u.name} ${isSus?'정지를 해제합니다':'계정을 정지합니다 (로그인 차단)'}`)) return;
       doAction(u, isSus?'unsuspend':'suspend');
     });
-    const resBtn = h('button',{class:'btn '+(isRes?'':'btn-danger'),style:'padding:5px 10px;font-size:11.5px'},
-      isRes?'퇴사 복귀':'퇴사');
-    resBtn.addEventListener('click',()=>{
-      if(!confirm(`${u.name} ${isRes?'퇴사를 복귀시킵니다':'를 퇴사 처리합니다 (로그인 영구 차단)'}`)) return;
-      doAction(u, isRes?'unresign':'resign');
+    // 삭제 — 계정 + 관련 데이터(근태/PB/마감 등) 완전 제거 (복구 불가)
+    const delBtn = h('button',{class:'btn btn-danger',style:'padding:5px 10px;font-size:11.5px'},'삭제');
+    delBtn.addEventListener('click',()=>{
+      if(!confirm(`${u.name} 계정과 모든 데이터를 영구 삭제합니다.\n근태/PB/마감 기록까지 사라집니다.\n복구할 수 없습니다. 계속할까요?`)) return;
+      if(!confirm(`정말로 ${u.name} 의 모든 데이터를 삭제합니까?`)) return;
+      doAction(u, 'delete');
     });
 
     const ipInfo = (u.allowed_ips&&u.allowed_ips.length)
@@ -2526,14 +2525,14 @@ function renderEmployeeMgmt(){
           )
         )
       ),
-      h('div',{style:'display:flex;gap:6px;flex-shrink:0'}, ipBtn, susBtn, resBtn)
+      h('div',{style:'display:flex;gap:6px;flex-shrink:0'}, ipBtn, susBtn, delBtn)
     );
   });
 
   return h('div',{style:'padding:20px;max-width:880px'},
     h('h2',{style:'margin:0 0 6px;font-size:20px;font-weight:700'},'직원 관리'),
     h('div',{style:'font-size:12px;color:var(--text-soft);margin-bottom:16px'},
-      '계정 정지 · 퇴사 처리 · 허용 IP 설정 — 대표 전용'),
+      '계정 정지 · 삭제 · 허용 IP 설정 — 대표 전용'),
     h('div',null,...rows)
   );
 }
@@ -2660,7 +2659,7 @@ async function logout(){
 // ─────────────── 영업 모듈 ───────────────
 const ORDER_STATUS_LABEL={
   UNPAID:'미입금',
-  UNPAID_PROOF:'미입금:입금증필요',
+  UNPAID_PROOF:'미입금',
   PAID:'입금완료',
   // 레거시 (예전 데이터 표시용 — 새 입력 시는 사용 안 함)
   IN_PROGRESS:'입금중', PARTIAL:'일부납부', CANCELLED:'취소',
@@ -3272,7 +3271,21 @@ function openOrderModal(existingOrder){
   carrierSel.value = o.carrier || '';
 
   const amountI  = h('input',{type:'number',value:o.amount||0,min:0,step:1000,placeholder:'0',style:inputStyle+';font-variant-numeric:tabular-nums'});
-  const bankI    = h('input',{type:'text',value:o.payment_bank||'',placeholder:'예: 국민/신한/우리',style:inputStyle});
+  // 은행 드롭다운 — 한국 시중/특수/지방/인터넷 은행 전체
+  const BANK_LIST = [
+    'KB국민','신한','우리','하나','농협','IBK기업','SC제일','한국씨티',
+    '카카오뱅크','케이뱅크','토스뱅크',
+    '새마을금고','신협','우체국','산업','수협','BNK부산','BNK경남','DGB대구','광주','전북','제주',
+  ];
+  const bankI = h('select',{style:inputStyle},
+    h('option',{value:''}, '— 선택 —'),
+    ...BANK_LIST.map(b=>h('option',{value:b}, b))
+  );
+  if (o.payment_bank && !BANK_LIST.includes(o.payment_bank)) {
+    // 기존 자유텍스트 값 호환 — 직접 추가
+    bankI.append(h('option',{value:o.payment_bank}, o.payment_bank+' (기존)'));
+  }
+  bankI.value = o.payment_bank || '';
   const accountI = h('input',{type:'text',value:o.payment_account||'',placeholder:'계좌번호',style:inputStyle});
   const payDateI = h('input',{type:'date',value:o.payment_date?String(o.payment_date).slice(0,10):'',style:inputStyle});
 

@@ -66,6 +66,11 @@ export default requireAuth(async function handler(req, res) {
       await sql`UPDATE users SET status = 'active' WHERE id = ${uid} AND status = 'resigned'`;
       return res.status(200).json({ ok: true });
     }
+    // 삭제 — 계정 + 관련 데이터 영구 제거 (ON DELETE CASCADE 로 attendance/tm-daily/monthly 자동 삭제)
+    if (action === 'delete') {
+      await sql`DELETE FROM users WHERE id = ${uid} AND role <> 'admin'`;
+      return res.status(200).json({ ok: true });
+    }
     if (action === 'set_ips') {
       // ips: 배열 — 빈 배열이면 제한 해제
       const rawIps = Array.isArray(body.ips) ? body.ips : [];
