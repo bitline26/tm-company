@@ -45,7 +45,7 @@ export default async function handler(req) {
       LEFT JOIN users uu ON uu.id = o.tm_user_id
       LEFT JOIN db_vendors v ON v.id = o.vendor_id
       WHERE o.consult_date >= ${start} AND o.consult_date < ${end}
-      ORDER BY o.consult_date DESC, o.id DESC`;
+      ORDER BY (o.payment_date IS NULL), o.payment_date ASC, o.consult_date ASC, o.id ASC`;
     [usersP, recordsP, vendorsP, ordersP].forEach(p => p.catch(() => {}));
 
     const userRows = await userP;
