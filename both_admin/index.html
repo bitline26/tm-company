@@ -574,8 +574,8 @@ const TYPE_TINY={
   WORK:'', OFF:'휴무', HALF_AM:'오반', HALF_PM:'오반',
   MONTHLY:'월차', ANNUAL:'연차', SICK:'병가', HOLIDAY:'공가', UNAUTHORIZED:'무단',
 };
-// 분류별 신청 가능 종류 — 1차직원 = 휴무만 신청 (무단결근은 관리자가 표시), 2차직원 = 전체
-const REQUESTABLE_T1=['OFF'];
+// 분류별 신청 가능 종류 — 1차직원 = 휴무 + 무단결근, 2차직원 = 전체
+const REQUESTABLE_T1=['OFF','UNAUTHORIZED'];
 const REQUESTABLE_T2=['OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK'];
 function requestableTypesFor(u){
   const t=Number(u?.tier);
