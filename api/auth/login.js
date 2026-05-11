@@ -73,6 +73,16 @@ export default async function handler(req) {
     const isPriv = u.role === 'admin' || u.role === 'manager';
     const token = await signSessionEdge({ uid: u.id, name: u.name, role: u.role, tier: u.tier });
 
+    // 최근 로그인 IP/시각 기록 — admin도 기록 (대시보드 확인용)
+    {
+      const xf = req.headers.get('x-forwarded-for') || '';
+      const clientIp = xf.split(',')[0].trim() || req.headers.get('x-real-ip') || '';
+      if (clientIp) {
+        sql`UPDATE users SET last_login_ip = ${clientIp}, last_login_at = NOW() WHERE id = ${u.id}`
+          .catch(() => {});
+      }
+    }
+
     let users, records, salesVendors, salesOrders;
     if (isPriv) {
       [users, records, salesVendors, salesOrders] = await Promise.all([usersP, recordsP, vendorsP, ordersP]);

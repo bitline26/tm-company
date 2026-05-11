@@ -13,7 +13,8 @@ export default requireAuth(async function handler(req, res) {
     const scope = String(req.query.scope || '');
     if (scope === 'employees') {
       const rows = await sql`
-        SELECT id, name, role, tier, status, allowed_ips, created_at
+        SELECT id, name, role, tier, status, allowed_ips,
+               last_login_ip, last_login_at, created_at
         FROM users
         WHERE registered = TRUE AND role <> 'admin'
         ORDER BY sort_order ASC, id ASC`;

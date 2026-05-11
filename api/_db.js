@@ -34,7 +34,7 @@ const EMP_T2_NAME = '3';
 const EMP_T2_PW = '3';
 
 // 스키마 마커 — 이 버전이 DB에 기록되어 있으면 ensureSchema 풀실행 스킵
-const SCHEMA_VERSION = 10;
+const SCHEMA_VERSION = 11;
 
 let initialized = false;
 let initPromise = null;
@@ -229,6 +229,9 @@ export async function ensureSchema() {
     await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_ips TEXT[] DEFAULT '{}'`;
     await sql`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_status_check`;
     await sql`ALTER TABLE users ADD CONSTRAINT users_status_check CHECK (status IN ('active','suspended','resigned'))`;
+    // 로그인 추적 — 대표가 직원 관리 페이지에서 최근 접속 IP 확인 + '현재 IP로 잠그기'에 사용
+    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_ip TEXT`;
+    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ`;
     await Promise.all([
       sql`ALTER TABLE applications ADD COLUMN IF NOT EXISTS downloaded_at TIMESTAMPTZ NULL`,
       // 직원 분류 구분 (1차직원 / 2차직원) — 가입 시 선택, NULL = 미선택 = 레거시(2차 기본)
