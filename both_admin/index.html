@@ -129,6 +129,10 @@
   table.grid thead th{background:#fbfaf8;font-weight:600;color:var(--text-soft);font-size:11px;letter-spacing:0.02em;position:sticky;top:0;z-index:2;height:32px;text-transform:uppercase}
   table.grid thead th.weekend{color:#cf4b4b}
   table.grid thead th.sat{color:#3271b6}
+  table.grid thead th.holiday{color:#cf4b4b;background:#fdecec}
+  table.grid td.day.holiday{background:#fdecec;cursor:default}
+  table.grid td.day.holiday:hover{background:#fdecec}
+  table.grid td.day.today.holiday{background:#fde0d4}
   table.grid .col-name{position:sticky;left:0;background:#fff;z-index:3;text-align:left;padding:8px 14px;font-weight:600;width:140px;min-width:140px;border-right:1px solid var(--border)}
   table.grid thead .col-name{background:#fbfaf8;z-index:4;font-weight:600}
   table.grid tbody tr:hover .col-name{background:#faf9f6}
@@ -167,8 +171,8 @@
 
   /* 본인 행 강조 — 좌측 검정 바 + 살짝 다른 BG */
   table.grid tr.row-self .col-name{box-shadow:inset 3px 0 0 #0f0f0f;background:#fbf9f3}
-  table.grid tr.row-self td.day:not(.weekend){background:#fdfcf8}
-  table.grid tr.row-self td.day:not(.weekend):hover{background:#f7f4ec}
+  table.grid tr.row-self td.day:not(.weekend):not(.holiday){background:#fdfcf8}
+  table.grid tr.row-self td.day:not(.weekend):not(.holiday):hover{background:#f7f4ec}
 
   .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
   .legend-item{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-soft)}
@@ -592,30 +596,33 @@ const fmtYmd=(y,m,d)=>`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,
 const todayYm=()=>fmtYm(new Date());
 const daysInMonth=(y,m)=>new Date(y,m,0).getDate();
 
-// 한국 공휴일 (data.go.kr 한국천문연구원 특일정보 기준) — 빨간날
-// 외부 API 호출 없이 정적 매핑 (연 1회 업데이트로 충분)
-const KR_HOLIDAYS = new Set([
+// 한국 공휴일 (네이버 캘린더 / data.go.kr 한국천문연구원 특일정보 기준) — 빨간날
+// 정적 매핑 (연 1회 업데이트). 날짜 → 휴일 이름 (툴팁 표시용)
+const KR_HOLIDAY_MAP = {
   // 2025
-  '2025-01-01','2025-01-28','2025-01-29','2025-01-30',  // 신정·설날 연휴
-  '2025-03-01','2025-03-03',                              // 삼일절(토)·대체
-  '2025-05-01','2025-05-05','2025-05-06',                 // 근로자의날·어린이날·부처님오신날
-  '2025-06-06',                                           // 현충일
-  '2025-08-15',                                           // 광복절
-  '2025-10-03','2025-10-06','2025-10-07','2025-10-08','2025-10-09', // 개천절·추석연휴·대체·한글날
-  '2025-12-25',                                           // 성탄절
+  '2025-01-01':'신정',
+  '2025-01-28':'설날 연휴','2025-01-29':'설날','2025-01-30':'설날 연휴',
+  '2025-03-01':'삼일절','2025-03-03':'삼일절 대체',
+  '2025-05-01':'근로자의 날','2025-05-05':'어린이날','2025-05-06':'부처님오신날',
+  '2025-06-06':'현충일',
+  '2025-08-15':'광복절',
+  '2025-10-03':'개천절','2025-10-06':'추석 연휴','2025-10-07':'추석','2025-10-08':'추석 연휴','2025-10-09':'한글날',
+  '2025-12-25':'성탄절',
   // 2026
-  '2026-01-01',                                           // 신정 (목)
-  '2026-02-16','2026-02-17','2026-02-18',                 // 설날 연휴 (월화수)
-  '2026-03-01','2026-03-02',                              // 삼일절(일)·대체(월)
-  '2026-05-01','2026-05-05',                              // 근로자의날(금)·어린이날(화)
-  '2026-05-24','2026-05-25',                              // 부처님오신날(일)·대체(월)
-  '2026-06-06',                                           // 현충일 (토)
-  '2026-08-15',                                           // 광복절 (토)
-  '2026-09-24','2026-09-25','2026-09-26',                 // 추석 연휴 (목금토)
-  '2026-10-03','2026-10-09',                              // 개천절(토)·한글날(금)
-  '2026-12-25',                                           // 성탄절 (금)
-]);
+  '2026-01-01':'신정',
+  '2026-02-16':'설날 연휴','2026-02-17':'설날','2026-02-18':'설날 연휴',
+  '2026-03-01':'삼일절','2026-03-02':'삼일절 대체',
+  '2026-05-01':'근로자의 날','2026-05-05':'어린이날',
+  '2026-05-24':'부처님오신날','2026-05-25':'부처님오신날 대체',
+  '2026-06-06':'현충일',
+  '2026-08-15':'광복절',
+  '2026-09-24':'추석 연휴','2026-09-25':'추석','2026-09-26':'추석 연휴',
+  '2026-10-03':'개천절','2026-10-09':'한글날',
+  '2026-12-25':'성탄절',
+};
+const KR_HOLIDAYS = new Set(Object.keys(KR_HOLIDAY_MAP));
 function isKrHoliday(ymd){ return KR_HOLIDAYS.has(ymd); }
+function krHolidayName(ymd){ return KR_HOLIDAY_MAP[ymd] || null; }
 function computeKrWorkdays(ym){
   const [y,m] = ym.split('-').map(Number);
   const last = daysInMonth(y,m);
@@ -1699,14 +1706,16 @@ function renderGrid(){
   for(let d=1;d<=dim;d++){
     const dow=new Date(y,m-1,d).getDay();
     const ymd=fmtYmd(y,m,d);
+    const holName=krHolidayName(ymd);
     const cls=[];
     if(dow===0) cls.push('weekend');
     if(dow===6) cls.push('sat');
+    if(holName) cls.push('holiday');
     if(ymd===todayYmd) cls.push('today-h');
     const labels=['일','월','화','수','목','금','토'];
-    headRow.push(h('th',{class:cls.join(' ')},
+    headRow.push(h('th',{class:cls.join(' '), title: holName || ''},
       h('div',{style:'font-size:13px;font-weight:700;color:'+(ymd===todayYmd?'#0f0f0f':'inherit')}, d),
-      h('div',{style:'font-size:9.5px;font-weight:500;opacity:.7'}, labels[dow])
+      h('div',{style:'font-size:9.5px;font-weight:500;opacity:.7'}, holName ? holName.length<=3?holName:'공휴' : labels[dow])
     ));
   }
 
@@ -1726,17 +1735,24 @@ function renderGrid(){
       const dow=new Date(y,m-1,d).getDay();
       const isWeekend=(dow===0||dow===6);
       const ymd=fmtYmd(y,m,d);
+      const holName=krHolidayName(ymd);
+      const isHoliday=!!holName;
+      const isOff=isWeekend||isHoliday;
       const rec=recIdx[`${u.id}|${ymd}`];
       const cls=['day'];
       if(isWeekend) cls.push('weekend');
+      if(isHoliday) cls.push('holiday');
       if(ymd===todayYmd) cls.push('today');
-      // 비어있는 날(주말 아님) = 정상출근 디폴트 표시
+      // 비어있는 날(주말/공휴일 아님) = 정상출근 디폴트 표시
       let inner=null;
       if(rec){
         const chipCls=['chip', `chip-${rec.type}`];
         if(rec.status==='REQUESTED') chipCls.push('is-requested');
         if(rec.status==='REJECTED') chipCls.push('is-rejected');
         inner=h('span',{class:chipCls.join(' ')}, TYPE_TINY[rec.type]||'');
+      } else if (isHoliday) {
+        // 공휴일 — '공' 칩 (HOLIDAY 색상)
+        inner=h('span',{class:'chip chip-HOLIDAY',style:'font-size:10.5px;opacity:.85'}, '공');
       } else if (!isWeekend) {
         // 신청 없음 + 평일 → 정상출근 디폴트
         inner=h('span',{class:'chip chip-WORK',style:'font-size:11px;opacity:.7'}, '정상');
@@ -1747,8 +1763,8 @@ function renderGrid(){
         class:cls.join(' '),
         title:rec
           ? `${TYPE_LABELS[rec.type]} (${statusLabel(rec.status)})${rec.note?' · '+rec.note:''}`
-          : (isWeekend?'':'정상출근 (기본)'),
-        onClick:isWeekend?null:()=>openCellDrawer(u,ymd,rec),
+          : (isHoliday?holName:(isWeekend?'':'정상출근 (기본)')),
+        onClick:isOff?null:()=>openCellDrawer(u,ymd,rec),
       }, inner);
       tr.append(td);
     }
