@@ -488,7 +488,11 @@ const State = {
   salesTmTotal: 0,
   salesVendorRows: [],     // vendor-daily 응답
   salesDayMeta: null,      // {recontact_completed, note}
-  salesMonthlyRecontact: 0,// 선택 일자가 속한 월의 재컨택 총합
+  salesMonthlyRecontact: 0,// 레거시(수동 입력 합) — 표시는 자동 계산으로 대체
+  // 재컨택 자동 계산용 (재컨택 = 실적 마감 - 유입분석 완료)
+  salesDayClosingTotal: 0,         // 당일 sales_tm_daily.count SUM
+  salesMonthClosingTotal: 0,       // 당월 sales_tm_daily.count SUM
+  salesMonthVendorCompletedTotal:0,// 당월 sales_vendor_daily.completed_count SUM
   salesOrdersFilter: { status:'ALL', tm:'ALL', vendor:'ALL', q:'', dateFrom:'', dateTo:'' },
 
   // 캐시 키 (로드된 컨텍스트 추적 — 같은 키면 페치 스킵)
@@ -2358,6 +2362,9 @@ async function loadSalesContext(page, force){
         State.salesVendorRows = r.vendors || [];
         State.salesDayMeta = r.meta || { recontact_completed: 0, note: null };
         State.salesMonthlyRecontact = r.monthlyRecontact || 0;
+        State.salesDayClosingTotal   = r.dayClosingTotal   || 0;
+        State.salesMonthClosingTotal = r.monthClosingTotal || 0;
+        State.salesMonthVendorCompletedTotal = r.monthVendorCompletedTotal || 0;
         State.salesVendorLoadedDate = d;
       }));
     }
@@ -3068,32 +3075,26 @@ function renderSalesVendor(){
     State.loadingPage=null; renderApp();
   });
 
-  const recontactI=h('input',{type:'number',min:0,value:State.salesDayMeta?.recontact_completed||0,
-    style:'width:70px'+(canEdit?'':';background:#fafaf8;cursor:not-allowed'),
-    readonly: !canEdit});
-  if (canEdit) recontactI.addEventListener('blur',async()=>{
-    try{
-      const oldVal = Number(State.salesDayMeta?.recontact_completed||0);
-      const newVal = Number(recontactI.value)||0;
-      await api('/api/sales/vendor-daily?meta=1',{method:'POST',body:{
-        work_date:State.salesDate, recontact_completed:newVal
-      }});
-      State.salesDayMeta={...State.salesDayMeta, recontact_completed:newVal};
-      // 당월 재컨택 총합 즉시 반영 (서버 재요청 없이 diff만큼 가감)
-      State.salesMonthlyRecontact = Math.max(0, Number(State.salesMonthlyRecontact||0) + (newVal - oldVal));
-      renderApp();
-    }catch(e){ alert(e.message); }
-  });
+  // 재컨택 = 자동 계산 (수식: 실적 마감 - 유입분석 완료)
+  const dayVendorCompleted = (State.salesVendorRows||[]).reduce((s,v)=>s+(v.completed_count||0),0);
+  const autoDailyRecontact = Number(State.salesDayClosingTotal||0) - dayVendorCompleted;
+  const autoMonthRecontact = Number(State.salesMonthClosingTotal||0) - Number(State.salesMonthVendorCompletedTotal||0);
+  const recontactBox = h('span',{
+    style:'display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:#eaf2fb;color:#0b6e99;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums',
+    title:`수식: 당일 실적 마감(${State.salesDayClosingTotal||0}) - 유입분석 당일 완료(${dayVendorCompleted})`
+  }, `${autoDailyRecontact.toLocaleString('ko-KR')}건`);
 
-  const monthlyRecontact = Number(State.salesMonthlyRecontact||0);
   const curYmLabel = (State.salesDate||(new Date().toISOString().slice(0,10))).slice(0,7);
   const monthlyBadge = h('span',{
-    style:'display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:8px;background:#dcfce7;color:#15803d;font-size:12.5px;font-weight:700'
-  }, `당월(${curYmLabel}) 재컨택 ${monthlyRecontact.toLocaleString('ko-KR')}건`);
+    style:'display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:#dcfce7;color:#15803d;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums',
+    title:`수식: 당월 실적 마감(${State.salesMonthClosingTotal||0}) - 유입분석 당월 완료(${State.salesMonthVendorCompletedTotal||0})`
+  }, `당월(${curYmLabel}) 재컨택 ${autoMonthRecontact.toLocaleString('ko-KR')}건`);
   const toolbar=h('div',{class:'sales-toolbar'},
     h('span',{class:'label'},'일자'), dateI,
-    h('span',{class:'label',style:'margin-left:14px'},'당일 재컨택 완료'), recontactI,
-    monthlyBadge
+    h('span',{class:'label',style:'margin-left:14px'},'당일 재컨택 (자동)'), recontactBox,
+    monthlyBadge,
+    h('span',{style:'margin-left:8px;color:var(--text-soft);font-size:11px'},
+      '※ 자동 계산 = 실적 마감 − 유입분석 완료')
   );
 
   // 빠른 날짜 필터 — 유입 분석은 단일 일자 기준
@@ -3156,8 +3157,8 @@ function renderSalesVendor(){
         h('div',{class:'lbl'},'접수율'),
         h('div',{class:'val'}, ((acc)*100).toFixed(1)+'%')),
       h('div',{class:'day-stat green'},
-        h('div',{class:'lbl'},'재컨택 완료'),
-        h('div',{class:'val'}, State.salesDayMeta?.recontact_completed||0)),
+        h('div',{class:'lbl'},'재컨택 완료 (자동)'),
+        h('div',{class:'val'}, autoDailyRecontact)),
     )
   );
   wrap.append(summary);

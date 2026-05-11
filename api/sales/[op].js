@@ -367,7 +367,7 @@ export default requireAuth(async function handler(req, res) {
       const nyy = mm === 12 ? yy + 1 : yy;
       const nmm = mm === 12 ? 1 : mm + 1;
       const monthEnd = `${nyy}-${String(nmm).padStart(2,'0')}-01`;
-      const [vendors, rows, dayMetaRows, monthAgg] = await Promise.all([
+      const [vendors, rows, dayMetaRows, monthAgg, dayClosingAgg, monthClosingAgg, monthVendorAgg] = await Promise.all([
         sql`SELECT id, code, label, parent_label, color, sort_order
             FROM db_vendors WHERE active = TRUE
             ORDER BY sort_order ASC, id ASC`,
@@ -376,9 +376,22 @@ export default requireAuth(async function handler(req, res) {
         sql`SELECT COALESCE(SUM(recontact_completed),0)::int AS total
             FROM sales_day_meta
             WHERE work_date >= ${monthStart} AND work_date < ${monthEnd}`,
+        // 자동 계산용 — 재컨택 = 실적 마감 - 유입분석 완료
+        sql`SELECT COALESCE(SUM(count),0)::int AS total
+            FROM sales_tm_daily
+            WHERE work_date = ${d}`,
+        sql`SELECT COALESCE(SUM(count),0)::int AS total
+            FROM sales_tm_daily
+            WHERE work_date >= ${monthStart} AND work_date < ${monthEnd}`,
+        sql`SELECT COALESCE(SUM(completed_count),0)::int AS total
+            FROM sales_vendor_daily
+            WHERE work_date >= ${monthStart} AND work_date < ${monthEnd}`,
       ]);
       const meta = dayMetaRows[0] || { work_date: d, recontact_completed: 0, note: null };
-      const monthlyRecontact = monthAgg[0]?.total || 0;
+      const monthlyRecontact   = monthAgg[0]?.total || 0;
+      const dayClosingTotal    = dayClosingAgg[0]?.total || 0;
+      const monthClosingTotal  = monthClosingAgg[0]?.total || 0;
+      const monthVendorCompletedTotal = monthVendorAgg[0]?.total || 0;
       const map = {}; rows.forEach(r => map[r.vendor_id] = r);
       const merged = vendors.map(v => ({
         vendor_id: v.id, code: v.code, label: v.label, parent_label: v.parent_label, color: v.color,
@@ -390,7 +403,10 @@ export default requireAuth(async function handler(req, res) {
         note: map[v.id]?.note || null,
         _exists: !!map[v.id],
       }));
-      return res.status(200).json({ date: d, vendors: merged, meta, monthlyRecontact });
+      return res.status(200).json({
+        date: d, vendors: merged, meta, monthlyRecontact,
+        dayClosingTotal, monthClosingTotal, monthVendorCompletedTotal,
+      });
     }
     if (req.method === 'POST') {
       if (req.query.meta) {
