@@ -232,7 +232,7 @@ export default requireAuth(async function handler(req, res) {
     const nm2 = m === 12 ? 1 : m+1;
     const monthEnd = `${ny2}-${String(nm2).padStart(2,'0')}-01`;
 
-    const [dailyAgg, attAgg] = await Promise.all([
+    const [dailyAgg, attAgg, monthlyOverride] = await Promise.all([
       userIds.length ? sql`
         SELECT user_id,
           COALESCE(SUM(count),0)::int AS total_count,
@@ -251,21 +251,28 @@ export default requireAuth(async function handler(req, res) {
           AND work_date <= ${cutoff}
           AND status = 'APPROVED' AND user_id = ANY(${userIds})
         GROUP BY user_id` : Promise.resolve([]),
+      userIds.length ? sql`
+        SELECT user_id, total_count, total_db
+        FROM sales_tm_monthly
+        WHERE year_month = ${ym} AND user_id = ANY(${userIds})` : Promise.resolve([]),
     ]);
 
     const dMap = {}; dailyAgg.forEach(r => dMap[r.user_id] = r);
     const attMap = {}; attAgg.forEach(r => attMap[r.user_id] = r);
+    const mMap = {}; monthlyOverride.forEach(r => mMap[r.user_id] = r);
 
     const rows = users.map(u => {
       const d = dMap[u.id] || { total_count: 0, total_db: 0 };
       const a = attMap[u.id] || { off_full: 0, off_half: 0 };
+      const m = mMap[u.id]; // monthly override (대표 직접 편집 우선)
       const offDays = Number(a.off_full) + Number(a.off_half) * 0.5;
       return {
         user_id: u.id, name: u.name, role: u.role,
-        total_count: d.total_count,
-        total_db: d.total_db,
+        total_count: m && m.total_count != null ? Number(m.total_count) : d.total_count,
+        total_db:    m && m.total_db    != null ? Number(m.total_db)    : d.total_db,
         off_days: offDays,
         half_days: Number(a.off_half),
+        is_overridden: !!m,
       };
     });
 

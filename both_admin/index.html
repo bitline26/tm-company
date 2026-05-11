@@ -3695,9 +3695,66 @@ function renderSalesTM(){
   const fmtPct=(n)=>((n||0)*100).toFixed(1)+'%';
 
   // 컬럼 — 구분 / 총갯수 / 일평균 / 마감예상 / 총 디비 / 디비평균 / 디비 효율 (휴무/연차/매출 모두 제거)
+  // 헤더 색 — 일 마감과 동일 패턴 (총갯수=완료 노랑, 총디비=초록 계열)
+  const colMeta = {
+    '총갯수': { bg:'#fef9c3', fg:'#854d0e' },
+    '일평균': { bg:'#fef3c7', fg:'#a96400' },
+    '마감예상':{ bg:'#dbeafe', fg:'#1d4ed8' },
+    '총 디비': { bg:'#e7f6e9', fg:'#0f7b6c' },
+    '디비평균':{ bg:'#e0e7ff', fg:'#4338ca' },
+    '디비 효율':{ bg:'#fce7f3', fg:'#9d174d' },
+  };
   const cols=['구분','총갯수','일평균','마감예상','총 디비','디비평균','디비 효율'];
-  const thead=h('thead',null,h('tr',null,...cols.map(c=>h('th',null,c))));
+  const thead=h('thead',null,h('tr',null,...cols.map(c=>{
+    const m = colMeta[c];
+    return m ? h('th',{style:`background:${m.bg};color:${m.fg}`}, c) : h('th',null,c);
+  })));
   const tbody=h('tbody');
+
+  // 월 마감 직접 편집 셀 (총갯수 / 총 디비) — sales_tm_monthly POST → tm-summary가 override 우선
+  async function saveMonthlyCell(uid, patch){
+    try{
+      await api('/api/sales/tm-monthly',{method:'POST',body:{
+        user_id: uid, year_month: State.salesYm,
+        ...patch
+      }});
+      State.salesTmLoadedKey = null;
+      await loadSalesContext('sales-tm');
+      renderApp();
+    }catch(e){ alert(e.message); }
+  }
+  function editableMonthCell(uid, key, val){
+    const m = key==='total_count' ? colMeta['총갯수'] : colMeta['총 디비'];
+    if (!isPriv) {
+      return h('td',{style:`text-align:center;font-variant-numeric:tabular-nums;font-weight:700;background:${m.bg};color:${m.fg};padding:4px 6px`}, fmtNum(val||0));
+    }
+    const input = h('input',{
+      type:'text', inputmode:'numeric', value:String(val||0),
+      style:`width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;font-size:13px;padding:0;color:${m.fg};`
+    });
+    const td = h('td',{style:`padding:4px 6px;background:${m.bg};text-align:center`}, input);
+    input.addEventListener('focus',()=>{ td.style.outline='2px solid #2563eb'; input.select(); });
+    input.addEventListener('blur',async()=>{
+      td.style.outline='none';
+      const raw = input.value.replace(/[^0-9-]/g,'');
+      const newVal = Number(raw)||0;
+      input.value = String(newVal);
+      if (newVal !== Number(val||0)) {
+        // 기존 행 값 둘 다 보내야 함 (POST는 둘 다 받음)
+        const cur = computed.find(x=>x.user_id===uid) || {};
+        const body = key==='total_count'
+          ? { total_count: newVal, total_db: Number(cur.total_db||0) }
+          : { total_count: Number(cur.total_count||0), total_db: newVal };
+        await saveMonthlyCell(uid, body);
+      }
+    });
+    input.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){ e.preventDefault(); input.blur(); }
+      else if(e.key==='Escape'){ input.value = String(val||0); input.blur(); }
+    });
+    return td;
+  }
+
   for (const r of computed){
     const isSelf=r.user_id===me.id;
     const eff=r.eff;
@@ -3711,12 +3768,12 @@ function renderSalesTM(){
           r.role==='manager'?h('span',{class:'role-badge role-manager',style:'margin-left:4px;font-size:10px'},'차장'):null
         )
       ),
-      h('td',null, fmtNum(r.total_count)),
-      h('td',null, fmtNum(r.dayAvg,1)),
-      h('td',null, fmtNum(r.projected,0)),
-      h('td',null, fmtNum(r.total_db)),
-      h('td',null, fmtNum(r.dbAvg,0)),
-      h('td',{class:'eff-cell',style:`color:${effColor}`}, fmtPct(eff)),
+      editableMonthCell(r.user_id, 'total_count', r.total_count),
+      h('td',{style:`background:${colMeta['일평균'].bg};color:${colMeta['일평균'].fg};text-align:center;font-weight:700`}, fmtNum(r.dayAvg,1)),
+      h('td',{style:`background:${colMeta['마감예상'].bg};color:${colMeta['마감예상'].fg};text-align:center;font-weight:700`}, fmtNum(r.projected,0)),
+      editableMonthCell(r.user_id, 'total_db', r.total_db),
+      h('td',{style:`background:${colMeta['디비평균'].bg};color:${colMeta['디비평균'].fg};text-align:center;font-weight:700`}, fmtNum(r.dbAvg,0)),
+      h('td',{class:'eff-cell',style:`background:${colMeta['디비 효율'].bg};color:${effColor};text-align:center;font-weight:700`}, fmtPct(eff)),
     ));
   }
   tbody.append(h('tr',{class:'total-row'},
@@ -3877,15 +3934,17 @@ function renderSalesTMDaily(){
   }
 
   // 엑셀식 직접 편집 셀 — 항상 input 노출, 스피너 제거, 드래그 선택 가능, 자동 저장
+  // 모든 컬럼 셀 배경 = 헤더 배경(headBg)와 동일 — 시각적 일치
   function editableCell(uid, key, val){
-    const isComplete = key==='count';
-    const cellBg = isComplete ? '#fef9c3' : 'transparent'; // 완료 컬럼은 노란 강조
+    const colDef = colDefs.find(c=>c.key===key) || {};
+    const cellBg = colDef.headBg || 'transparent';
+    const cellFg = colDef.headFg || 'inherit';
     if (!isPriv) {
-      return h('td',{style:`text-align:center;font-variant-numeric:tabular-nums;font-weight:600;background:${cellBg};padding:4px 6px`}, fmtNum(val||0));
+      return h('td',{style:`text-align:center;font-variant-numeric:tabular-nums;font-weight:700;background:${cellBg};color:${cellFg};padding:4px 6px`}, fmtNum(val||0));
     }
     const input = h('input',{
       type:'text', inputmode:'numeric', value:String(val||0),
-      style:'width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;text-align:center;font-variant-numeric:tabular-nums;font-weight:600;font-size:13px;padding:0;color:inherit;'
+      style:`width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;font-size:13px;padding:0;color:${cellFg};`
     });
     const td = h('td',{style:`padding:4px 6px;background:${cellBg};text-align:center`}, input);
     input.addEventListener('focus',()=>{ td.style.outline='2px solid #2563eb'; input.select(); });
