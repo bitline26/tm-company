@@ -500,6 +500,11 @@ const State = {
   salesTmTodayMap: {},       // { user_id → {db_count, is_off} }
   myTmToday: null,           // 본인 오늘 (employee home 용)
 
+  // 일 TM 마감 페이지
+  salesTmDailyDate: null,    // 선택 일자 (YYYY-MM-DD)
+  salesTmDailyRows: [],      // 그달 sales_tm_daily 전체 행
+  salesTmDailyLoadedYm: null,
+
   // 직원 '내 마감' 페이지
   myClosingRows: [],         // 본인 sales_tm_daily 월별 행
   myClosingLoadedYm: null,
@@ -891,7 +896,8 @@ function renderAdminApp(){
       navItem('grid','팀 캘린더','📅'),
       h('div',{class:'nav-group-h'},'실적'),
       navItem('sales-orders','PB 내역','📋'),
-      navItem('sales-tm','TM 마감','📊'),
+      navItem('sales-tm','월 TM 마감','📊'),
+      navItem('sales-tm-daily','일 TM 마감','📅'),
       navItem('sales-vendor','유입 분석','📈'),
     ),
     h('div',{class:'side-foot'},
@@ -911,6 +917,7 @@ function renderAdminApp(){
   else if(State.page==='employee-mgmt') content=renderEmployeeMgmt();
   else if(State.page==='sales-orders') content=renderSalesOrders();
   else if(State.page==='sales-tm') content=renderSalesTM();
+  else if(State.page==='sales-tm-daily') content=renderSalesTMDaily();
   else if(State.page==='sales-vendor') content=renderSalesVendor();
 
   const main=h('section',{class:'main'},
@@ -1135,7 +1142,7 @@ function _renderHistoryOnly(u){
 function renderTopbar(){
   const titleMap={
     people:'직원',approval:'승인 대기','signup-approval':'가입 승인','employee-mgmt':'직원 관리',grid:'팀 캘린더',
-    'sales-orders':'PB 내역','sales-tm':'TM 마감 보고','sales-vendor':'유입 분석'
+    'sales-orders':'PB 내역','sales-tm':'월 TM 마감','sales-tm-daily':'일 TM 마감','sales-vendor':'유입 분석'
   };
   let title=titleMap[State.page]||'';
   if(State.selectedPersonId){
@@ -2332,6 +2339,16 @@ async function loadSalesContext(page, force){
         State.salesTmTodayMap = map;
       }).catch(()=>{}));
     }
+  } else if (page==='sales-tm-daily'){
+    const d = State.salesTmDailyDate || (new Date().toISOString().slice(0,10));
+    State.salesTmDailyDate = d;
+    const ymKey = d.slice(0,7);
+    if (force || State.salesTmDailyLoadedYm !== ymKey){
+      tasks.push(api(`/api/sales/tm-daily?ym=${ymKey}`).then(r=>{
+        State.salesTmDailyRows = r.rows || [];
+        State.salesTmDailyLoadedYm = ymKey;
+      }));
+    }
   } else if (page==='sales-vendor'){
     const d=State.salesDate || (new Date().toISOString().slice(0,10));
     State.salesDate=d;
@@ -2354,6 +2371,7 @@ async function navTo(key){
   const needsSalesLoad = key && key.startsWith('sales-') && (
     (key==='sales-orders' && State.salesOrdersLoadedYm !== (State.salesYm||todayYm())) ||
     (key==='sales-tm'     && State.salesTmLoadedKey   !== `${State.salesYm||todayYm()}|${State.salesCutoff||new Date().toISOString().slice(0,10)}`) ||
+    (key==='sales-tm-daily' && State.salesTmDailyLoadedYm !== (State.salesTmDailyDate||new Date().toISOString().slice(0,10)).slice(0,7)) ||
     (key==='sales-vendor' && State.salesVendorLoadedDate !== (State.salesDate||new Date().toISOString().slice(0,10)))
   );
   const needsClosingLoad = (key==='my-closing' && State.myClosingLoadedYm !== (State.salesYm||todayYm()));
@@ -2710,7 +2728,42 @@ function renderSalesTM(){
       `실 근무일 ${State.salesTmElapsed} · 남은 ${State.salesTmRemaining}`
     )
   );
-  wrap.append(toolbar);
+
+  // 빠른 날짜 필터 — TM 마감은 월/cutoff 기반
+  const fmtYmdLocalT=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const _t=new Date();
+  const _todayYmd=fmtYmdLocalT(_t);
+  const _yd=new Date(_t); _yd.setDate(_yd.getDate()-1); const _ydYmd=fmtYmdLocalT(_yd);
+  const _curYm=`${_t.getFullYear()}-${String(_t.getMonth()+1).padStart(2,'0')}`;
+  const _prevD=new Date(_t.getFullYear(), _t.getMonth()-1, 1);
+  const _prevYm=`${_prevD.getFullYear()}-${String(_prevD.getMonth()+1).padStart(2,'0')}`;
+  const _prevLast=new Date(_t.getFullYear(), _t.getMonth(), 0);
+  const _prevLastYmd=fmtYmdLocalT(_prevLast);
+  const _3mD=new Date(_t); _3mD.setMonth(_3mD.getMonth()-3); const _3mYmd=fmtYmdLocalT(_3mD);
+
+  async function applyTmRange(targetYm, targetCutoff){
+    State.salesYm = targetYm; State.salesCutoff = targetCutoff;
+    State.salesTmLoadedKey = null; State.loadingPage='sales-tm';
+    renderApp();
+    await loadSalesContext('sales-tm');
+    State.loadingPage=null; renderApp();
+  }
+  function qBtnT(label, onClick, active){
+    return h('button',{class:'btn'+(active?' btn-primary':''), style:'padding:6px 12px;font-size:12px', onClick}, label);
+  }
+  const curYmT=State.salesYm||_curYm, curCutT=State.salesCutoff||_todayYmd;
+  const quickBarT = h('div',{class:'sales-toolbar',style:'gap:6px;flex-wrap:wrap'},
+    h('span',{class:'label'},'빠른 날짜'),
+    qBtnT('오늘',      ()=>applyTmRange(_curYm, _todayYmd),    curYmT===_curYm && curCutT===_todayYmd),
+    qBtnT('어제',      ()=>applyTmRange(_curYm, _ydYmd),       curYmT===_curYm && curCutT===_ydYmd),
+    qBtnT('당월',      ()=>applyTmRange(_curYm, _todayYmd),    curYmT===_curYm && curCutT===_todayYmd),
+    qBtnT('전월',      ()=>applyTmRange(_prevYm,_prevLastYmd), curYmT===_prevYm && curCutT===_prevLastYmd),
+    qBtnT('최근 3개월', ()=>applyTmRange(_curYm, _todayYmd),    false),
+    qBtnT('전체(초기화)',()=>applyTmRange(_curYm, _todayYmd),    false),
+    h('span',{style:'margin-left:8px;color:var(--text-soft);font-size:11px'},
+      `※ TM 마감은 월(${curYmT}) + 마감기준(${curCutT}) 기준`)
+  );
+  wrap.append(quickBarT, toolbar);
 
   // TM 마감은 결과표(read-only). 입력은 각 직원이 본인 페이지('내 근태' → 오늘 입력 카드)에서 함.
   // 우상단에 안내 라벨만 표시
@@ -2810,6 +2863,188 @@ function renderSalesTM(){
   return wrap;
 }
 
+// ─────── 일 TM 마감 (월 TM 마감의 일자 버전) ───────
+function renderSalesTMDaily(){
+  const me=State.user;
+  const isPriv=me.role==='admin'||me.role==='manager';
+  const wrap=h('div');
+
+  const d = State.salesTmDailyDate || new Date().toISOString().slice(0,10);
+  if (State.loadingPage==='sales-tm-daily' && State.salesTmDailyLoadedYm===null){
+    return h('div',{class:'sales-empty',style:'padding:80px 20px'},
+      h('div',{class:'ico'},'⏳'),
+      h('div',null,'일 TM 마감 로딩 중…'));
+  }
+
+  const dateI=h('input',{type:'date',value:d});
+  dateI.addEventListener('change',async()=>{
+    State.salesTmDailyDate = dateI.value;
+    const ymKey = dateI.value.slice(0,7);
+    if (State.salesTmDailyLoadedYm !== ymKey){
+      State.salesTmDailyLoadedYm = null;
+      State.loadingPage='sales-tm-daily'; renderApp();
+      await loadSalesContext('sales-tm-daily');
+      State.loadingPage=null;
+    }
+    renderApp();
+  });
+
+  // 빠른 날짜 필터 — 일 TM 마감
+  const fmtYmdLocalD=(dd)=>`${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,'0')}-${String(dd.getDate()).padStart(2,'0')}`;
+  const _dt=new Date();
+  const _dToday=fmtYmdLocalD(_dt);
+  const _dY=new Date(_dt); _dY.setDate(_dY.getDate()-1); const _dYesterday=fmtYmdLocalD(_dY);
+  const _dMonthStart=fmtYmdLocalD(new Date(_dt.getFullYear(),_dt.getMonth(),1));
+  const _dPrevLast=fmtYmdLocalD(new Date(_dt.getFullYear(),_dt.getMonth(),0));
+  const _d3m=new Date(_dt); _d3m.setMonth(_d3m.getMonth()-3); const _d3mYmd=fmtYmdLocalD(_d3m);
+
+  async function applyDailyDate(target){
+    State.salesTmDailyDate = target;
+    const ymKey = target.slice(0,7);
+    if (State.salesTmDailyLoadedYm !== ymKey){
+      State.salesTmDailyLoadedYm = null;
+      State.loadingPage='sales-tm-daily'; renderApp();
+      await loadSalesContext('sales-tm-daily');
+      State.loadingPage=null;
+    }
+    renderApp();
+  }
+  function qBtnD(label, onClick, active){
+    return h('button',{class:'btn'+(active?' btn-primary':''), style:'padding:6px 12px;font-size:12px', onClick}, label);
+  }
+  const quickBarD = h('div',{class:'sales-toolbar',style:'gap:6px;flex-wrap:wrap'},
+    h('span',{class:'label'},'빠른 날짜'),
+    qBtnD('오늘',         ()=>applyDailyDate(_dToday),      d===_dToday),
+    qBtnD('어제',         ()=>applyDailyDate(_dYesterday),  d===_dYesterday),
+    qBtnD('당월 1일',     ()=>applyDailyDate(_dMonthStart), d===_dMonthStart),
+    qBtnD('전월 말일',    ()=>applyDailyDate(_dPrevLast),   d===_dPrevLast),
+    qBtnD('3개월 전',     ()=>applyDailyDate(_d3mYmd),      d===_d3mYmd),
+    qBtnD('초기화',       ()=>applyDailyDate(_dToday),      false),
+  );
+  const toolbar=h('div',{class:'sales-toolbar'},
+    h('span',{class:'label'},'일자'), dateI,
+    h('span',{style:'margin-left:8px;color:var(--text-soft);font-size:11px'},
+      `※ 일 TM 마감 — ${d} 기준`)
+  );
+  wrap.append(quickBarD, toolbar);
+
+  // 데이터: 그 일자에 해당하는 행만
+  const dayRows = (State.salesTmDailyRows||[])
+    .filter(r=>String(r.work_date).slice(0,10)===d);
+  const byUser = {}; dayRows.forEach(r=>byUser[r.user_id]=r);
+  const users = State.users.filter(u=>u.role!=='admin');
+
+  const fmtNum=(n,p=0)=>(Number(n||0)).toLocaleString('ko-KR',{maximumFractionDigits:p});
+  const fmtPct=(n)=>((n||0)*100).toFixed(1)+'%';
+
+  // 합계
+  let sumCount=0, sumDb=0, offCnt=0;
+  users.forEach(u=>{
+    const r=byUser[u.id];
+    if (r){ sumCount+=Number(r.count||0); sumDb+=Number(r.db_count||0); if(r.is_off) offCnt++; }
+  });
+  const totalEff = sumDb>0 ? sumCount/sumDb : 0;
+
+  const cols=['이름','상태','마감(건)','디비(건)','효율','휴무'];
+  const thead=h('thead',null,h('tr',null,...cols.map(c=>h('th',null,c))));
+  const tbody=h('tbody');
+
+  async function saveDailyCell(uid, patch){
+    const cur = byUser[uid] || { user_id:uid, work_date:d, db_count:0, count:0, is_off:false };
+    const body = {
+      user_id: uid, work_date: d,
+      db_count: Number(patch.db_count ?? cur.db_count ?? 0),
+      count:    Number(patch.count    ?? cur.count    ?? 0),
+      is_off:   patch.is_off ?? cur.is_off ?? false,
+    };
+    try{
+      const r = await api('/api/sales/tm-daily',{method:'POST',body});
+      // 캐시 업데이트
+      const idx = State.salesTmDailyRows.findIndex(x=>x.user_id===uid && String(x.work_date).slice(0,10)===d);
+      const merged = { ...(idx>=0?State.salesTmDailyRows[idx]:{}), ...r.row };
+      if (idx>=0) State.salesTmDailyRows[idx] = merged;
+      else State.salesTmDailyRows.push(merged);
+      renderApp();
+    }catch(e){ alert(e.message); }
+  }
+
+  function editableCell(uid, key, val){
+    const cell=h('td',null, fmtNum(val||0));
+    if (!isPriv) return cell;
+    cell.style.cursor='pointer';
+    cell.addEventListener('click',()=>{
+      if (cell.classList.contains('editing')) return;
+      cell.classList.add('editing'); cell.innerHTML='';
+      const input=h('input',{type:'number',min:0,value:Number(val||0),style:'width:80px'});
+      cell.append(input);
+      setTimeout(()=>{ try{ input.focus(); input.select(); }catch(_){} },10);
+      const finish=async(commit)=>{
+        cell.classList.remove('editing');
+        if (commit){
+          await saveDailyCell(uid, {[key]: Number(input.value)||0});
+        } else {
+          cell.innerHTML=''; cell.append(document.createTextNode(fmtNum(val||0)));
+        }
+      };
+      input.addEventListener('blur',()=>finish(true));
+      input.addEventListener('keydown',e=>{
+        if(e.key==='Enter') finish(true);
+        else if(e.key==='Escape') finish(false);
+      });
+    });
+    return cell;
+  }
+
+  for (const u of users){
+    const r = byUser[u.id];
+    const count = r?.count || 0;
+    const db    = r?.db_count || 0;
+    const isOff = !!r?.is_off;
+    const eff   = db>0 ? count/db : 0;
+    const effColor = eff>=0.20?'#0f7b6c':eff>=0.15?'#1d4ed8':eff>=0.10?'#a96400':'#b91c1c';
+    const status = getTodayStatus(u.id, State.records);
+
+    const offTd = isPriv
+      ? (function(){
+          const td=h('td',null);
+          const btn=h('button',{class:'btn'+(isOff?' btn-primary':''), style:'padding:4px 10px;font-size:11.5px'}, isOff?'휴무':'정상');
+          btn.addEventListener('click',()=>saveDailyCell(u.id,{is_off:!isOff}));
+          td.append(btn);
+          return td;
+        })()
+      : h('td',null, isOff?'휴무':'-');
+
+    tbody.append(h('tr',null,
+      h('td',null,
+        h('span',{style:'display:inline-flex;align-items:center;gap:7px'},
+          h('span',{class:'avatar',style:`width:22px;height:22px;font-size:10.5px;background:${nameColor(u.name)}`}, initial(u.name)),
+          u.name,
+          Number(u.tier)===1?h('span',{class:'role-badge',style:'margin-left:4px;font-size:10px;background:#fdecc8;color:#cb912f'},'1차'):
+          Number(u.tier)===2?h('span',{class:'role-badge',style:'margin-left:4px;font-size:10px;background:#d3e5ef;color:#0b6e99'},'2차'):null
+        )
+      ),
+      h('td',{style:'text-align:left'}, statusBadge(status)),
+      editableCell(u.id,'count',count),
+      editableCell(u.id,'db_count',db),
+      h('td',{class:'eff-cell',style:`color:${effColor}`}, fmtPct(eff)),
+      offTd,
+    ));
+  }
+  tbody.append(h('tr',{class:'total-row'},
+    h('td',null,'합계'),
+    h('td',null,'—'),
+    h('td',null, fmtNum(sumCount)),
+    h('td',null, fmtNum(sumDb)),
+    h('td',null, fmtPct(totalEff)),
+    h('td',null, `${offCnt}명 휴무`),
+  ));
+  const table=h('table',{class:'tm-table'}, thead, tbody);
+  const tableWrap=h('div',{class:'orders-wrap'}, table);
+  wrap.append(tableWrap);
+
+  return wrap;
+}
+
 // ─────── 요청 3: 유입 분석 ───────
 // 권한: 직원/차장 = 편집, 대표(admin) = 결과만 보기
 function renderSalesVendor(){
@@ -2849,7 +3084,40 @@ function renderSalesVendor(){
     h('span',{class:'label',style:'margin-left:14px'},'당일 재컨택 완료'), recontactI,
     null
   );
-  wrap.append(toolbar);
+
+  // 빠른 날짜 필터 — 유입 분석은 단일 일자 기준
+  const fmtYmdLocalV=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const _vt=new Date();
+  const _vToday=fmtYmdLocalV(_vt);
+  const _vY=new Date(_vt); _vY.setDate(_vY.getDate()-1); const _vYesterday=fmtYmdLocalV(_vY);
+  const _vMonthStart=fmtYmdLocalV(new Date(_vt.getFullYear(),_vt.getMonth(),1));
+  const _vPrevLast=fmtYmdLocalV(new Date(_vt.getFullYear(),_vt.getMonth(),0));
+  const _vPrevFirst=fmtYmdLocalV(new Date(_vt.getFullYear(),_vt.getMonth()-1,1));
+  const _v3m=new Date(_vt); _v3m.setMonth(_v3m.getMonth()-3); const _v3mYmd=fmtYmdLocalV(_v3m);
+
+  async function applyVendorDate(d){
+    State.salesDate = d; State.salesVendorLoadedDate = null;
+    State.loadingPage='sales-vendor';
+    renderApp();
+    await loadSalesContext('sales-vendor');
+    State.loadingPage=null; renderApp();
+  }
+  function qBtnV(label, onClick, active){
+    return h('button',{class:'btn'+(active?' btn-primary':''), style:'padding:6px 12px;font-size:12px', onClick}, label);
+  }
+  const curDateV = State.salesDate || _vToday;
+  const quickBarV = h('div',{class:'sales-toolbar',style:'gap:6px;flex-wrap:wrap'},
+    h('span',{class:'label'},'빠른 날짜'),
+    qBtnV('오늘',         ()=>applyVendorDate(_vToday),     curDateV===_vToday),
+    qBtnV('어제',         ()=>applyVendorDate(_vYesterday), curDateV===_vYesterday),
+    qBtnV('당월 1일',     ()=>applyVendorDate(_vMonthStart),curDateV===_vMonthStart),
+    qBtnV('전월 말일',    ()=>applyVendorDate(_vPrevLast),  curDateV===_vPrevLast),
+    qBtnV('3개월 전',     ()=>applyVendorDate(_v3mYmd),     curDateV===_v3mYmd),
+    qBtnV('초기화',       ()=>applyVendorDate(_vToday),     false),
+    h('span',{style:'margin-left:8px;color:var(--text-soft);font-size:11px'},
+      `※ 유입 분석은 단일 일자(${curDateV}) 기준`)
+  );
+  wrap.append(quickBarV, toolbar);
 
   // 상단 합계
   const rows=State.salesVendorRows;
