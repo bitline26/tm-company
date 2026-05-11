@@ -639,6 +639,14 @@ async function loadMyTmToday(){
 
 function renderAuth(){
   const root=$('#app'); root.innerHTML='';
+  // login 함수(Edge) + Neon TLS 백그라운드 워밍 — 사용자 타이핑 동안 콜드 상태 해제
+  // 빈 이름은 SELECT 호출 안 함 → 우리는 일부러 더미 이름을 보내서 Neon까지 워밍
+  fetch('/api/auth/login',{
+    method:'POST',
+    headers:{'content-type':'application/json'},
+    body:JSON.stringify({name:'__warm__',password:'__warm__'}),
+    credentials:'same-origin',
+  }).catch(()=>{});
   const tab={cur:'login'};
   const card=h('div',{class:'auth-card'});
 
