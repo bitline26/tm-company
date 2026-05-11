@@ -518,7 +518,7 @@ const State = {
   salesDayClosingTotal: 0,         // 당일 sales_tm_daily.count SUM
   salesMonthClosingTotal: 0,       // 당월 sales_tm_daily.count SUM
   salesMonthVendorCompletedTotal:0,// 당월 sales_vendor_daily.completed_count SUM
-  salesOrdersFilter: { status:'ALL', tm:'ALL', vendor:'ALL', q:'', dateFrom:'', dateTo:'' },
+  salesOrdersFilter: { status:'UNPAID', tm:'ALL', vendor:'ALL', q:'', dateFrom:'', dateTo:'' },
 
   // 캐시 키 (로드된 컨텍스트 추적 — 같은 키면 페치 스킵)
   salesOrdersLoadedYm: null,
@@ -938,6 +938,7 @@ function renderAdminApp(){
       h('div',{class:'nav-group-h'},'인사'),
       navItem('people','직원','👥'),
       isPriv?navItem('approval','승인 대기','✔︎',pendingCount||null):null,
+      State.user.role==='admin'?navItem('admin-signup','회원가입','👤'):null,
       State.user.role==='admin'?navItem('employee-mgmt','직원 관리','🛡️'):null,
       navItem('grid','팀 캘린더','📅'),
       h('div',{class:'nav-group-h'},'실적'),
@@ -962,6 +963,7 @@ function renderAdminApp(){
   else if(State.page==='approval') content=renderApproval();
   else if(State.page==='signup-approval') { State.page='employee-mgmt'; content=renderEmployeeMgmt(); }
   else if(State.page==='employee-mgmt') content=renderEmployeeMgmt();
+  else if(State.page==='admin-signup') content=renderAdminSignup();
   else if(State.page==='sales-orders') content=renderSalesOrders();
   else if(State.page==='sales-tm') content=renderSalesTM();
   else if(State.page==='sales-tm-daily') content=renderSalesTMDaily();
@@ -1199,7 +1201,7 @@ function _renderHistoryOnly(u){
 
 function renderTopbar(){
   const titleMap={
-    people:'직원',approval:'승인 대기','signup-approval':'가입 승인','employee-mgmt':'직원 관리',grid:'팀 캘린더',
+    people:'직원',approval:'승인 대기','admin-signup':'회원가입','employee-mgmt':'직원 관리',grid:'팀 캘린더',
     'sales-orders':'PB 내역','sales-tm':'월 TM 마감','sales-tm-daily':'일 TM 마감','sales-vendor':'유입 분석'
   };
   let title=titleMap[State.page]||'';
@@ -2399,6 +2401,70 @@ async function loadEmployeeMgmt(){
   }
 }
 
+// 대표 전용 — 직접 직원 계정 생성 (POST /api/auth/signup)
+function renderAdminSignup(){
+  const inputStyle = 'width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fcfcfb;outline:none';
+  const labelStyle = 'font-size:12px;font-weight:600;color:var(--text-soft);margin-bottom:6px';
+  const field=(label, input, hint)=>h('div',{style:'display:flex;flex-direction:column;margin-bottom:14px'},
+    h('div',{style:labelStyle}, label),
+    input,
+    hint?h('div',{style:'font-size:11px;color:var(--text-soft);margin-top:4px'},hint):null
+  );
+
+  const nameI = h('input',{type:'text',placeholder:'예: 홍길동',style:inputStyle,maxlength:32});
+  const pwI   = h('input',{type:'text',placeholder:'직원이 사용할 비밀번호',style:inputStyle,maxlength:64});
+  const tierSel = h('select',{style:inputStyle},
+    h('option',{value:'1'},'1차직원'),
+    h('option',{value:'2'},'2차직원')
+  );
+  const roleSel = h('select',{style:inputStyle},
+    h('option',{value:'employee'},'직원'),
+    h('option',{value:'manager'},'차장(권한↑)')
+  );
+
+  const msg = h('div',{style:'margin-top:10px;font-size:13px;min-height:18px'});
+  const submitBtn = h('button',{class:'btn btn-primary',style:'padding:11px 22px;font-size:14px;font-weight:700;min-width:120px'},'계정 생성');
+
+  async function submit(){
+    const name = nameI.value.trim();
+    const password = pwI.value;
+    if (!name) { msg.style.color='#b91c1c'; msg.textContent='이름을 입력하세요'; return; }
+    if (!password || password.length<4) { msg.style.color='#b91c1c'; msg.textContent='비밀번호 4자 이상'; return; }
+    submitBtn.disabled = true; submitBtn.textContent='생성 중…';
+    msg.style.color='var(--text-soft)'; msg.textContent='요청 중…';
+    try{
+      const r = await api('/api/auth/signup',{method:'POST',body:{
+        name, password, tier:Number(tierSel.value), role:roleSel.value
+      }});
+      msg.style.color='#15803d'; msg.textContent = r.message || `${name} 계정 생성 완료`;
+      nameI.value=''; pwI.value=''; tierSel.value='1'; roleSel.value='employee';
+      State.employeeMgmt = null; // 직원 관리 목록 갱신용
+      try{ await loadMonth(); }catch(_){} // State.users 새로고침 (드롭다운에 즉시 반영)
+      nameI.focus();
+    }catch(e){
+      msg.style.color='#b91c1c'; msg.textContent = e.message || '실패';
+    }finally{
+      submitBtn.disabled = false; submitBtn.textContent='계정 생성';
+    }
+  }
+  submitBtn.addEventListener('click', submit);
+  [nameI,pwI].forEach(el=>el.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); submit(); }}));
+
+  return h('div',{style:'padding:24px;max-width:520px'},
+    h('h2',{style:'margin:0 0 6px;font-size:20px;font-weight:700'},'회원가입'),
+    h('div',{style:'font-size:12.5px;color:var(--text-soft);margin-bottom:18px'},
+      '대표가 직접 직원 계정을 생성합니다. 생성 즉시 로그인 가능 (별도 승인 단계 없음).'),
+    h('div',{style:'background:#fff;border:1px solid var(--border);border-radius:12px;padding:22px'},
+      field('이름', nameI, '직원이 로그인할 때 입력하는 이름'),
+      field('비밀번호', pwI, '직원에게 따로 안전하게 전달하세요'),
+      field('직급 분류', tierSel, '1차 = 휴무만 신청 가능 / 2차 = 휴무·연차·월차·반차·병가'),
+      field('권한', roleSel, '차장 = 다른 직원 일정 보기/입력 가능'),
+      h('div',{style:'display:flex;justify-content:flex-end;margin-top:8px'}, submitBtn),
+      msg
+    )
+  );
+}
+
 function renderEmployeeMgmt(){
   if(State.employeeMgmt===null){
     loadEmployeeMgmt().then(()=>{ if(State.user) renderApp(); });
@@ -2867,7 +2933,7 @@ function renderSalesOrders(){
     h('button',{class:'btn',style:'padding:6px 14px;font-size:12px',
       onClick:()=>{
         // 필터/날짜 초기화
-        State.salesOrdersFilter={status:'ALL',tm:'ALL',vendor:'ALL',q:'',dateFrom:'',dateTo:''};
+        State.salesOrdersFilter={status:'UNPAID',tm:'ALL',vendor:'ALL',q:'',dateFrom:'',dateTo:''};
         State.salesYm = thisYm;
         State.salesOrdersLoadedYm = null;
         State._salesOrderChecked = new Set();
@@ -2881,6 +2947,7 @@ function renderSalesOrders(){
   const toolbar=h('div',{class:'sales-toolbar'},
     h('span',{class:'label'},'월'), ymI,
     filterStatus,
+    filterTm,
     h('div',{style:'flex:1;min-width:160px'}, searchI),
     addBtn   // 직원도 본인 PB 추가 가능 (server: tm_user_id = me.id 자동)
   );
@@ -3387,9 +3454,9 @@ function openOrderModal(existingOrder){
     ),
     h('div',{style:'padding:0 22px 18px'},
       field('메모', noteI),
-      // 자주 쓰는 메모 빠른 입력 — 클릭 시 메모란에 채워짐
+      // 자주 쓰는 메모 빠른 입력 — '입금증필요' 한 개
       (()=>{
-        const PRESETS = ['입금증필요','당일입금안내O','대표전화인입','카드등록 오류 처리','당월 입금 예정'];
+        const PRESETS = ['입금증필요'];
         const wrap = h('div',{style:'display:flex;flex-wrap:wrap;gap:6px;margin-top:8px'});
         PRESETS.forEach(text=>{
           const chip = h('button',{
