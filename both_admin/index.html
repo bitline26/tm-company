@@ -425,6 +425,11 @@
   .tm-table .col-input:hover{background:#f1f5fb !important}
   .tm-table .col-input.editing{padding:0}
   .tm-table .col-input input{width:100%;padding:9px 12px;border:none;outline:2px solid #0f0f0f;outline-offset:-2px;text-align:right;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+  /* 엑셀식 직접 편집 input — type=text 라 spinner 없음, 셀에 딱 맞게 */
+  .tm-table input[type=text]::selection{background:#bfdbfe}
+  .tm-table input[type=number]::-webkit-inner-spin-button,
+  .tm-table input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  .tm-table input[type=number]{-moz-appearance:textfield}
   .tm-table .total-row td{background:#0f0f0f !important;color:#fff;font-weight:800;font-size:14px}
   .tm-table .eff-cell{font-weight:700}
   .tm-table .off-cell{color:#b91c1c;font-weight:700}
@@ -3871,31 +3876,33 @@ function renderSalesTMDaily(){
     }catch(e){ alert(e.message); }
   }
 
+  // 엑셀식 직접 편집 셀 — 항상 input 노출, 스피너 제거, 드래그 선택 가능, 자동 저장
   function editableCell(uid, key, val){
-    const cell=h('td',{style:'text-align:right;font-variant-numeric:tabular-nums;font-weight:600'}, fmtNum(val||0));
-    if (!isPriv) return cell;
-    cell.style.cursor='pointer';
-    cell.addEventListener('click',()=>{
-      if (cell.classList.contains('editing')) return;
-      cell.classList.add('editing'); cell.innerHTML='';
-      const input=h('input',{type:'number',min:0,value:Number(val||0),style:'width:64px;text-align:right'});
-      cell.append(input);
-      setTimeout(()=>{ try{ input.focus(); input.select(); }catch(_){} },10);
-      const finish=async(commit)=>{
-        cell.classList.remove('editing');
-        if (commit){
-          await saveDailyCell(uid, {[key]: Number(input.value)||0});
-        } else {
-          cell.innerHTML=''; cell.append(document.createTextNode(fmtNum(val||0)));
-        }
-      };
-      input.addEventListener('blur',()=>finish(true));
-      input.addEventListener('keydown',e=>{
-        if(e.key==='Enter') finish(true);
-        else if(e.key==='Escape') finish(false);
-      });
+    const isComplete = key==='count';
+    const cellBg = isComplete ? '#fef9c3' : 'transparent'; // 완료 컬럼은 노란 강조
+    if (!isPriv) {
+      return h('td',{style:`text-align:center;font-variant-numeric:tabular-nums;font-weight:600;background:${cellBg};padding:4px 6px`}, fmtNum(val||0));
+    }
+    const input = h('input',{
+      type:'text', inputmode:'numeric', value:String(val||0),
+      style:'width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;text-align:center;font-variant-numeric:tabular-nums;font-weight:600;font-size:13px;padding:0;color:inherit;'
     });
-    return cell;
+    const td = h('td',{style:`padding:4px 6px;background:${cellBg};text-align:center`}, input);
+    input.addEventListener('focus',()=>{ td.style.outline='2px solid #2563eb'; input.select(); });
+    input.addEventListener('blur',async()=>{
+      td.style.outline='none';
+      const raw = input.value.replace(/[^0-9-]/g,'');
+      const newVal = Number(raw)||0;
+      input.value = String(newVal);
+      if (newVal !== Number(val||0)) {
+        await saveDailyCell(uid, {[key]: newVal});
+      }
+    });
+    input.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){ e.preventDefault(); input.blur(); }
+      else if(e.key==='Escape'){ input.value = String(val||0); input.blur(); }
+    });
+    return td;
   }
 
   for (const u of users){
