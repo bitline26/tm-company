@@ -510,6 +510,12 @@ const State = {
   salesTmDailyRows: [],      // 그달 sales_tm_daily 전체 행
   salesTmDailyLoadedYm: null,
 
+  // 퍼포먼스 상세 (TM 마감에서 직원 클릭 시)
+  perfPersonId: null,        // 선택된 직원
+  perfRange: 'thisMonth',    // 빠른 기간
+  perfRows: null,            // 해당 직원의 sales_tm_daily 행 (range 기준)
+  perfRangeKey: null,
+
   // 직원 '내 마감' 페이지
   myClosingRows: [],         // 본인 sales_tm_daily 월별 행
   myClosingLoadedYm: null,
@@ -914,7 +920,8 @@ function renderAdminApp(){
   );
 
   let content;
-  if(State.selectedPersonId) content=renderPersonDetail();
+  if(State.perfPersonId) content=renderPerformanceDetail();
+  else if(State.selectedPersonId) content=renderPersonDetail();
   else if(State.page==='people') content=renderPeople();
   else if(State.page==='grid') content=renderGrid();
   else if(State.page==='approval') content=renderApproval();
@@ -1643,17 +1650,24 @@ function renderGrid(){
       const cls=['day'];
       if(isWeekend) cls.push('weekend');
       if(ymd===todayYmd) cls.push('today');
-      if(!rec) cls.push('empty');
+      // 비어있는 날(주말 아님) = 정상출근 디폴트 표시
       let inner=null;
       if(rec){
         const chipCls=['chip', `chip-${rec.type}`];
         if(rec.status==='REQUESTED') chipCls.push('is-requested');
         if(rec.status==='REJECTED') chipCls.push('is-rejected');
         inner=h('span',{class:chipCls.join(' ')}, TYPE_TINY[rec.type]||'');
+      } else if (!isWeekend) {
+        // 신청 없음 + 평일 → 정상출근 디폴트
+        inner=h('span',{class:'chip chip-WORK',style:'font-size:11px;opacity:.7'}, '정상');
+      } else {
+        cls.push('empty');
       }
       const td=h('td',{
         class:cls.join(' '),
-        title:rec?`${TYPE_LABELS[rec.type]} (${statusLabel(rec.status)})${rec.note?' · '+rec.note:''}`:'',
+        title:rec
+          ? `${TYPE_LABELS[rec.type]} (${statusLabel(rec.status)})${rec.note?' · '+rec.note:''}`
+          : (isWeekend?'':'정상출근 (기본)'),
         onClick:isWeekend?null:()=>openCellDrawer(u,ymd,rec),
       }, inner);
       tr.append(td);
@@ -2144,7 +2158,31 @@ function renderPersonDetail(){
     }
   }, '초기화');
 
+  // 빠른 기간 프리셋
+  const fmtYmdQ=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  function applyDateRangePerson(fromV, toV){
+    filter.from=fromV; filter.to=toV;
+    fromI.value=fromV; toI.value=toV;
+    paintHist();
+  }
+  const _tt=new Date();
+  const _tToday=fmtYmdQ(_tt);
+  const _tYd=new Date(_tt); _tYd.setDate(_tYd.getDate()-1); const _tYdYmd=fmtYmdQ(_tYd);
+  const _tMonthStart=fmtYmdQ(new Date(_tt.getFullYear(),_tt.getMonth(),1));
+  const _tPrevFirst=fmtYmdQ(new Date(_tt.getFullYear(),_tt.getMonth()-1,1));
+  const _tPrevLast=fmtYmdQ(new Date(_tt.getFullYear(),_tt.getMonth(),0));
+  const _t3m=new Date(_tt); _t3m.setMonth(_t3m.getMonth()-3); const _t3mYmd=fmtYmdQ(_t3m);
+  const qBtnP=(label,fn)=>h('button',{class:'btn',style:'padding:6px 10px;font-size:11.5px',onClick:fn},label);
+
   filterBar.append(
+    h('span',{style:'color:var(--text-soft);font-size:11.5px;margin-right:4px;font-weight:600'},'빠른 기간'),
+    qBtnP('오늘',  ()=>applyDateRangePerson(_tToday,    _tToday)),
+    qBtnP('어제',  ()=>applyDateRangePerson(_tYdYmd,    _tYdYmd)),
+    qBtnP('당월',  ()=>applyDateRangePerson(_tMonthStart,_tToday)),
+    qBtnP('전월',  ()=>applyDateRangePerson(_tPrevFirst, _tPrevLast)),
+    qBtnP('3개월치',()=>applyDateRangePerson(_t3mYmd,    _tToday)),
+    qBtnP('전체',  ()=>applyDateRangePerson('',          '')),
+    h('span',{style:'flex-basis:100%;height:6px'}),
     typeSel, statusSel,
     h('span',{style:'color:var(--text-soft);font-size:11.5px;margin-left:4px'},'기간'),
     fromI, h('span',{style:'color:var(--text-soft)'}, '~'), toI,
@@ -2164,6 +2202,145 @@ function renderPersonDetail(){
     h('div',null, statSection, calSection, histSection)
   );
   wrap.append(detail);
+  return wrap;
+}
+
+async function loadPerfRange(userId, from, to){
+  try{
+    const r = await api(`/api/sales/tm-daily?from=${from}&to=${to}`);
+    State.perfRows = (r.rows||[]).filter(x => x.user_id === userId);
+  }catch(e){
+    State.perfRows = [];
+    showToast(e.message);
+  }
+}
+
+function renderPerformanceDetail(){
+  const u = State.users.find(x=>x.id===State.perfPersonId);
+  if (!u){ State.perfPersonId = null; return renderSalesTM(); }
+
+  const wrap=h('div');
+  // 뒤로가기
+  wrap.append(h('button',{class:'pd-back',style:'margin-bottom:14px',
+    onClick:()=>{State.perfPersonId=null; State.perfRangeKey=null; renderApp();}},'← TM 마감'));
+
+  // 빠른 기간
+  const range = State.perfRange || 'thisMonth';
+  const today=new Date();
+  const fmt=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  let from, to, rangeLabel;
+  if (range==='today')        { from=fmt(today); to=fmt(today); rangeLabel='오늘'; }
+  else if (range==='yesterday'){ const y=new Date(today); y.setDate(y.getDate()-1); from=fmt(y); to=fmt(y); rangeLabel='어제'; }
+  else if (range==='thisMonth'){ from=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-01`; to=fmt(today); rangeLabel='당월'; }
+  else if (range==='prevMonth'){ const pm=new Date(today.getFullYear(),today.getMonth()-1,1); const last=new Date(today.getFullYear(),today.getMonth(),0); from=fmt(pm); to=fmt(last); rangeLabel='전월'; }
+  else if (range==='3months') { const tm=new Date(today); tm.setMonth(tm.getMonth()-3); from=fmt(tm); to=fmt(today); rangeLabel='최근 3개월'; }
+  else                        { from='2020-01-01'; to=fmt(today); rangeLabel='전체'; }
+
+  // 캐시 키 (사용자+범위)
+  const cacheKey = `${u.id}~${from}~${to}`;
+  if (State.perfRangeKey !== cacheKey){
+    State.perfRangeKey = cacheKey;
+    State.perfRows = null;
+    loadPerfRange(u.id, from, to).then(()=>renderApp());
+  }
+
+  function qBtn(label, key){
+    const active = range===key;
+    const btn = h('button',{class:'btn'+(active?' btn-primary':''), style:'padding:6px 12px;font-size:12px'}, label);
+    btn.addEventListener('click', ()=>{ State.perfRange = key; renderApp(); });
+    return btn;
+  }
+  const quickBar = h('div',{class:'sales-toolbar',style:'gap:6px;flex-wrap:wrap'},
+    h('span',{class:'label'},'기간'),
+    qBtn('오늘','today'),
+    qBtn('어제','yesterday'),
+    qBtn('당월','thisMonth'),
+    qBtn('전월','prevMonth'),
+    qBtn('3개월치','3months'),
+    qBtn('전체','all'),
+    h('span',{style:'margin-left:auto;color:var(--text-soft);font-size:12px'},
+      `${rangeLabel} · ${from} ~ ${to}`)
+  );
+
+  // 헤더 (직원 카드)
+  const header = h('div',{class:'pd-card',style:'display:flex;align-items:center;gap:14px;padding:18px 22px;margin-bottom:14px'},
+    h('span',{class:'avatar',style:`width:48px;height:48px;font-size:18px;background:${nameColor(u.name)}`}, initial(u.name)),
+    h('div',null,
+      h('div',{style:'font-weight:800;font-size:18px;display:flex;align-items:center;gap:8px'},
+        u.name,
+        Number(u.tier)===1?h('span',{class:'role-badge',style:'font-size:11px;background:#fdecc8;color:#cb912f'},'1차직원'):
+        Number(u.tier)===2?h('span',{class:'role-badge',style:'font-size:11px;background:#d3e5ef;color:#0b6e99'},'2차직원'):null
+      ),
+      h('div',{style:'font-size:12px;color:var(--text-soft);margin-top:4px'}, u.role==='manager'?'차장':'직원')
+    ),
+    h('div',{style:'flex:1'}),
+    h('div',{style:'font-size:12px;color:var(--text-soft)'},'📊 퍼포먼스 상세')
+  );
+
+  if (State.perfRows === null){
+    wrap.append(header, quickBar, h('div',{class:'sales-empty',style:'padding:80px 20px'},
+      h('div',{class:'ico'},'⏳'), h('div',null,'퍼포먼스 데이터 로딩 중…')));
+    return wrap;
+  }
+
+  const rows = State.perfRows || [];
+  let totalCount=0, totalDb=0, offDays=0;
+  rows.forEach(r=>{ totalCount+=Number(r.count||0); totalDb+=Number(r.db_count||0); if(r.is_off) offDays++; });
+  const dayCount = rows.length;
+  const workedDays = dayCount - offDays;
+  const dayAvg = workedDays>0 ? totalCount/workedDays : 0;
+  const dbAvg  = workedDays>0 ? totalDb/workedDays : 0;
+  const eff = totalDb>0 ? totalCount/totalDb : 0;
+
+  const fmtNum=(n,p=0)=>(Number(n||0)).toLocaleString('ko-KR',{maximumFractionDigits:p});
+  const fmtPct=(n)=>((n||0)*100).toFixed(1)+'%';
+  const statCard=(label,val,bg)=>h('div',{
+    style:`padding:18px;background:${bg||'#fff'};border:1px solid var(--border);border-radius:11px;display:flex;flex-direction:column;gap:6px;flex:1;min-width:140px`
+  },
+    h('div',{style:'font-size:11px;color:var(--text-soft);font-weight:700;letter-spacing:0.04em;text-transform:uppercase'}, label),
+    h('div',{style:'font-size:26px;font-weight:800;font-variant-numeric:tabular-nums'}, val)
+  );
+  const statsRow=h('div',{style:'display:flex;gap:12px;padding:0 0 14px;flex-wrap:wrap'},
+    statCard('총 마감', fmtNum(totalCount), '#fffaf0'),
+    statCard('총 디비', fmtNum(totalDb), '#fffaf0'),
+    statCard('일평균 마감', fmtNum(dayAvg,1), '#eef2ff'),
+    statCard('일평균 디비', fmtNum(dbAvg,1), '#eef2ff'),
+    statCard('효율', totalDb>0?fmtPct(eff):'—', '#dcfce7'),
+    statCard('근무 / 휴무', `${workedDays}일 / ${offDays}일`, '#fff'),
+  );
+
+  // 일별 표 (최신순)
+  const tbody=h('tbody');
+  if (!rows.length){
+    tbody.append(h('tr',null,
+      h('td',{colspan:5,style:'padding:40px;text-align:center;color:var(--text-soft)'},
+        '해당 기간 마감 기록이 없습니다 — 대표/관리자 입력 대기')));
+  } else {
+    rows.slice().sort((a,b)=>String(b.work_date).localeCompare(String(a.work_date))).forEach(r=>{
+      const d=String(r.work_date).slice(0,10);
+      const dow=['일','월','화','수','목','금','토'][new Date(d+'T00:00:00').getDay()];
+      const rEff = r.db_count>0 ? r.count/r.db_count : 0;
+      tbody.append(h('tr',null,
+        h('td',{style:'padding:11px 14px;font-variant-numeric:tabular-nums'}, `${d} (${dow})`),
+        h('td',{style:'padding:11px 14px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700'}, fmtNum(r.count)),
+        h('td',{style:'padding:11px 14px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700'}, fmtNum(r.db_count)),
+        h('td',{style:'padding:11px 14px;text-align:right;font-variant-numeric:tabular-nums'}, r.db_count>0?fmtPct(rEff):'—'),
+        h('td',{style:'padding:11px 14px;text-align:center;color:var(--text-soft);font-size:12px'}, r.is_off?'휴무':'—'),
+      ));
+    });
+  }
+  const table=h('table',{class:'tm-table',style:'width:100%'},
+    h('thead',null,h('tr',null,
+      h('th',{style:'text-align:left'},'일자'),
+      h('th',{style:'text-align:right'},'마감 (건)'),
+      h('th',{style:'text-align:right'},'디비 (건)'),
+      h('th',{style:'text-align:right'},'효율'),
+      h('th',null,'비고'),
+    )),
+    tbody
+  );
+
+  wrap.append(header, quickBar, statsRow, table);
   return wrap;
 }
 
@@ -3119,7 +3296,7 @@ function renderSalesTM(){
     tbody.append(h('tr',{class:isSelf?'row-self':''},
       h('td',null,
         h('span',{style:'display:inline-flex;align-items:center;gap:7px;cursor:pointer',
-          onClick:()=>{State.selectedPersonId=r.user_id;State.page='people';renderApp();}},
+          onClick:()=>{State.perfPersonId=r.user_id; State.perfRangeKey=null; State.perfRange='thisMonth'; renderApp();}},
           h('span',{class:'avatar',style:`width:22px;height:22px;font-size:10.5px;background:${nameColor(r.name)}`}, initial(r.name)),
           r.name,
           r.role==='manager'?h('span',{class:'role-badge role-manager',style:'margin-left:4px;font-size:10px'},'차장'):null
@@ -3318,7 +3495,8 @@ function renderSalesTMDaily(){
 
     tbody.append(h('tr',null,
       h('td',null,
-        h('span',{style:'display:inline-flex;align-items:center;gap:7px'},
+        h('span',{style:'display:inline-flex;align-items:center;gap:7px'+(isPriv?';cursor:pointer':''),
+          onClick: isPriv?()=>{State.perfPersonId=u.id; State.perfRangeKey=null; State.perfRange='thisMonth'; renderApp();}:null},
           h('span',{class:'avatar',style:`width:22px;height:22px;font-size:10.5px;background:${nameColor(u.name)}`}, initial(u.name)),
           u.name,
           Number(u.tier)===1?h('span',{class:'role-badge',style:'margin-left:4px;font-size:10px;background:#fdecc8;color:#cb912f'},'1차'):
