@@ -507,6 +507,9 @@ const State = {
   // 가입 승인 (admin 전용)
   signupPending: null,       // 승인 대기 사용자 배열 (null=미로드)
 
+  // 종소리 알람 — 익일 휴무자 발견 시 1회만 울림 (세션당)
+  bellRung: false,
+
   // 로딩 인디케이터 (페이지별)
   loadingPage: null,
 };
@@ -564,6 +567,65 @@ const REQUESTABLE_T2=['OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK'];
 function requestableTypesFor(u){
   const t=Number(u?.tier);
   return t===1 ? REQUESTABLE_T1 : REQUESTABLE_T2;
+}
+
+// 종소리 알람 — Web Audio API로 짧은 종소리 합성 (외부 자원 불필요)
+function playBell(){
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return;
+    const ctx = new Ctx();
+    const now = ctx.currentTime;
+    // 메인 톤 + 하모닉 — 종소리 느낌
+    [[880, 1.2], [1318, 0.6], [2637, 0.4]].forEach(([freq, dur])=>{
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now); osc.stop(now + dur);
+    });
+    // 약한 두 번째 비트
+    setTimeout(()=>{
+      try{
+        const c2 = new Ctx();
+        const t2 = c2.currentTime;
+        [[700, 0.8], [1050, 0.5]].forEach(([f,d])=>{
+          const o=c2.createOscillator(), g=c2.createGain();
+          o.type='sine'; o.frequency.value=f;
+          g.gain.setValueAtTime(0.14, t2); g.gain.exponentialRampToValueAtTime(0.0001, t2+d);
+          o.connect(g); g.connect(c2.destination); o.start(t2); o.stop(t2+d);
+        });
+      }catch(_){}
+    }, 320);
+  }catch(_){}
+}
+
+function tomorrowYmdStr(){
+  const d=new Date(); d.setDate(d.getDate()+1);
+  return fmtYmd(d.getFullYear(),d.getMonth()+1,d.getDate());
+}
+function tomorrowOffUsers(){
+  const tmr=tomorrowYmdStr();
+  const offTypes=new Set(['OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK','UNAUTHORIZED']);
+  const map={};
+  (State.records||[]).forEach(r=>{
+    if(String(r.work_date).slice(0,10)===tmr && offTypes.has(r.type)){
+      map[r.user_id]=r;
+    }
+  });
+  return (State.users||[]).filter(u=>map[u.id]).map(u=>({user:u,record:map[u.id]}));
+}
+function maybeRingBell(){
+  if(State.bellRung) return;
+  if(!State.user || State.user.role!=='admin') return;
+  const offs = tomorrowOffUsers();
+  if(offs.length>0){
+    playBell();
+    State.bellRung = true;
+  }
 }
 
 function showToast(msg, ms=2200){
@@ -737,20 +799,20 @@ function loginForm(){
 
 function signupForm(){
   const wrap=h('div');
-  const nameI=h('input',{type:'text',autocomplete:'username',placeholder:'이름'});
   const tierSel=h('select',null,
     h('option',{value:''},'— 분류 선택 —'),
     h('option',{value:'1'},'1차직원'),
     h('option',{value:'2'},'2차직원'),
   );
+  const nameI=h('input',{type:'text',autocomplete:'username',placeholder:'이름'});
   const pwI=h('input',{type:'password',autocomplete:'new-password',placeholder:'비밀번호 (4자 이상)'});
   const pw2I=h('input',{type:'password',autocomplete:'new-password',placeholder:'비밀번호 확인'});
   const msg=h('div',{class:'auth-msg'});
   const submit=async()=>{
     msg.textContent='';
+    if(!tierSel.value){ msg.textContent='1차/2차 직원 분류를 선택하세요'; return; }
     const nm=nameI.value.trim();
     if(!nm){ msg.textContent='이름을 입력하세요'; return; }
-    if(!tierSel.value){ msg.textContent='1차/2차 직원을 선택하세요'; return; }
     if(pwI.value.length<4){ msg.textContent='비밀번호 4자 이상'; return; }
     if(pwI.value!==pw2I.value){ msg.textContent='비밀번호 확인이 일치하지 않습니다'; return; }
     try{
@@ -765,8 +827,8 @@ function signupForm(){
     }
   };
   wrap.append(
-    h('div',{class:'field'},nameI),
     h('div',{class:'field'},tierSel),
+    h('div',{class:'field'},nameI),
     h('div',{class:'field'},pwI),
     h('div',{class:'field'},pw2I),
     msg,
@@ -793,6 +855,8 @@ function renderAdminApp(){
   const root=$('#app'); root.innerHTML='';
   const isPriv=true;
   const pendingCount=State.records.filter(r=>r.status==='REQUESTED').length;
+  // 익일 휴무자 존재 시 종소리 알람 (세션 1회)
+  maybeRingBell();
 
   const navItem=(key,label,icon,count)=>h('button',{
     class:'nav-item '+(State.page===key?'on':''),
@@ -1636,7 +1700,9 @@ function renderPeople(){
   wrap.append(renderStatChips(), toolbar);
 
   const grid=h('div',{class:'people-grid'});
-  const todayYmd=fmtYmd(new Date().getFullYear(),new Date().getMonth()+1,new Date().getDate());
+  // 마감보고 기준 — 다음 영업일의 휴무자 표시
+  const _tmr=new Date(); _tmr.setDate(_tmr.getDate()+1);
+  const tomorrowYmd=fmtYmd(_tmr.getFullYear(),_tmr.getMonth()+1,_tmr.getDate());
 
   // 결과 요약 (날짜 범위 적용 시 그 범위 통계)
   const summary=h('div',{style:'font-size:12px;color:var(--text-soft);margin-bottom:10px'});
@@ -1685,9 +1751,11 @@ function renderPeople(){
         else if(r.type==='HALF_AM'||r.type==='HALF_PM') cnt.HALF++;
         else if(r.type==='SICK') cnt.SICK++;
       });
-      const todayRec=State.records.find(r=>r.user_id===u.id && String(r.work_date).slice(0,10)===todayYmd);
-      const todayType=todayRec?todayRec.type:'WORK';
-      const todayLabel=todayRec?TYPE_LABELS[todayRec.type]:'정상출근 예정';
+      // 익일 휴무/반차/연차 여부 (마감보고)
+      const tmrRec=State.records.find(r=>r.user_id===u.id && String(r.work_date).slice(0,10)===tomorrowYmd);
+      const tmrType=tmrRec?tmrRec.type:'WORK';
+      const tmrIsOff=tmrRec && tmrRec.type!=='WORK';
+      const tmrLabel=tmrRec?TYPE_LABELS[tmrRec.type]:'정상출근 예정';
       const wait=allMine.filter(r=>r.status==='REQUESTED').length;
       const rangeCnt=inRangeMine.length;
 
@@ -1710,7 +1778,7 @@ function renderPeople(){
         ),
         (from||to)
           ? h('div',{class:'person-today t-WORK'}, `기간 내 ${rangeCnt}건`)
-          : h('div',{class:`person-today t-${todayType}`}, '오늘 · ', todayLabel),
+          : h('div',{class:`person-today t-${tmrType}`}, tmrIsOff?'🔔 익일 · ':'익일 · ', tmrLabel),
         h('div',{class:'person-stats'},
           h('div',{class:'person-stat'}, h('div',{class:'lbl'},'연차'), h('div',{class:'val'}, cnt.ANNUAL)),
           h('div',{class:'person-stat'}, h('div',{class:'lbl'},'월차'), h('div',{class:'val'}, cnt.MONTHLY)),
@@ -1722,6 +1790,20 @@ function renderPeople(){
     }
   }
   refresh();
+  // 익일 휴무자 배너 — 마감보고 기준
+  const tmrOffs = tomorrowOffUsers();
+  const tmrBanner = tmrOffs.length
+    ? h('div',{style:'display:flex;align-items:center;gap:10px;padding:12px 16px;margin-bottom:14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;font-size:13.5px;color:#9a3412'},
+        h('span',{style:'font-size:18px'},'🔔'),
+        h('div',{style:'flex:1'},
+          h('div',{style:'font-weight:700'}, `익일 휴무자 ${tmrOffs.length}명`),
+          h('div',{style:'font-size:12px;color:#7c2d12;margin-top:2px'},
+            tmrOffs.map(o=>`${o.user.name}(${TYPE_SHORT_FULL[o.record.type]||TYPE_LABELS[o.record.type]})`).join(' · ')
+          )
+        ),
+        h('button',{class:'btn',style:'padding:5px 10px;font-size:11px',onClick:()=>playBell()},'🔔 다시 알람'))
+    : null;
+  if(tmrBanner) wrap.append(tmrBanner);
   wrap.append(summary, grid);
   setTimeout(()=>{ try{ searchI.focus(); searchI.setSelectionRange(searchI.value.length,searchI.value.length); }catch(_){}; },30);
   return wrap;
