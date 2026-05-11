@@ -3,7 +3,7 @@
 // /api/sales/tm-summary, /api/sales/tm-daily, /api/sales/vendor-daily
 import { sql, requireAuth, readJson } from '../_db.js';
 
-const ORDER_STATUS = new Set(['PAID','IN_PROGRESS','UNPAID','PARTIAL','CANCELLED']);
+const ORDER_STATUS = new Set(['PAID','IN_PROGRESS','UNPAID','UNPAID_PROOF','PARTIAL','CANCELLED']);
 
 function weekdaysInMonth(y, m) {
   const dim = new Date(y, m, 0).getDate();

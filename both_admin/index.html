@@ -2297,8 +2297,15 @@ async function logout(){
 }
 
 // ─────────────── 영업 모듈 ───────────────
-const ORDER_STATUS_LABEL={PAID:'입금완료',IN_PROGRESS:'입금중',UNPAID:'미입금',PARTIAL:'일부납부',CANCELLED:'취소'};
-const ORDER_STATUS_LIST=['PAID','IN_PROGRESS','UNPAID','PARTIAL','CANCELLED'];
+const ORDER_STATUS_LABEL={
+  UNPAID:'미입금',
+  UNPAID_PROOF:'미입금:입금증필요',
+  PAID:'입금완료',
+  // 레거시 (예전 데이터 표시용 — 새 입력 시는 사용 안 함)
+  IN_PROGRESS:'입금중', PARTIAL:'일부납부', CANCELLED:'취소',
+};
+// 새/수정 시 선택 가능한 3개 상태 (요청)
+const ORDER_STATUS_LIST=['UNPAID','UNPAID_PROOF','PAID'];
 const CARRIER_LIST=['SK','KT','LGU'];
 const fmtKRW=(n)=>'₩'+(Number(n||0)).toLocaleString('ko-KR');
 
@@ -2502,7 +2509,7 @@ function renderSalesOrders(){
 
   const toolbar=h('div',{class:'sales-toolbar'},
     h('span',{class:'label'},'월'), ymI,
-    filterStatus, filterTm, filterVendor,
+    filterStatus, filterTm,
     h('div',{style:'flex:1;min-width:160px'}, searchI),
     addBtn   // 직원도 본인 PB 추가 가능 (server: tm_user_id = me.id 자동)
   );
@@ -2525,19 +2532,18 @@ function renderSalesOrders(){
     );
   }
 
-  // 표
+  // 표 — 유입처 컬럼 제거 (요청)
   const cols=[
     {k:'tm_user_id',label:'TM',type:'tm',w:80},
     {k:'consult_date',label:'상담일',type:'date',w:96},
     {k:'customer_name',label:'고객명',type:'text',w:90},
     {k:'customer_phone',label:'전화번호',type:'text',w:120},
     {k:'carrier',label:'통신사',type:'carrier',w:60},
-    {k:'vendor_id',label:'유입처',type:'vendor',w:90},
     {k:'amount',label:'금액',type:'amount',w:90},
     {k:'payment_bank',label:'은행',type:'text',w:80},
     {k:'payment_account',label:'계좌',type:'text',w:130},
     {k:'payment_date',label:'입금일',type:'date',w:96},
-    {k:'status',label:'상태',type:'status',w:84},
+    {k:'status',label:'상태',type:'status',w:100},
     {k:'note',label:'메모',type:'text',w:160},
   ];
   const thead=h('thead',null,h('tr',null,
@@ -2551,14 +2557,19 @@ function renderSalesOrders(){
         State.salesOrders.length?'필터에 맞는 내역이 없습니다':'아직 PB 내역이 없습니다 · 우측 상단 ＋ 버튼으로 추가')));
   }
   for (const r of rows){
-    const tr=h('tr',{class:`row-status-${r.status}`});
+    const canEditThis = isPriv || r.tm_user_id === State.user.id;
+    const tr=h('tr',{class:`row-status-${r.status}`,
+      style: canEditThis?'cursor:pointer':'',
+      title: canEditThis?'클릭하여 수정':'본인 PB만 수정 가능'});
+    if (canEditThis) tr.addEventListener('click',(e)=>{
+      if (e.target.closest('button')) return; // 삭제 버튼 클릭은 무시
+      openOrderModal(r);
+    });
     for (const c of cols){
       const td=h('td');
       const cell=h('div',{class:'cell'});
       td.append(cell);
-      const val=r[c.k];
-      cell.append(renderOrderCell(c, val, r));
-      cell.addEventListener('click',()=>startEditCell(td, cell, c, r, isPriv));
+      cell.append(renderOrderCell(c, r[c.k], r));
       tr.append(td);
     }
     if (isPriv){
@@ -2676,15 +2687,141 @@ function startEditCell(td, cell, col, row, isPriv){
   setTimeout(()=>{ try{ input.focus(); if(input.select)input.select(); }catch(_){} },10);
 }
 
-async function addNewOrder(){
-  const today=new Date().toISOString().slice(0,10);
-  try{
-    const r=await api('/api/sales/orders',{method:'POST',body:{
-      consult_date:today, status:'UNPAID', amount:0
-    }});
-    State.salesOrders.unshift(r.order);
-    renderApp(); showToast('새 PB 추가 — 셀 클릭으로 입력');
-  }catch(e){ alert(e.message); }
+function addNewOrder(){ openOrderModal(null); }
+
+// PB 입력/수정 모달 — 시트 직접 편집 대신 팝업으로 입력
+function openOrderModal(existingOrder){
+  const me = State.user;
+  const isPriv = me.role==='admin' || me.role==='manager';
+  const isNew = !existingOrder;
+  const o = existingOrder || {
+    consult_date: new Date().toISOString().slice(0,10),
+    status: 'UNPAID', amount: 0,
+    tm_user_id: isPriv ? null : me.id,
+  };
+
+  const overlay = h('div', {
+    style:'position:fixed;inset:0;background:rgba(15,15,15,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto',
+    onClick:(e)=>{ if(e.target===overlay) overlay.remove(); }
+  });
+
+  const inputStyle = 'width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:7px;font-size:13.5px;background:#fcfcfb;outline:none';
+  const labelStyle = 'font-size:11.5px;font-weight:600;color:var(--text-soft);margin-bottom:5px;letter-spacing:.01em';
+  const field=(label, input, hint)=>h('div',{style:'display:flex;flex-direction:column'},
+    h('div',{style:labelStyle}, label),
+    input,
+    hint?h('div',{style:'font-size:10.5px;color:var(--text-soft);margin-top:3px'},hint):null
+  );
+
+  const tmSel = h('select',{style:inputStyle},
+    h('option',{value:''},'— 선택 —'),
+    ...State.users.map(u=>h('option',{value:String(u.id)}, u.name))
+  );
+  tmSel.value = o.tm_user_id ? String(o.tm_user_id) : (isPriv?'':String(me.id));
+  if (!isPriv) tmSel.disabled = true;
+
+  const dateI    = h('input',{type:'date',value:o.consult_date?String(o.consult_date).slice(0,10):'',style:inputStyle});
+  const nameI    = h('input',{type:'text',value:o.customer_name||'',placeholder:'예: 홍길동',style:inputStyle});
+  const phoneI   = h('input',{type:'tel',value:o.customer_phone||'',placeholder:'예: 010-1234-5678',style:inputStyle});
+
+  const carrierSel = h('select',{style:inputStyle},
+    h('option',{value:''},'— 선택 —'),
+    ...CARRIER_LIST.map(c=>h('option',{value:c}, c))
+  );
+  carrierSel.value = o.carrier || '';
+
+  const amountI  = h('input',{type:'number',value:o.amount||0,min:0,step:1000,placeholder:'0',style:inputStyle+';font-variant-numeric:tabular-nums'});
+  const bankI    = h('input',{type:'text',value:o.payment_bank||'',placeholder:'예: 국민/신한/우리',style:inputStyle});
+  const accountI = h('input',{type:'text',value:o.payment_account||'',placeholder:'계좌번호',style:inputStyle});
+  const payDateI = h('input',{type:'date',value:o.payment_date?String(o.payment_date).slice(0,10):'',style:inputStyle});
+
+  const statusSel = h('select',{style:inputStyle},
+    ...ORDER_STATUS_LIST.map(s=>h('option',{value:s}, ORDER_STATUS_LABEL[s]))
+  );
+  statusSel.value = (ORDER_STATUS_LIST.includes(o.status) ? o.status : 'UNPAID');
+
+  const noteI   = h('textarea',{rows:3,placeholder:'특이사항/메모',
+    style:inputStyle+';resize:vertical;font-family:inherit;min-height:74px'}, o.note||'');
+
+  const saveBtn   = h('button',{class:'btn btn-primary',style:'padding:10px 18px;font-weight:700;min-width:90px'}, isNew?'추가':'저장');
+  const cancelBtn = h('button',{class:'btn',style:'padding:10px 18px'}, '취소');
+  const deleteBtn = (!isNew && isPriv)
+    ? h('button',{class:'btn btn-danger',style:'padding:10px 16px'}, '삭제')
+    : null;
+
+  async function submit(){
+    const body = {
+      id: existingOrder?.id,
+      tm_user_id:     tmSel.value ? Number(tmSel.value) : null,
+      consult_date:   dateI.value || null,
+      customer_name:  nameI.value.trim() || null,
+      customer_phone: phoneI.value.trim() || null,
+      carrier:        carrierSel.value || null,
+      vendor_id:      existingOrder?.vendor_id || null,
+      amount:         Number(amountI.value) || 0,
+      payment_bank:   bankI.value.trim() || null,
+      payment_account:accountI.value.trim() || null,
+      payment_date:   payDateI.value || null,
+      status:         statusSel.value || 'UNPAID',
+      note:           noteI.value.trim() || null,
+    };
+    saveBtn.disabled = true; saveBtn.textContent = '저장 중…';
+    try{
+      const r = await api('/api/sales/orders',{method:'POST',body});
+      if (isNew) State.salesOrders.unshift(r.order);
+      else {
+        const idx = State.salesOrders.findIndex(x=>x.id===existingOrder.id);
+        if (idx>=0) State.salesOrders[idx] = r.order;
+      }
+      renderApp();
+      showToast(isNew?'추가됨':'저장됨');
+      overlay.remove();
+    }catch(e){
+      saveBtn.disabled = false; saveBtn.textContent = isNew?'추가':'저장';
+      alert(e.message);
+    }
+  }
+  saveBtn.addEventListener('click', submit);
+  cancelBtn.addEventListener('click', ()=>overlay.remove());
+  if (deleteBtn) deleteBtn.addEventListener('click', async()=>{
+    if (!confirm('이 PB 내역을 삭제하시겠습니까?')) return;
+    try{
+      await api(`/api/sales/orders?id=${existingOrder.id}`,{method:'DELETE'});
+      State.salesOrders = State.salesOrders.filter(x=>x.id!==existingOrder.id);
+      renderApp(); showToast('삭제됨'); overlay.remove();
+    }catch(e){ alert(e.message); }
+  });
+
+  const card = h('div',{style:'background:#fff;border-radius:14px;width:600px;max-width:96vw;max-height:92vh;overflow:auto;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(15,15,15,.18)'},
+    h('div',{style:'padding:18px 22px;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between'},
+      h('div',{style:'font-weight:700;font-size:16px'}, isNew?'＋ 새 PB 입력':'PB 수정'),
+      h('div',{style:'font-size:11px;color:var(--text-soft)'}, isNew?'고객 정보를 입력하세요':'#'+(existingOrder?.id||''))
+    ),
+    h('div',{style:'padding:18px 22px;display:grid;grid-template-columns:1fr 1fr;gap:14px'},
+      field('TM (담당자)', tmSel, !isPriv?'본인으로 자동 설정':null),
+      field('상담일', dateI),
+      field('고객명', nameI),
+      field('전화번호', phoneI),
+      field('통신사', carrierSel),
+      field('상태', statusSel),
+      field('금액 (원)', amountI),
+      field('입금일', payDateI),
+      field('입금 은행', bankI),
+      field('계좌번호', accountI),
+    ),
+    h('div',{style:'padding:0 22px 18px'}, field('메모', noteI)),
+    h('div',{style:'padding:14px 22px;border-top:1px solid var(--border-soft);display:flex;gap:8px;align-items:center;background:#fafaf8'},
+      deleteBtn,
+      h('div',{style:'flex:1'}),
+      cancelBtn, saveBtn,
+    )
+  );
+  overlay.append(card);
+  document.body.append(overlay);
+  setTimeout(()=>{ try{ nameI.focus(); }catch(_){} }, 50);
+  // ESC 닫기
+  const onKey=(e)=>{ if(e.key==='Escape'){ overlay.remove(); document.removeEventListener('keydown',onKey); } };
+  document.addEventListener('keydown', onKey);
 }
 
 // ─────── 요청 2: TM 마감 보고 ───────
