@@ -15,13 +15,17 @@ export default async function handler(req, res) {
   try {
     const cookieHeader = req.headers?.cookie || '';
     if (!cookieHeader.includes('tm_session=')) {
+      // 로그인 페이지 진입 시 — DB/스키마/Neon TLS 세션을 백그라운드로 워밍
+      // → 이후 로그인 클릭 시 첫 SQL 호출이 콜드가 아니라 즉시
+      ensureSchema().catch(() => {});
+      sql`SELECT 1`.catch(() => {});
       return res.status(200).json({
         user: null,
         availableNames: PRESET_NAMES,
         presetNames: PRESET_NAMES,
       });
     }
-    await ensureSchema();
+    ensureSchema().catch(() => {});
     const user = await getCurrentUser(req);
     if (!user) {
       return res.status(200).json({

@@ -381,8 +381,8 @@ export function requireAuth(handler) {
       return;
     }
     req.user = user;
-    // 스키마는 캐시되어 있으면 즉시 반환 — 핸들러 시작과 동시에 비동기로 보장
-    await ensureSchema();
+    // 스키마는 백그라운드 — 마커가 있으면 즉시, 없으면 me/signup에서 처리됨
+    ensureSchema().catch(() => {});
     return handler(req, res);
   };
 }
