@@ -1013,10 +1013,11 @@ function renderEmployeeApp(){
 
 function renderMyHome(){
   const me=State.user;
+  const isTier1 = Number(me.tier)===1;
   // self를 selectedPersonId로 설정해두고 person detail 재활용 (단, 좌측 프로필+뒤로가기 제거된 형태)
-  const u={id:me.id,name:me.name,role:me.role,registered:true};
+  const u={id:me.id,name:me.name,role:me.role,tier:me.tier,registered:true};
   const recs=State.records;  // API가 본인 것만 반환
-  const cnt={ANNUAL:0,MONTHLY:0,HALF:0,SICK:0,OFF:0};
+  const cnt={ANNUAL:0,MONTHLY:0,HALF:0,SICK:0,OFF:0,UNAUTHORIZED:0};
   recs.forEach(r=>{
     if(r.status!=='APPROVED') return;
     if(r.type==='ANNUAL') cnt.ANNUAL++;
@@ -1024,19 +1025,28 @@ function renderMyHome(){
     else if(r.type==='HALF_AM'||r.type==='HALF_PM') cnt.HALF++;
     else if(r.type==='SICK') cnt.SICK++;
     else if(r.type==='OFF') cnt.OFF++;
+    else if(r.type==='UNAUTHORIZED') cnt.UNAUTHORIZED++;
   });
   const wait=recs.filter(r=>r.status==='REQUESTED').length;
+
+  // 분류별 사용 현황 — 1차직원: 휴무/무단결근만, 2차직원: 연차/월차/반차/병가/휴무
+  const statCells = isTier1
+    ? [
+        h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.OFF), h('div',{class:'l'},'휴무')),
+        h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.UNAUTHORIZED), h('div',{class:'l'},'무단결근')),
+      ]
+    : [
+        h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.ANNUAL), h('div',{class:'l'},'연차')),
+        h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.MONTHLY), h('div',{class:'l'},'월차')),
+        h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.HALF), h('div',{class:'l'},'반차')),
+        h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.SICK), h('div',{class:'l'},'병가')),
+        h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.OFF), h('div',{class:'l'},'휴무')),
+      ];
 
   const stats=h('section',{class:'pd-section'},
     h('h3',null,'📊 ',`${State.ym} 사용 현황`,
       wait?h('span',{style:'margin-left:8px;font-size:11.5px;font-weight:600;color:#a96400;background:#fff5d9;padding:2px 8px;border-radius:5px'},`승인 대기 ${wait}건`):null),
-    h('div',{class:'pd-stat-row'},
-      h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.ANNUAL), h('div',{class:'l'},'연차')),
-      h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.MONTHLY), h('div',{class:'l'},'월차')),
-      h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.HALF), h('div',{class:'l'},'반차')),
-      h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.SICK), h('div',{class:'l'},'병가')),
-      h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.OFF), h('div',{class:'l'},'휴무')),
-    )
+    h('div',{class:'pd-stat-row'}, ...statCells)
   );
 
   // 큰 캘린더 (본인 단독)
@@ -1549,20 +1559,27 @@ function renderStatChips(){
   }, '오늘 부재 ', h('span',{class:'num'}, outToday.length), '명',
      outNames?h('span',{style:'color:#9a7600;margin-left:6px'},'· '+outNames):null));
 
-  // 본인 이번달 사용량 (APPROVED만)
+  // 본인 이번달 사용량 (APPROVED만) — 1차직원: 휴무/무단결근, 2차직원: 연차/월차/반차/병가/휴무
   const me=State.user;
   if(me.role!=='admin'){
     const mine=State.records.filter(r=>r.user_id===me.id && r.status==='APPROVED');
-    const cnt={ANNUAL:0,MONTHLY:0,HALF_AM:0,HALF_PM:0,SICK:0,OFF:0};
+    const cnt={ANNUAL:0,MONTHLY:0,HALF_AM:0,HALF_PM:0,SICK:0,OFF:0,UNAUTHORIZED:0};
     mine.forEach(r=>{ if(cnt[r.type]!=null) cnt[r.type]++; });
-    const halfTotal=cnt.HALF_AM+cnt.HALF_PM;
-    wrap.append(
-      h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-annual'}),' 연차 ',h('span',{class:'num'},cnt.ANNUAL)),
-      h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-monthly'}),' 월차 ',h('span',{class:'num'},cnt.MONTHLY)),
-      h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-half'}),' 반차 ',h('span',{class:'num'},halfTotal)),
-      h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-sick'}),' 병가 ',h('span',{class:'num'},cnt.SICK)),
-      h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-off'}),' 휴무 ',h('span',{class:'num'},cnt.OFF)),
-    );
+    if (Number(me.tier)===1){
+      wrap.append(
+        h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-off'}),' 휴무 ',h('span',{class:'num'},cnt.OFF)),
+        h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-sick'}),' 무단결근 ',h('span',{class:'num'},cnt.UNAUTHORIZED)),
+      );
+    } else {
+      const halfTotal=cnt.HALF_AM+cnt.HALF_PM;
+      wrap.append(
+        h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-annual'}),' 연차 ',h('span',{class:'num'},cnt.ANNUAL)),
+        h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-monthly'}),' 월차 ',h('span',{class:'num'},cnt.MONTHLY)),
+        h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-half'}),' 반차 ',h('span',{class:'num'},halfTotal)),
+        h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-sick'}),' 병가 ',h('span',{class:'num'},cnt.SICK)),
+        h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-off'}),' 휴무 ',h('span',{class:'num'},cnt.OFF)),
+      );
+    }
   }
 
   // 승인 대기
