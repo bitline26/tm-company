@@ -3363,7 +3363,33 @@ function openOrderModal(existingOrder){
       field('입금 은행', bankI),
       field('계좌번호', accountI),
     ),
-    h('div',{style:'padding:0 22px 18px'}, field('메모', noteI)),
+    h('div',{style:'padding:0 22px 18px'},
+      field('메모', noteI),
+      // 자주 쓰는 메모 빠른 입력 — 클릭 시 메모란에 채워짐
+      (()=>{
+        const PRESETS = ['입금증필요','당일입금안내O','대표전화인입','카드등록 오류 처리','당월 입금 예정'];
+        const wrap = h('div',{style:'display:flex;flex-wrap:wrap;gap:6px;margin-top:8px'});
+        PRESETS.forEach(text=>{
+          const chip = h('button',{
+            type:'button',
+            style:'padding:5px 11px;border:1px solid #fdba74;background:#fff7ed;color:#9a3412;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;line-height:1.2'
+          }, '+ '+text);
+          chip.addEventListener('click', e=>{
+            e.preventDefault();
+            const cur = (noteI.value||'').trim();
+            // 이미 동일 텍스트면 토글로 제거
+            if (cur === text){ noteI.value = ''; noteI.focus(); return; }
+            // 비어 있으면 그대로, 있으면 줄바꿈으로 이어붙임
+            noteI.value = cur ? (cur + '\n' + text) : text;
+            noteI.focus();
+            // 모달이 컨트롤되지 않으면 input 이벤트 디스패치
+            noteI.dispatchEvent(new Event('input',{bubbles:true}));
+          });
+          wrap.append(chip);
+        });
+        return wrap;
+      })()
+    ),
     h('div',{style:'padding:14px 22px;border-top:1px solid var(--border-soft);display:flex;gap:8px;align-items:center;background:#fafaf8'},
       deleteBtn,
       h('div',{style:'flex:1'}),
