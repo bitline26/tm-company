@@ -3509,15 +3509,14 @@ function renderSalesTM(){
   const fmtNum=(n,d=0)=>(Number(n||0)).toLocaleString('ko-KR',{maximumFractionDigits:d});
   const fmtPct=(n)=>((n||0)*100).toFixed(1)+'%';
 
-  // 컬럼 — 이름 / 상태 / 총갯수 / 일평균 / 마감예상 / 총 디비 / 디비평균 / 디비 효율 / 매출
-  const cols=['이름','상태','총갯수','일평균','마감예상','총 디비','디비평균','디비 효율','매출(현재)','매출(예상)'];
+  // 컬럼 — 구분 / 총갯수 / 일평균 / 마감예상 / 총 디비 / 디비평균 / 디비 효율 (휴무/연차/매출 모두 제거)
+  const cols=['구분','총갯수','일평균','마감예상','총 디비','디비평균','디비 효율'];
   const thead=h('thead',null,h('tr',null,...cols.map(c=>h('th',null,c))));
   const tbody=h('tbody');
   for (const r of computed){
     const isSelf=r.user_id===me.id;
     const eff=r.eff;
     const effColor = eff>=0.20?'#0f7b6c':eff>=0.15?'#1d4ed8':eff>=0.10?'#a96400':'#b91c1c';
-    const status = getTodayStatus(r.user_id, State.records);
     tbody.append(h('tr',{class:isSelf?'row-self':''},
       h('td',null,
         h('span',{style:'display:inline-flex;align-items:center;gap:7px;cursor:pointer',
@@ -3527,42 +3526,42 @@ function renderSalesTM(){
           r.role==='manager'?h('span',{class:'role-badge role-manager',style:'margin-left:4px;font-size:10px'},'차장'):null
         )
       ),
-      h('td',{style:'text-align:left'}, statusBadge(status)),
       h('td',null, fmtNum(r.total_count)),
       h('td',null, fmtNum(r.dayAvg,1)),
       h('td',null, fmtNum(r.projected,0)),
       h('td',null, fmtNum(r.total_db)),
       h('td',null, fmtNum(r.dbAvg,0)),
       h('td',{class:'eff-cell',style:`color:${effColor}`}, fmtPct(eff)),
-      h('td',null, fmtKRW(r.currentRevenue)),
-      h('td',null, fmtKRW(r.expectedRevenue)),
     ));
   }
   tbody.append(h('tr',{class:'total-row'},
     h('td',null,'합계'),
-    h('td',null,'—'),
     h('td',null, fmtNum(totalCount)),
     h('td',null, fmtNum(totalDayAvg,1)),
     h('td',null, fmtNum(totalProjected,0)),
     h('td',null, fmtNum(totalDb)),
     h('td',null, fmtNum(totalDbAvg,0)),
     h('td',null, fmtPct(totalEff)),
-    h('td',null, fmtKRW(totalCurrentRev)),
-    h('td',null, fmtKRW(totalExpectedRev)),
   ));
 
   const table=h('table',{class:'tm-table'}, thead, tbody);
   const tableWrap=h('div',{class:'orders-wrap'}, table);
   wrap.append(tableWrap);
 
-  // 매출 카드
-  const cards=h('div',{class:'sales-cards',style:'padding:0 24px 60px'},
-    h('div',{class:'sales-card hl'}, h('div',{class:'lbl'},'한명 평균 마감예상'), h('div',{class:'val'}, fmtNum(perPerson,1)+'건')),
-    h('div',{class:'sales-card'}, h('div',{class:'lbl'},'현재 누적 매출'), h('div',{class:'val'}, fmtKRW(totalCurrentRev))),
-    h('div',{class:'sales-card'}, h('div',{class:'lbl'},'남은 예상 매출'), h('div',{class:'val'}, fmtKRW(totalExpectedRev-totalCurrentRev))),
-    h('div',{class:'sales-card green'}, h('div',{class:'lbl'},'총 예상 매출'), h('div',{class:'val'}, fmtKRW(totalExpectedRev))),
+  // 푸터 정보 카드: 실 근무일 / 남은 근무일 / 한명 평균 / 효율 평균
+  const infoCard=(label,val,bg)=>h('div',{
+    style:`flex:1;min-width:140px;padding:14px 16px;background:${bg||'#fff'};border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:column;gap:4px`
+  },
+    h('div',{style:'font-size:11px;color:var(--text-soft);font-weight:700;letter-spacing:0.04em;text-transform:uppercase'}, label),
+    h('div',{style:'font-size:22px;font-weight:800;font-variant-numeric:tabular-nums'}, val)
   );
-  wrap.append(cards);
+  const footer = h('div',{style:'display:flex;gap:10px;padding:14px 24px 40px;flex-wrap:wrap'},
+    infoCard('실 근무일', `${State.salesTmElapsed} 일`, '#f7f6f3'),
+    infoCard('남은 근무일', `${State.salesTmRemaining} 일`, '#f7f6f3'),
+    infoCard('한명 평균 마감예상', `${fmtNum(perPerson,1)} 건`, '#eef2ff'),
+    infoCard('효율 평균', fmtPct(totalEff), '#dcfce7'),
+  );
+  wrap.append(footer);
 
   return wrap;
 }
@@ -3641,29 +3640,42 @@ function renderSalesTMDaily(){
   const fmtNum=(n,p=0)=>(Number(n||0)).toLocaleString('ko-KR',{maximumFractionDigits:p});
   const fmtPct=(n)=>((n||0)*100).toFixed(1)+'%';
 
+  // 컬럼 — 구분 / 당일디비 / 접수 / 완료 / 취소 / 대기 / 예약 / 신불 / 부재 / 가망 / 재컨택 (휴무/연차 제거)
+  // 데이터 매핑:
+  //   당일디비=db_count, 접수=received, 완료=count(=마감), 취소=cancelled,
+  //   대기=waiting, 예약=reserved, 신불=newpay_fail, 부재=absent, 가망=prospect, 재컨택=recontact
+  const colDefs = [
+    { key:'db_count',    label:'당일디비', headBg:'#e7f6e9', headFg:'#0f7b6c' },
+    { key:'received',    label:'접수',     headBg:'#fef3c7', headFg:'#a96400' },
+    { key:'count',       label:'완료',     headBg:'#fef9c3', headFg:'#854d0e' },
+    { key:'cancelled',   label:'취소',     headBg:'#fee2e2', headFg:'#991b1b' },
+    { key:'waiting',     label:'대기',     headBg:'#e0e7ff', headFg:'#4338ca' },
+    { key:'reserved',    label:'예약',     headBg:'#ffedd5', headFg:'#9a3412' },
+    { key:'newpay_fail', label:'신불',     headBg:'#fee2e2', headFg:'#991b1b' },
+    { key:'absent',      label:'부재',     headBg:'#f1f1ef', headFg:'#5b5750' },
+    { key:'prospect',    label:'가망',     headBg:'#dbeafe', headFg:'#1d4ed8' },
+    { key:'recontact',   label:'재컨택',   headBg:'#fce7f3', headFg:'#9d174d' },
+  ];
+
   // 합계
-  let sumCount=0, sumDb=0, offCnt=0;
+  const sum = {};
+  colDefs.forEach(c=>sum[c.key]=0);
   users.forEach(u=>{
     const r=byUser[u.id];
-    if (r){ sumCount+=Number(r.count||0); sumDb+=Number(r.db_count||0); if(r.is_off) offCnt++; }
+    if (r) colDefs.forEach(c=>{ sum[c.key] += Number(r[c.key]||0); });
   });
-  const totalEff = sumDb>0 ? sumCount/sumDb : 0;
 
-  const cols=['이름','상태','마감(건)','디비(건)','효율','휴무'];
-  const thead=h('thead',null,h('tr',null,...cols.map(c=>h('th',null,c))));
+  const thead=h('thead',null,h('tr',null,
+    h('th',{style:'text-align:left'},'구분'),
+    ...colDefs.map(c=>h('th',{style:`background:${c.headBg};color:${c.headFg}`}, c.label))
+  ));
   const tbody=h('tbody');
 
   async function saveDailyCell(uid, patch){
-    const cur = byUser[uid] || { user_id:uid, work_date:d, db_count:0, count:0, is_off:false };
-    const body = {
-      user_id: uid, work_date: d,
-      db_count: Number(patch.db_count ?? cur.db_count ?? 0),
-      count:    Number(patch.count    ?? cur.count    ?? 0),
-      is_off:   patch.is_off ?? cur.is_off ?? false,
-    };
+    const cur = byUser[uid] || { user_id:uid, work_date:d };
+    const body = { user_id: uid, work_date: d, ...patch };
     try{
       const r = await api('/api/sales/tm-daily',{method:'POST',body});
-      // 캐시 업데이트
       const idx = State.salesTmDailyRows.findIndex(x=>x.user_id===uid && String(x.work_date).slice(0,10)===d);
       const merged = { ...(idx>=0?State.salesTmDailyRows[idx]:{}), ...r.row };
       if (idx>=0) State.salesTmDailyRows[idx] = merged;
@@ -3673,13 +3685,13 @@ function renderSalesTMDaily(){
   }
 
   function editableCell(uid, key, val){
-    const cell=h('td',null, fmtNum(val||0));
+    const cell=h('td',{style:'text-align:right;font-variant-numeric:tabular-nums;font-weight:600'}, fmtNum(val||0));
     if (!isPriv) return cell;
     cell.style.cursor='pointer';
     cell.addEventListener('click',()=>{
       if (cell.classList.contains('editing')) return;
       cell.classList.add('editing'); cell.innerHTML='';
-      const input=h('input',{type:'number',min:0,value:Number(val||0),style:'width:80px'});
+      const input=h('input',{type:'number',min:0,value:Number(val||0),style:'width:64px;text-align:right'});
       cell.append(input);
       setTimeout(()=>{ try{ input.focus(); input.select(); }catch(_){} },10);
       const finish=async(commit)=>{
@@ -3700,25 +3712,8 @@ function renderSalesTMDaily(){
   }
 
   for (const u of users){
-    const r = byUser[u.id];
-    const count = r?.count || 0;
-    const db    = r?.db_count || 0;
-    const isOff = !!r?.is_off;
-    const eff   = db>0 ? count/db : 0;
-    const effColor = eff>=0.20?'#0f7b6c':eff>=0.15?'#1d4ed8':eff>=0.10?'#a96400':'#b91c1c';
-    const status = getTodayStatus(u.id, State.records);
-
-    const offTd = isPriv
-      ? (function(){
-          const td=h('td',null);
-          const btn=h('button',{class:'btn'+(isOff?' btn-primary':''), style:'padding:4px 10px;font-size:11.5px'}, isOff?'휴무':'정상');
-          btn.addEventListener('click',()=>saveDailyCell(u.id,{is_off:!isOff}));
-          td.append(btn);
-          return td;
-        })()
-      : h('td',null, isOff?'휴무':'-');
-
-    tbody.append(h('tr',null,
+    const r = byUser[u.id] || {};
+    const tr = h('tr',null,
       h('td',null,
         h('span',{style:'display:inline-flex;align-items:center;gap:7px'+(isPriv?';cursor:pointer':''),
           onClick: isPriv?()=>{State.perfPersonId=u.id; State.perfRangeKey=null; State.perfRange='thisMonth'; renderApp();}:null},
@@ -3728,23 +3723,17 @@ function renderSalesTMDaily(){
           Number(u.tier)===2?h('span',{class:'role-badge',style:'margin-left:4px;font-size:10px;background:#d3e5ef;color:#0b6e99'},'2차'):null
         )
       ),
-      h('td',{style:'text-align:left'}, statusBadge(status)),
-      editableCell(u.id,'count',count),
-      editableCell(u.id,'db_count',db),
-      h('td',{class:'eff-cell',style:`color:${effColor}`}, fmtPct(eff)),
-      offTd,
-    ));
+      ...colDefs.map(c=>editableCell(u.id, c.key, r[c.key]||0))
+    );
+    tbody.append(tr);
   }
+  // 합계 행
   tbody.append(h('tr',{class:'total-row'},
     h('td',null,'합계'),
-    h('td',null,'—'),
-    h('td',null, fmtNum(sumCount)),
-    h('td',null, fmtNum(sumDb)),
-    h('td',null, fmtPct(totalEff)),
-    h('td',null, `${offCnt}명 휴무`),
+    ...colDefs.map(c=>h('td',{style:'text-align:right;font-variant-numeric:tabular-nums;font-weight:800'}, fmtNum(sum[c.key])))
   ));
   const table=h('table',{class:'tm-table'}, thead, tbody);
-  const tableWrap=h('div',{class:'orders-wrap'}, table);
+  const tableWrap=h('div',{class:'orders-wrap',style:'overflow:auto'}, table);
   wrap.append(tableWrap);
 
   return wrap;

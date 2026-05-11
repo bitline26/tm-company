@@ -340,8 +340,12 @@ export default requireAuth(async function handler(req, res) {
         end = `${ny}-${String(nm).padStart(2,'0')}-01`;
       }
       const rows = isPriv
-        ? await sql`SELECT id, user_id, work_date, db_count, count, is_off, note FROM sales_tm_daily WHERE work_date >= ${start} AND work_date < ${end} ORDER BY work_date ASC, user_id ASC`
-        : await sql`SELECT id, user_id, work_date, db_count, count, is_off, note FROM sales_tm_daily WHERE work_date >= ${start} AND work_date < ${end} AND user_id = ${me.id} ORDER BY work_date ASC`;
+        ? await sql`SELECT id, user_id, work_date, db_count, count, is_off, note,
+                           received, cancelled, waiting, reserved, newpay_fail, absent, prospect, recontact
+                    FROM sales_tm_daily WHERE work_date >= ${start} AND work_date < ${end} ORDER BY work_date ASC, user_id ASC`
+        : await sql`SELECT id, user_id, work_date, db_count, count, is_off, note,
+                           received, cancelled, waiting, reserved, newpay_fail, absent, prospect, recontact
+                    FROM sales_tm_daily WHERE work_date >= ${start} AND work_date < ${end} AND user_id = ${me.id} ORDER BY work_date ASC`;
       return res.status(200).json({ rows });
     }
     if (req.method === 'POST') {
@@ -349,17 +353,42 @@ export default requireAuth(async function handler(req, res) {
       const userId = Number(b.user_id || me.id);
       if (!isPriv && userId !== me.id) return res.status(403).json({ error: '본인 행만' });
       if (!b.work_date) return res.status(400).json({ error: 'work_date required' });
+      // 기존 행의 값을 가져와 누락 필드는 기존값 유지 (인라인 셀 1개 저장 시 다른 필드 0으로 덮어쓰는 문제 방지)
+      const existing = (await sql`SELECT * FROM sales_tm_daily WHERE user_id=${userId} AND work_date=${b.work_date} LIMIT 1`)[0] || {};
+      const num = (newV, oldV) => (newV===undefined || newV===null) ? Number(oldV||0) : Number(newV||0);
+      const vDb        = num(b.db_count,    existing.db_count);
+      const vCount     = num(b.count,       existing.count);
+      const vReceived  = num(b.received,    existing.received);
+      const vCancelled = num(b.cancelled,   existing.cancelled);
+      const vWaiting   = num(b.waiting,     existing.waiting);
+      const vReserved  = num(b.reserved,    existing.reserved);
+      const vNewpayF   = num(b.newpay_fail, existing.newpay_fail);
+      const vAbsent    = num(b.absent,      existing.absent);
+      const vProspect  = num(b.prospect,    existing.prospect);
+      const vRecontact = num(b.recontact,   existing.recontact);
+      const vIsOff     = (b.is_off === undefined || b.is_off === null) ? !!existing.is_off : !!b.is_off;
+      const vNote      = (b.note === undefined) ? (existing.note||null) : (b.note||null);
       const rows = await sql`
-        INSERT INTO sales_tm_daily (user_id, work_date, db_count, count, is_off, note, updated_at)
-        VALUES (${userId}, ${b.work_date},
-                ${Number(b.db_count||0)}, ${Number(b.count||0)},
-                ${!!b.is_off}, ${b.note||null}, NOW())
+        INSERT INTO sales_tm_daily
+          (user_id, work_date, db_count, count, is_off, note,
+           received, cancelled, waiting, reserved, newpay_fail, absent, prospect, recontact, updated_at)
+        VALUES (${userId}, ${b.work_date}, ${vDb}, ${vCount}, ${vIsOff}, ${vNote},
+                ${vReceived}, ${vCancelled}, ${vWaiting}, ${vReserved}, ${vNewpayF}, ${vAbsent}, ${vProspect}, ${vRecontact},
+                NOW())
         ON CONFLICT (user_id, work_date) DO UPDATE SET
-          db_count = EXCLUDED.db_count,
-          count    = EXCLUDED.count,
-          is_off   = EXCLUDED.is_off,
-          note     = EXCLUDED.note,
-          updated_at = NOW()
+          db_count    = EXCLUDED.db_count,
+          count       = EXCLUDED.count,
+          is_off      = EXCLUDED.is_off,
+          note        = EXCLUDED.note,
+          received    = EXCLUDED.received,
+          cancelled   = EXCLUDED.cancelled,
+          waiting     = EXCLUDED.waiting,
+          reserved    = EXCLUDED.reserved,
+          newpay_fail = EXCLUDED.newpay_fail,
+          absent      = EXCLUDED.absent,
+          prospect    = EXCLUDED.prospect,
+          recontact   = EXCLUDED.recontact,
+          updated_at  = NOW()
         RETURNING *`;
       return res.status(200).json({ ok: true, row: rows[0] });
     }

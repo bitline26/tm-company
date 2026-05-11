@@ -34,7 +34,7 @@ const EMP_T2_NAME = '3';
 const EMP_T2_PW = '3';
 
 // 스키마 마커 — 이 버전이 DB에 기록되어 있으면 ensureSchema 풀실행 스킵
-const SCHEMA_VERSION = 12;
+const SCHEMA_VERSION = 13;
 
 let initialized = false;
 let initPromise = null;
@@ -170,6 +170,15 @@ export async function ensureSchema() {
     `;
     // 기존 테이블에 count 컬럼 없으면 추가
     await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS count INT NOT NULL DEFAULT 0`;
+    // 일 TM 마감 상세 컬럼 (접수/취소/대기/예약/신불/부재/가망/재컨택)
+    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS received     INT NOT NULL DEFAULT 0`;
+    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS cancelled    INT NOT NULL DEFAULT 0`;
+    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS waiting      INT NOT NULL DEFAULT 0`;
+    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS reserved     INT NOT NULL DEFAULT 0`;
+    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS newpay_fail  INT NOT NULL DEFAULT 0`;
+    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS absent       INT NOT NULL DEFAULT 0`;
+    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS prospect     INT NOT NULL DEFAULT 0`;
+    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS recontact    INT NOT NULL DEFAULT 0`;
 
     // sales_tm_monthly — 월간 누적 입력 (요청 2 핵심)
     // 직원이 본인 행의 total_count(총갯수=마감), total_db(총디비), off_days(휴무) 직접 입력
