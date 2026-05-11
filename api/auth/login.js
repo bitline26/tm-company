@@ -1,35 +1,24 @@
+// Edge Runtime — 콜드 스타트 500-1500ms (Node) → 30-80ms (Edge)
 import {
-  sql, ensureSchema, verifyPassword, signSession,
-  setSessionCookie, readJson,
-} from '../_db.js';
+  sql, verifyPasswordEdge, signSessionEdge, sessionCookie, ymToRange, json,
+} from './_edge.js';
 
-function ymToRange(ym) {
-  const start = `${ym}-01`;
-  const [y, m] = ym.split('-').map(Number);
-  const ny = m === 12 ? y + 1 : y;
-  const nm = m === 12 ? 1 : m + 1;
-  const end = `${ny}-${String(nm).padStart(2, '0')}-01`;
-  return { start, end };
-}
+export const config = { runtime: 'edge' };
 
-export default async function handler(req, res) {
+export default async function handler(req) {
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).json({ error: 'method not allowed' });
+    return json({ error: 'method not allowed' }, { status: 405, headers: { 'allow': 'POST' } });
   }
   try {
-    // ensureSchema는 백그라운드 — 마커 SELECT가 user 쿼리와 병렬로 실행
-    ensureSchema().catch(() => {});
-
-    const { name, password, ym } = await readJson(req);
-    if (!name || !password) return res.status(400).json({ error: '이름과 비밀번호를 입력하세요' });
+    const body = await req.json().catch(() => ({}));
+    const { name, password, ym } = body;
+    if (!name || !password) return json({ error: '이름과 비밀번호를 입력하세요' }, { status: 400 });
 
     const ymOk = String(ym || '').match(/^\d{4}-\d{2}$/)?.[0]
       || new Date().toISOString().slice(0, 7);
     const { start, end } = ymToRange(ymOk);
 
-    // 핵심: user 인증 쿼리 + bootstrap 데이터 5개 쿼리를 한 번에 발사
-    // → Neon RTT 한 번에 모두 처리. 직렬화 제거.
+    // user 인증 쿼리 + 전체 bootstrap 쿼리(att/sales) 동시 발사 → 1 RTT로 마무리
     const userP = sql`
       SELECT id, name, role, registered, password_hash, password_salt
       FROM users WHERE name = ${name} LIMIT 1`;
@@ -56,20 +45,18 @@ export default async function handler(req, res) {
       LEFT JOIN db_vendors v ON v.id = o.vendor_id
       WHERE o.consult_date >= ${start} AND o.consult_date < ${end}
       ORDER BY o.consult_date DESC, o.id DESC`;
-    // unhandled rejection 방지 (인증 실패 시 폐기)
     [usersP, recordsP, vendorsP, ordersP].forEach(p => p.catch(() => {}));
 
     const userRows = await userP;
     const u = userRows[0];
-    if (!u) return res.status(401).json({ error: '이름 또는 비밀번호가 올바르지 않습니다' });
-    if (!u.registered) return res.status(401).json({ error: '아직 가입되지 않은 직원입니다 (회원가입 필요)' });
-    if (!verifyPassword(String(password), u.password_hash, u.password_salt)) {
-      return res.status(401).json({ error: '이름 또는 비밀번호가 올바르지 않습니다' });
+    if (!u) return json({ error: '이름 또는 비밀번호가 올바르지 않습니다' }, { status: 401 });
+    if (!u.registered) return json({ error: '아직 가입되지 않은 직원입니다 (회원가입 필요)' }, { status: 401 });
+    if (!(await verifyPasswordEdge(String(password), u.password_hash, u.password_salt))) {
+      return json({ error: '이름 또는 비밀번호가 올바르지 않습니다' }, { status: 401 });
     }
 
     const isPriv = u.role === 'admin' || u.role === 'manager';
-    const token = signSession({ uid: u.id, name: u.name, role: u.role });
-    setSessionCookie(res, token);
+    const token = await signSessionEdge({ uid: u.id, name: u.name, role: u.role });
 
     let users, records, salesVendors, salesOrders;
     if (isPriv) {
@@ -82,13 +69,12 @@ export default async function handler(req, res) {
       salesOrders = null;
     }
 
-    return res.status(200).json({
+    return json({
       ok: true,
       user: { id: u.id, name: u.name, role: u.role },
       bootstrap: { ym: ymOk, users, records, isPriv, salesVendors, salesOrders },
-    });
+    }, { headers: { 'set-cookie': sessionCookie(token) } });
   } catch (e) {
-    console.error('login error:', e);
-    return res.status(500).json({ error: 'server error', detail: String(e.message || e) });
+    return json({ error: 'server error', detail: String(e?.message || e) }, { status: 500 });
   }
 }

@@ -1,45 +1,41 @@
-import { sql, getCurrentUser, ensureSchema, PRESET_NAMES } from '../_db.js';
+// Edge Runtime — 콜드 스타트 500-1500ms (Node) → 30-80ms (Edge)
+import {
+  sql, verifySessionEdge, parseCookieHeader, PRESET_NAMES, ymToRange, json,
+} from './_edge.js';
 
-function ymToRange(ym) {
-  const start = `${ym}-01`;
-  const [y, m] = ym.split('-').map(Number);
-  const ny = m === 12 ? y + 1 : y;
-  const nm = m === 12 ? 1 : m + 1;
-  const end = `${ny}-${String(nm).padStart(2, '0')}-01`;
-  return { start, end };
-}
+export const config = { runtime: 'edge' };
 
-// 핫패스 — 가능한 가볍게. 미로그인 호출이면 DB 접근 없이 즉시 응답.
-// ?bootstrap=1&ym=YYYY-MM 이면 첫 화면 데이터(att/list)까지 한 번에 반환 → 라운드트립 절감
-export default async function handler(req, res) {
+export default async function handler(req) {
   try {
-    const cookieHeader = req.headers?.cookie || '';
-    if (!cookieHeader.includes('tm_session=')) {
-      // 로그인 페이지 진입 시 — DB/스키마/Neon TLS 세션을 백그라운드로 워밍
-      // → 이후 로그인 클릭 시 첫 SQL 호출이 콜드가 아니라 즉시
-      ensureSchema().catch(() => {});
+    const cookies = parseCookieHeader(req.headers.get('cookie'));
+    const url = new URL(req.url);
+
+    if (!cookies.tm_session) {
+      // Neon TLS 워밍 — 다음 로그인 시 첫 SQL이 콜드 핸드셰이크 없이 즉시
       sql`SELECT 1`.catch(() => {});
-      return res.status(200).json({
-        user: null,
-        availableNames: PRESET_NAMES,
-        presetNames: PRESET_NAMES,
-      });
-    }
-    ensureSchema().catch(() => {});
-    const user = await getCurrentUser(req);
-    if (!user) {
-      return res.status(200).json({
+      return json({
         user: null,
         availableNames: PRESET_NAMES,
         presetNames: PRESET_NAMES,
       });
     }
 
-    if (!req.query?.bootstrap) {
-      return res.status(200).json({ user });
+    const session = await verifySessionEdge(cookies.tm_session);
+    if (!session?.uid) {
+      return json({
+        user: null,
+        availableNames: PRESET_NAMES,
+        presetNames: PRESET_NAMES,
+      });
     }
 
-    const ym = String(req.query.ym || '').match(/^\d{4}-\d{2}$/)?.[0]
+    const user = { id: session.uid, name: session.name, role: session.role, registered: true };
+
+    if (!url.searchParams.get('bootstrap')) {
+      return json({ user });
+    }
+
+    const ym = String(url.searchParams.get('ym') || '').match(/^\d{4}-\d{2}$/)?.[0]
       || new Date().toISOString().slice(0, 7);
     const { start, end } = ymToRange(ym);
     const isPriv = user.role === 'admin' || user.role === 'manager';
@@ -89,12 +85,11 @@ export default async function handler(req, res) {
       ]);
     }
 
-    return res.status(200).json({
+    return json({
       user,
       bootstrap: { ym, users, records, isPriv, salesVendors, salesOrders },
     });
   } catch (e) {
-    console.error('me error:', e);
-    return res.status(500).json({ error: 'server error', detail: String(e.message || e) });
+    return json({ error: 'server error', detail: String(e?.message || e) }, { status: 500 });
   }
 }

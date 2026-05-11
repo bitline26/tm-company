@@ -603,6 +603,8 @@ async function bootstrap(){
       }
       renderApp();   // 풀데이터 즉시 렌더
       loadMyTmToday().then(()=>{ if(State.user) renderApp(); }).catch(()=>{});
+      // 내부 페이지 백그라운드 프리로드 — 클릭 시 로딩 표시 없이 즉시 표시
+      preloadSalesPages();
     }else{
       renderAuth();
     }
@@ -610,6 +612,17 @@ async function bootstrap(){
     console.error(e);
     renderAuth();
   }
+}
+
+function preloadSalesPages(){
+  const u=State.user; if(!u) return;
+  const isPriv = u.role==='admin' || u.role==='manager';
+  if(!isPriv) return;
+  // 짧은 지연으로 첫 렌더 차단 안 함
+  setTimeout(()=>{
+    try{ loadSalesContext('sales-tm').catch(()=>{}); }catch(_){}
+    try{ loadSalesContext('sales-vendor').catch(()=>{}); }catch(_){}
+  }, 50);
 }
 
 async function loadMyTmToday(){
@@ -679,6 +692,7 @@ function loginForm(){
       }
       renderApp();   // 풀데이터 즉시 렌더 (추가 라운드트립 없음)
       loadMyTmToday().then(()=>{ if(State.user) renderApp(); }).catch(()=>{});
+      preloadSalesPages();
     }catch(e){
       msg.textContent=e.message;
       busy=false; btn.textContent='로그인'; btn.style.opacity='1'; btn.disabled=false;
