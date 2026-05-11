@@ -829,7 +829,7 @@ function renderAdminApp(){
 function renderEmployeeApp(){
   const root=$('#app'); root.innerHTML='';
   const me=State.user;
-  if(!['my','history','sales-orders','my-closing','sales-vendor'].includes(State.page)) State.page='my';
+  if(!['my','history','my-closing'].includes(State.page)) State.page='my';
 
   const navItem=(key,label,icon)=>h('button',{
     class:'nav-item '+(State.page===key?'on':''),
@@ -852,9 +852,7 @@ function renderEmployeeApp(){
       navItem('my','내 근태','👤'),
       navItem('history','신청 이력','🕘'),
       h('div',{class:'nav-group-h'},'실적'),
-      navItem('sales-orders','내 PB 내역','📋'),
       navItem('my-closing','내 마감','📊'),
-      navItem('sales-vendor','유입 분석','📈'),
     ),
     h('div',{class:'side-foot'},
       h('button',{class:'nav-item',onClick:logout},
@@ -863,7 +861,7 @@ function renderEmployeeApp(){
     )
   );
 
-  const titleMap={my:'내 근태',history:'신청 이력','sales-orders':'내 PB 내역','my-closing':'내 마감','sales-vendor':'유입 분석'};
+  const titleMap={my:'내 근태',history:'신청 이력','my-closing':'내 마감'};
   const title=titleMap[State.page];
   const actions=h('div',{class:'top-actions'});
   if(State.page==='my'){
