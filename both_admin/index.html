@@ -3079,14 +3079,20 @@ function renderSalesVendor(){
   const dayVendorCompleted = (State.salesVendorRows||[]).reduce((s,v)=>s+(v.completed_count||0),0);
   const autoDailyRecontact = Number(State.salesDayClosingTotal||0) - dayVendorCompleted;
   const autoMonthRecontact = Number(State.salesMonthClosingTotal||0) - Number(State.salesMonthVendorCompletedTotal||0);
+  const recontactBoxStyle = 'display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:#eaf2fb;color:#0b6e99;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums';
   const recontactBox = h('span',{
-    style:'display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:#eaf2fb;color:#0b6e99;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums',
+    style: recontactBoxStyle,
     title:`수식: 당일 실적 마감(${State.salesDayClosingTotal||0}) - 유입분석 당일 완료(${dayVendorCompleted})`
   }, `${autoDailyRecontact.toLocaleString('ko-KR')}건`);
+  const monthlyRecontactBox = h('span',{
+    style: recontactBoxStyle,
+    title:`수식: 당월 실적 마감(${State.salesMonthClosingTotal||0}) - 유입분석 당월 완료(${State.salesMonthVendorCompletedTotal||0})`
+  }, `${autoMonthRecontact.toLocaleString('ko-KR')}건`);
 
   const toolbar=h('div',{class:'sales-toolbar'},
     h('span',{class:'label'},'일자'), dateI,
     h('span',{class:'label',style:'margin-left:14px'},'당일 재컨택 (자동)'), recontactBox,
+    h('span',{class:'label',style:'margin-left:14px'},'당월 재컨택 (자동)'), monthlyRecontactBox,
     h('span',{style:'margin-left:8px;color:var(--text-soft);font-size:11px'},
       '※ 자동 계산 = 실적 마감 − 유입분석 완료')
   );
