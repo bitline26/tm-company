@@ -317,14 +317,24 @@
   .pd-stat{padding:14px;background:#fafaf8;border-radius:10px;text-align:center}
   .pd-stat .v{font-size:22px;font-weight:700;color:var(--text)}
   .pd-stat .l{font-size:11.5px;color:var(--text-soft);font-weight:500;margin-top:2px;letter-spacing:0.02em}
+  /* 네이버 캘린더 스타일 — 토(파랑)/일·공휴(빨강) + 휴일명 표기 */
   .pd-mini-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-  .pd-mini-cal .pmh{text-align:center;font-size:10px;color:var(--text-soft);font-weight:600;padding:4px 0;letter-spacing:0.04em}
-  .pd-mini-cal .pmd{aspect-ratio:1;border-radius:7px;background:#fafaf8;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:11px;color:var(--text-soft);font-weight:600;border:1px solid transparent}
-  .pd-mini-cal .pmd.empty{visibility:hidden}
-  .pd-mini-cal .pmd:hover{background:#f1f1ef;border-color:var(--border)}
-  .pd-mini-cal .pmd.weekend{background:transparent}
-  .pd-mini-cal .pmd.today{box-shadow:inset 0 0 0 2px #0f0f0f}
-  .pd-mini-cal .pmd .chip{font-size:9.5px;padding:1px 5px;margin-top:2px}
+  .pd-mini-cal .pmh{text-align:center;font-size:12px;color:#37352f;font-weight:700;padding:8px 0;letter-spacing:0.02em;border-bottom:1px solid var(--border-soft)}
+  .pd-mini-cal .pmh.sat{color:#3271b6}
+  .pd-mini-cal .pmh.sun{color:#cf4b4b}
+  .pd-mini-cal .pmd{min-height:88px;border-radius:8px;background:#fff;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;cursor:pointer;position:relative;font-size:13px;color:#37352f;font-weight:600;border:1px solid #ebebe9;padding:6px 7px;gap:3px}
+  .pd-mini-cal .pmd.empty{visibility:hidden;border:none;background:transparent}
+  .pd-mini-cal .pmd:hover{background:#fafaf8;border-color:#d3d2cf}
+  .pd-mini-cal .pmd.sat .pmd-num{color:#3271b6}
+  .pd-mini-cal .pmd.sun .pmd-num,
+  .pd-mini-cal .pmd.holiday .pmd-num{color:#cf4b4b}
+  .pd-mini-cal .pmd.holiday{background:#fef3f3;border-color:#fad9d9}
+  .pd-mini-cal .pmd.holiday:hover{background:#fde8e8}
+  .pd-mini-cal .pmd.today{box-shadow:inset 0 0 0 2px #0f0f0f;background:#fff8e7}
+  .pd-mini-cal .pmd.today.holiday{background:#fce4d6}
+  .pd-mini-cal .pmd .pmd-num{font-size:13px;font-weight:700;line-height:1}
+  .pd-mini-cal .pmd .pmd-hol{font-size:10px;color:#cf4b4b;font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
+  .pd-mini-cal .pmd .chip{font-size:10px;padding:2px 6px;margin-top:auto;align-self:flex-start}
   .pd-history-list{display:flex;flex-direction:column;gap:8px}
   .pd-hist{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:9px;background:#fafaf8;font-size:12.5px}
   .pd-hist .hi-left{display:flex;align-items:center;gap:10px}
@@ -1200,32 +1210,48 @@ function renderMyHome(){
     h('div',{class:'pd-stat-row'}, ...statCells)
   );
 
-  // 큰 캘린더 (본인 단독)
+  // 큰 캘린더 — 네이버 캘린더 스타일 (토 파랑 / 일·공휴 빨강 + 휴일명 표기)
   const [y,m]=State.ym.split('-').map(Number);
+  ensureHolidaysFor(y); // 그 해 공휴일 백그라운드 fetch
   const dim=daysInMonth(y,m);
   const firstDow=new Date(y,m-1,1).getDay();
   const recIdx={};
   recs.forEach(r=>{ recIdx[String(r.work_date).slice(0,10)]=r; });
   const todayYmd=fmtYmd(new Date().getFullYear(),new Date().getMonth()+1,new Date().getDate());
-  const cal=h('div',{class:'pd-mini-cal',style:'gap:6px'});
-  ['일','월','화','수','목','금','토'].forEach(d=>cal.append(h('div',{class:'pmh',style:'font-size:11.5px;padding:6px 0'},d)));
+  const cal=h('div',{class:'pd-mini-cal'});
+  // 요일 헤더 — 일(빨강) / 토(파랑) / 평일(검정)
+  const dowLabels=['일','월','화','수','목','금','토'];
+  dowLabels.forEach((lbl,i)=>{
+    const c=['pmh'];
+    if(i===0) c.push('sun');
+    if(i===6) c.push('sat');
+    cal.append(h('div',{class:c.join(' ')}, lbl));
+  });
   for(let i=0;i<firstDow;i++) cal.append(h('div',{class:'pmd empty'}));
   for(let d=1;d<=dim;d++){
     const dow=new Date(y,m-1,d).getDay();
     const ymd=fmtYmd(y,m,d);
+    const holName=krHolidayName(ymd);
+    const isHoliday=!!holName;
+    const isSat=dow===6, isSun=dow===0;
     const rec=recIdx[ymd];
     const cls=['pmd'];
-    if(dow===0||dow===6) cls.push('weekend');
+    // 우선순위: 공휴일 > 일 > 토
+    if(isHoliday) cls.push('holiday');
+    else if(isSun) cls.push('sun');
+    else if(isSat) cls.push('sat');
     if(ymd===todayYmd) cls.push('today');
-    let inner=[h('div',{style:'font-size:13px;font-weight:600'}, d)];
+    const inner=[ h('div',{class:'pmd-num'}, d) ];
+    if (isHoliday) inner.push(h('div',{class:'pmd-hol', title: holName}, holName));
     if(rec){
       const cc=['chip',`chip-${rec.type}`];
       if(rec.status==='REQUESTED') cc.push('is-requested');
       if(rec.status==='REJECTED') cc.push('is-rejected');
-      inner.push(h('span',{class:cc.join(' '),style:'font-size:10.5px;padding:2px 6px;margin-top:3px'}, TYPE_TINY[rec.type]||''));
+      inner.push(h('span',{class:cc.join(' ')}, TYPE_LABELS[rec.type]||''));
     }
-    cal.append(h('div',{class:cls.join(' '),style:'min-height:60px;padding:6px',
-      onClick:(dow===0||dow===6)?null:()=>openCellDrawer(u,ymd,rec)
+    cal.append(h('div',{class:cls.join(' '),
+      title: isHoliday ? holName : (isSun ? '일요일' : (isSat ? '토요일' : '')),
+      onClick:(isSat||isSun||isHoliday)?null:()=>openCellDrawer(u,ymd,rec)
     }, ...inner));
   }
 
