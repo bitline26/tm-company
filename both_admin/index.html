@@ -3078,7 +3078,7 @@ function renderSalesOrders(){
 
   const filterTm=h('select',null,
     h('option',{value:'ALL'},'전체 TM'),
-    ...State.users.map(u=>h('option',{value:String(u.id)},u.name))
+    ...State.users.filter(u=>Number(u.tier)===1).map(u=>h('option',{value:String(u.id)},u.name))
   );
   filterTm.value=State.salesOrdersFilter.tm;
   filterTm.addEventListener('change',()=>{State.salesOrdersFilter.tm=filterTm.value;renderApp();});
@@ -3481,7 +3481,8 @@ function startEditCell(td, cell, col, row, isPriv){
     input.addEventListener('change',()=>finish(true, input.value));
     input.addEventListener('blur',()=>finish(false));
   } else if (col.type==='tm'){
-    input=h('select',null, h('option',{value:''},'—'), ...State.users.map(u=>h('option',{value:String(u.id)},u.name)));
+    input=h('select',null, h('option',{value:''},'—'),
+      ...State.users.filter(u=>Number(u.tier)===1).map(u=>h('option',{value:String(u.id)},u.name)));
     input.value=row.tm_user_id?String(row.tm_user_id):'';
     input.addEventListener('change',()=>finish(true, input.value));
     input.addEventListener('blur',()=>finish(false));
@@ -3536,7 +3537,7 @@ function openOrderModal(existingOrder){
 
   const tmSel = h('select',{style:inputStyle},
     h('option',{value:''},'— 선택 —'),
-    ...State.users.map(u=>h('option',{value:String(u.id)}, u.name))
+    ...State.users.filter(u=>Number(u.tier)===1).map(u=>h('option',{value:String(u.id)}, u.name))
   );
   tmSel.value = o.tm_user_id ? String(o.tm_user_id) : (isPriv?'':String(me.id));
   if (!isPriv) tmSel.disabled = true;
