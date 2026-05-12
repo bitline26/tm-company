@@ -127,21 +127,26 @@
   table.grid{border-collapse:separate;border-spacing:0;font-size:13px;table-layout:fixed;width:100%}
   table.grid th,table.grid td{border-right:1px solid var(--border-soft);border-bottom:1px solid var(--border-soft);padding:0;text-align:center;vertical-align:middle}
   table.grid thead th{background:#fbfaf8;font-weight:600;color:var(--text-soft);font-size:11px;letter-spacing:0.02em;position:sticky;top:0;z-index:2;height:32px;text-transform:uppercase}
-  table.grid thead th.weekend{color:#cf4b4b}
-  table.grid thead th.sat{color:#3271b6}
-  table.grid thead th.holiday{color:#cf4b4b;background:#fdecec}
-  table.grid td.day.holiday{background:#fdecec;cursor:default}
-  table.grid td.day.holiday:hover{background:#fdecec}
-  table.grid td.day.today.holiday{background:#fde0d4}
+  /* 헤더 — 구글/네이버 캘린더 기준: 토 파랑, 일 빨강, 공휴 빨강+분홍 */
+  table.grid thead th.sat{color:#3271b6;background:#f3f7fc}
+  table.grid thead th.sun{color:#cf4b4b;background:#fbf3f3}
+  table.grid thead th.holiday{color:#cf4b4b;background:#fde8e8}
   table.grid .col-name{position:sticky;left:0;background:#fff;z-index:3;text-align:left;padding:8px 14px;font-weight:600;width:140px;min-width:140px;border-right:1px solid var(--border)}
   table.grid thead .col-name{background:#fbfaf8;z-index:4;font-weight:600}
   table.grid tbody tr:hover .col-name{background:#faf9f6}
+  /* 본문 — 평일 흰, 토 연파랑, 일 연분홍, 공휴 분홍 (4단계 명확 구분) */
   table.grid td.day{width:46px;height:42px;padding:4px;cursor:pointer;background:#fff;position:relative;user-select:none}
   table.grid td.day:hover{background:#f7f7f5}
-  table.grid td.day.weekend{background:#fafaf8;cursor:default}
-  table.grid td.day.weekend:hover{background:#fafaf8}
+  table.grid td.day.sat{background:#f4f8fc;cursor:default}
+  table.grid td.day.sat:hover{background:#f4f8fc}
+  table.grid td.day.sun{background:#fcf3f3;cursor:default}
+  table.grid td.day.sun:hover{background:#fcf3f3}
+  table.grid td.day.holiday{background:#fde8e8;cursor:default}
+  table.grid td.day.holiday:hover{background:#fde8e8}
   table.grid td.day.today{background:#fff8e7}
-  table.grid td.day.today.weekend{background:#fdf3d8}
+  table.grid td.day.today.sat{background:#eef4fa}
+  table.grid td.day.today.sun{background:#fbeaea}
+  table.grid td.day.today.holiday{background:#fcdada}
 
   /* 셀 안 칩 (노션 DB 태그 스타일) */
   .chip{
@@ -171,8 +176,8 @@
 
   /* 본인 행 강조 — 좌측 검정 바 + 살짝 다른 BG */
   table.grid tr.row-self .col-name{box-shadow:inset 3px 0 0 #0f0f0f;background:#fbf9f3}
-  table.grid tr.row-self td.day:not(.weekend):not(.holiday){background:#fdfcf8}
-  table.grid tr.row-self td.day:not(.weekend):not(.holiday):hover{background:#f7f4ec}
+  table.grid tr.row-self td.day:not(.sat):not(.sun):not(.holiday){background:#fdfcf8}
+  table.grid tr.row-self td.day:not(.sat):not(.sun):not(.holiday):hover{background:#f7f4ec}
 
   .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
   .legend-item{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-soft)}
@@ -1736,15 +1741,16 @@ function renderGrid(){
     const ymd=fmtYmd(y,m,d);
     const holName=krHolidayName(ymd);
     const cls=[];
-    if(dow===0) cls.push('weekend');
-    if(dow===6) cls.push('sat');
+    // 우선순위: 공휴일(분홍) > 일(빨강) > 토(파랑) > 평일(흰)
     if(holName) cls.push('holiday');
+    else if(dow===0) cls.push('sun');
+    else if(dow===6) cls.push('sat');
     if(ymd===todayYmd) cls.push('today-h');
     const labels=['일','월','화','수','목','금','토'];
-    // 구글 캘린더 스타일 — 날짜만 빨강, 요일은 그대로, 휴일명은 툴팁
+    // 구글/네이버 캘린더 스타일 — 날짜+요일 같이 색 적용. 휴일명은 툴팁
     headRow.push(h('th',{class:cls.join(' '), title: holName || ''},
       h('div',{style:'font-size:13px;font-weight:700;color:'+(ymd===todayYmd?'#0f0f0f':'inherit')}, d),
-      h('div',{style:'font-size:9.5px;font-weight:500;opacity:.7'}, labels[dow])
+      h('div',{style:'font-size:9.5px;font-weight:500;opacity:.85'}, labels[dow])
     ));
   }
 
@@ -1762,37 +1768,34 @@ function renderGrid(){
     ));
     for(let d=1;d<=dim;d++){
       const dow=new Date(y,m-1,d).getDay();
-      const isWeekend=(dow===0||dow===6);
+      const isSat=(dow===6), isSun=(dow===0);
       const ymd=fmtYmd(y,m,d);
       const holName=krHolidayName(ymd);
       const isHoliday=!!holName;
-      const isOff=isWeekend||isHoliday;
+      const isOff=isSat||isSun||isHoliday;
       const rec=recIdx[`${u.id}|${ymd}`];
       const cls=['day'];
-      if(isWeekend) cls.push('weekend');
+      // 우선순위: 공휴일 > 일 > 토 (모두 동시 적용 안 함)
       if(isHoliday) cls.push('holiday');
+      else if(isSun) cls.push('sun');
+      else if(isSat) cls.push('sat');
       if(ymd===todayYmd) cls.push('today');
-      // 비어있는 날(주말/공휴일 아님) = 정상출근 디폴트 표시
+      // 평일만 '정상' 디폴트 표시. 토/일/공휴는 빈 셀 (+ 호버 X — empty 클래스 안 붙임)
       let inner=null;
       if(rec){
         const chipCls=['chip', `chip-${rec.type}`];
         if(rec.status==='REQUESTED') chipCls.push('is-requested');
         if(rec.status==='REJECTED') chipCls.push('is-rejected');
         inner=h('span',{class:chipCls.join(' ')}, TYPE_TINY[rec.type]||'');
-      } else if (isHoliday) {
-        // 공휴일 — 깔끔한 빨간 배경 (라벨 없음, 구글 캘린더 스타일)
-        cls.push('empty');
-      } else if (!isWeekend) {
-        // 신청 없음 + 평일 → 정상출근 디폴트
+      } else if (!isOff) {
         inner=h('span',{class:'chip chip-WORK',style:'font-size:11px;opacity:.7'}, '정상');
-      } else {
-        cls.push('empty');
       }
+      // isOff 일 땐 inner=null + cls 에 empty 안 붙음 → "+" 호버 미노출
       const td=h('td',{
         class:cls.join(' '),
         title:rec
           ? `${TYPE_LABELS[rec.type]} (${statusLabel(rec.status)})${rec.note?' · '+rec.note:''}`
-          : (isHoliday?holName:(isWeekend?'':'정상출근 (기본)')),
+          : (isHoliday?holName:(isSun?'일요일':(isSat?'토요일':'정상출근 (기본)'))),
         onClick:isOff?null:()=>openCellDrawer(u,ymd,rec),
       }, inner);
       tr.append(td);
