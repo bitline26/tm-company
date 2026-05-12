@@ -96,6 +96,31 @@ export default async function handler(req) {
           WHERE o.consult_date >= ${start} AND o.consult_date < ${end}
           ORDER BY (o.payment_date IS NULL), o.payment_date ASC, o.consult_date ASC, o.id ASC`,
       ]);
+    } else if (Number(user.tier) === 2) {
+      // 2차 직원 — 같은 tier=2 직원들의 정보 + 근태 공유
+      [users, records, salesVendors] = await Promise.all([
+        sql`
+          SELECT id, name, role, registered, tier, status
+          FROM users WHERE role <> 'admin' AND tier = 2 AND name NOT IN ('2','3')
+          ORDER BY sort_order ASC, id ASC`,
+        sql`
+          SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,
+                 a.approved_by, a.approved_at, a.reject_reason, a.requested_at,
+                 uu.name AS approver_name
+          FROM attendance_records a
+          LEFT JOIN users uu ON uu.id = a.approved_by
+          INNER JOIN users tu ON tu.id = a.user_id
+          WHERE a.work_date >= ${start} AND a.work_date < ${end}
+            AND tu.tier = 2 AND tu.name NOT IN ('2','3')
+          ORDER BY a.work_date ASC, a.user_id ASC`,
+        sql`
+          SELECT id, code, label, parent_label, color, sort_order, active, note
+          FROM db_vendors ORDER BY active DESC, sort_order ASC, id ASC`,
+      ]);
+      // viewer '3' 본인은 직원 리스트에 안 보이지만 본인 카드는 필요 → 추가
+      if (user.name === '3' && !users.find(u=>u.id===user.id)) {
+        users.unshift({ id: user.id, name: user.name, role: user.role, tier: user.tier, registered: true });
+      }
     } else {
       users = [{ id: user.id, name: user.name, role: user.role, tier: user.tier, registered: true }];
       [records, salesVendors] = await Promise.all([

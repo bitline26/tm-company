@@ -1095,8 +1095,9 @@ function renderEmployeeApp(){
       h('div',{class:'nav-group-h'},'인사'),
       navItem('my','내 근태','👤'),
       navItem('history','신청 이력','🕘'),
-      h('div',{class:'nav-group-h'},'실적'),
-      navItem('sales-tm-daily','마감 보고','📅'),
+      // 실적 탭 — 1차 직원만 (2차 직원은 마감 보고 숨김)
+      Number(me.tier)===2 ? null : h('div',{class:'nav-group-h'},'실적'),
+      Number(me.tier)===2 ? null : navItem('sales-tm-daily','마감 보고','📅'),
     ),
     h('div',{class:'side-foot'},
       h('button',{class:'nav-item',onClick:logout},
@@ -1133,6 +1134,10 @@ function renderEmployeeApp(){
     actions
   );
 
+  // 2차 직원이 sales-tm-daily(마감 보고) 페이지로 직접 진입하면 내 근태로 강제 이동
+  if (Number(me.tier)===2 && (State.page==='sales-tm-daily' || State.page==='sales-orders' || State.page==='sales-vendor')) {
+    State.page = 'my';
+  }
   let content;
   if(State.page==='my') content=renderMyHome();
   else if(State.page==='history') content=renderMyHistory();
@@ -1221,7 +1226,17 @@ function renderMyHome(){
   );
 
   // 영업 마감 입력은 별도 탭(내 마감)에서. 여기는 근태(휴가)만.
-  return h('div',null, stats, calSection);
+  // 2차 직원: 팀 캘린더(같은 2차 직원들 휴가 공유) 추가
+  let teamSection = null;
+  if (Number(me.tier) === 2 && State.users && State.users.length > 1) {
+    teamSection = h('section',{class:'pd-section',style:'margin-top:18px'},
+      h('h3',null,'👥 2차 직원 팀 캘린더 ',
+        h('span',{style:'color:var(--text-soft);font-weight:500;font-size:11.5px;margin-left:6px'},
+          `· 같은 2차 직원 ${State.users.length}명의 휴가/연차 공유`)),
+      renderGrid()
+    );
+  }
+  return h('div',null, stats, calSection, teamSection);
 }
 
 function renderMyHistory(){
@@ -1803,12 +1818,15 @@ function renderGrid(){
         inner=h('span',{class:'chip chip-WORK',style:'font-size:11px;opacity:.7'}, '정상');
       }
       // isOff 일 땐 inner=null + cls 에 empty 안 붙음 → "+" 호버 미노출
+      // 일반 직원은 본인 행만 편집 가능 (다른 사람 셀은 클릭 비활성)
+      const me=State.user;
+      const canEdit = me.role==='admin' || me.role==='manager' || u.id===me.id;
       const td=h('td',{
         class:cls.join(' '),
         title:rec
-          ? `${TYPE_LABELS[rec.type]} (${statusLabel(rec.status)})${rec.note?' · '+rec.note:''}`
-          : (isHoliday?holName:(isSun?'일요일':(isSat?'토요일':'정상출근 (기본)'))),
-        onClick:isOff?null:()=>openCellDrawer(u,ymd,rec),
+          ? `${TYPE_LABELS[rec.type]} (${statusLabel(rec.status)})${rec.note?' · '+rec.note:''}${canEdit?'':' · 보기 전용'}`
+          : (isHoliday?holName:(isSun?'일요일':(isSat?'토요일':(canEdit?'정상출근 (기본)':'')))),
+        onClick:(isOff||!canEdit)?null:()=>openCellDrawer(u,ymd,rec),
       }, inner);
       tr.append(td);
     }

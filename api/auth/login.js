@@ -109,6 +109,18 @@ export default async function handler(req) {
     let users, records, salesVendors, salesOrders;
     if (isPriv) {
       [users, records, salesVendors, salesOrders] = await Promise.all([usersP, recordsP, vendorsP, ordersP]);
+    } else if (Number(u.tier) === 2) {
+      // 2차 직원 — 같은 tier=2 직원들의 정보 + 근태 공유
+      const [allUsers, allRecords, vendors] = await Promise.all([usersP, recordsP, vendorsP]);
+      users = allUsers.filter(x => Number(x.tier) === 2 && x.name !== '2' && x.name !== '3');
+      // viewer '3' 본인은 직원 리스트에 안 보이지만 본인 카드는 필요 → 추가
+      if (u.name === '3' && !users.find(x=>x.id===u.id)) {
+        users.unshift({ id: u.id, name: u.name, role: u.role, tier: u.tier, registered: true });
+      }
+      const tier2Ids = new Set(users.map(x=>x.id));
+      records = allRecords.filter(r => tier2Ids.has(r.user_id));
+      salesVendors = vendors;
+      salesOrders = null;
     } else {
       users = [{ id: u.id, name: u.name, role: u.role, tier: u.tier, registered: true }];
       const [allRecords, vendors] = await Promise.all([recordsP, vendorsP]);
