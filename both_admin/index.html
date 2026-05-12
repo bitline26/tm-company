@@ -1115,19 +1115,22 @@ function renderEmployeeApp(){
   if(State.page==='my'){
     const [y,m]=State.ym.split('-').map(Number);
     const change=(d)=>{const dt=new Date(y,m-1+d,1);State.ym=fmtYm(dt);loadMonth().then(renderApp);};
-    actions.append(
+    const _topActions = [
       h('div',{class:'month-picker'},
         h('button',{class:'icon-btn',onClick:()=>change(-1)},'‹'),
         h('div',{class:'month-label'},`${y}년 ${m}월`),
         h('button',{class:'icon-btn',onClick:()=>change(+1)},'›'),
       ),
       h('button',{class:'btn',onClick:()=>{State.ym=todayYm();loadMonth().then(renderApp);}},'오늘'),
-      // '+ 새 신청' 버튼 — 1차 직원은 숨김 (캘린더 셀 클릭으로 신청)
-      Number(me.tier)===1 ? null : h('button',{class:'btn btn-primary',onClick:()=>{
+    ];
+    // '+ 새 신청' 버튼 — 1차 직원은 숨김 (캘린더 셀 클릭으로 신청)
+    if (Number(me.tier)!==1) {
+      _topActions.push(h('button',{class:'btn btn-primary',onClick:()=>{
         const td=fmtYmd(new Date().getFullYear(),new Date().getMonth()+1,new Date().getDate());
         openCellDrawer(me, td, null);
-      }},'+ 새 신청')
-    );
+      }},'+ 새 신청'));
+    }
+    actions.append(..._topActions);
   }
 
   const topbar=h('header',{class:'topbar'},
