@@ -380,13 +380,12 @@
   .orders-table tr.row-status-PAID:hover td{background:#a7f3d0}
   .orders-table tr.row-status-PAID td:first-child::before{background:#10b981}
 
-  .orders-table tr.row-status-UNPAID td{background:#fef2f2}
-  .orders-table tr.row-status-UNPAID:hover td{background:#fee2e2}
-  .orders-table tr.row-status-UNPAID td:first-child::before{background:#ef4444}
-
-  .orders-table tr.row-status-UNPAID_PROOF td{background:#ffedd5}
-  .orders-table tr.row-status-UNPAID_PROOF:hover td{background:#fed7aa}
-  .orders-table tr.row-status-UNPAID_PROOF td:first-child::before{background:#f97316}
+  .orders-table tr.row-status-UNPAID td,
+  .orders-table tr.row-status-UNPAID_PROOF td{background:#fef2f2}
+  .orders-table tr.row-status-UNPAID:hover td,
+  .orders-table tr.row-status-UNPAID_PROOF:hover td{background:#fee2e2}
+  .orders-table tr.row-status-UNPAID td:first-child::before,
+  .orders-table tr.row-status-UNPAID_PROOF td:first-child::before{background:#ef4444}
 
   .orders-table tr.row-status-IN_PROGRESS td{background:#fef3c7}
   .orders-table tr.row-status-IN_PROGRESS:hover td{background:#fde68a}
@@ -405,10 +404,10 @@
   .st-chip::before{content:"";width:6px;height:6px;border-radius:50%;display:inline-block}
   .st-PAID{background:#d1fae5;color:#065f46;border-color:#6ee7b7}
   .st-PAID::before{background:#10b981}
-  .st-UNPAID{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
-  .st-UNPAID::before{background:#ef4444}
-  .st-UNPAID_PROOF{background:#ffedd5;color:#9a3412;border-color:#fdba74}
-  .st-UNPAID_PROOF::before{background:#f97316}
+  .st-UNPAID,
+  .st-UNPAID_PROOF{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
+  .st-UNPAID::before,
+  .st-UNPAID_PROOF::before{background:#ef4444}
   .st-IN_PROGRESS{background:#fef3c7;color:#92400e;border-color:#fcd34d}
   .st-IN_PROGRESS::before{background:#f59e0b}
   .st-PARTIAL{background:#e0e7ff;color:#3730a3;border-color:#a5b4fc}
