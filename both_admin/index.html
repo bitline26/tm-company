@@ -699,9 +699,11 @@ const TYPE_TINY={
   WORK:'', OFF:'휴무', HALF_AM:'오반', HALF_PM:'오반',
   MONTHLY:'월차', ANNUAL:'연차', SICK:'병가', HOLIDAY:'공가', UNAUTHORIZED:'무단',
 };
-// 분류별 신청 가능 종류 — 1차직원 = 휴무 + 무단결근, 2차직원 = 전체
+// 분류별 신청 가능 종류
+// 1차직원 = 휴무 + 무단결근
+// 2차직원 = 오전반차 / 오후반차 / 무단결근 / 휴무(병가) / 월차 (연차·병가 단독 제거 — 휴무에 병가 통합)
 const REQUESTABLE_T1=['OFF','UNAUTHORIZED'];
-const REQUESTABLE_T2=['OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK'];
+const REQUESTABLE_T2=['HALF_AM','HALF_PM','UNAUTHORIZED','OFF','MONTHLY'];
 function requestableTypesFor(u){
   const t=Number(u?.tier);
   return t===1 ? REQUESTABLE_T1 : REQUESTABLE_T2;
@@ -1897,10 +1899,13 @@ function openCellDrawer(target,ymd,rec){
     requestableTypesFor(target).forEach(t=>typeGrid.append(typeBtn(t)));
   }
   function typeBtn(t){
+    // 2차 직원: 'OFF' 버튼은 '휴무(병가)' 로 표기 (병가 단독 신청 폐기)
+    let label = TYPE_LABELS[t];
+    if (Number(target.tier)===2 && t==='OFF') label = '휴무(병가)';
     return h('button',{
       class:'type-btn '+(chosen===t?'on':''),
       onClick:()=>{chosen=t;repaint();}
-    }, TYPE_LABELS[t]);
+    }, label);
   }
   typeGrid=h('div',{class:'type-grid'});
   requestableTypesFor(target).forEach(t=>typeGrid.append(typeBtn(t)));
