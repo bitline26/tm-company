@@ -540,6 +540,7 @@ const State = {
   salesTmRemaining: 0,
   salesTmTotal: 0,
   salesVendorRows: [],     // vendor-daily 응답
+  salesVendorEdit: false,  // 유입분석 카드 수정 모드 (대표만)
   salesDayMeta: null,      // {recontact_completed, note}
   salesMonthlyRecontact: 0,// 레거시(수동 입력 합) — 표시는 자동 계산으로 대체
   // 재컨택 자동 계산용 (재컨택 = 실적 마감 - 유입분석 완료)
@@ -4209,12 +4210,21 @@ function renderSalesVendor(){
     title:`수식: 당월 실적 마감(${State.salesMonthClosingTotal||0}) - 유입분석 당월 완료(${State.salesMonthVendorCompletedTotal||0})`
   }, `${autoMonthRecontact.toLocaleString('ko-KR')}건`);
 
+  // 대표만 수정 모드 토글 (업체 카드 추가/삭제)
+  const isAdmin = me.role==='admin';
+  const editToggle = isAdmin ? h('button',{
+    class:'btn'+(State.salesVendorEdit?' btn-primary':''),
+    style:'margin-left:auto;padding:6px 14px;font-size:12px;font-weight:700',
+    onClick:()=>{ State.salesVendorEdit = !State.salesVendorEdit; renderApp(); }
+  }, State.salesVendorEdit?'✓ 수정 완료':'✎ 수정') : null;
+
   const toolbar=h('div',{class:'sales-toolbar'},
     h('span',{class:'label'},'일자'), dateI,
     h('span',{class:'label',style:'margin-left:14px'},'당일 재컨택 (자동)'), recontactBox,
     h('span',{class:'label',style:'margin-left:14px'},'당월 재컨택 (자동)'), monthlyRecontactBox,
     h('span',{style:'margin-left:8px;color:var(--text-soft);font-size:11px'},
-      '※ 자동 계산 = 실적 마감 − 유입분석 완료')
+      '※ 자동 계산 = 실적 마감 − 유입분석 완료'),
+    editToggle
   );
 
   // 빠른 날짜 필터 — 유입 분석은 단일 일자 기준
@@ -4288,7 +4298,23 @@ function renderSalesVendor(){
   for (const v of rows){
     const eff = (v.db_count - v.deleted_count) > 0 ? v.completed_count/(v.db_count - v.deleted_count) : 0;
     const acc = (v.db_count - v.deleted_count) > 0 ? v.received_count/(v.db_count - v.deleted_count) : 0;
-    const card=h('div',{class:'vendor-card'},
+    // 수정 모드 ✕ 삭제 버튼 (대표 + 수정 모드)
+    const delBtn = (isAdmin && State.salesVendorEdit) ? h('button',{
+      style:'position:absolute;top:6px;right:6px;width:22px;height:22px;border:none;border-radius:50%;background:rgba(255,255,255,.85);color:#b91c1c;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;z-index:5;box-shadow:0 1px 3px rgba(0,0,0,.15)',
+      title:`'${v.code}' 카드 삭제`,
+      onClick:async(e)=>{
+        e.stopPropagation();
+        if(!confirm(`'${v.code}' 카드를 삭제합니다. (비활성 처리, 과거 데이터는 유지)`)) return;
+        try{
+          await api(`/api/sales/vendors?id=${v.vendor_id||v.id}`,{method:'DELETE'});
+          State.salesVendorsLoaded=false; State.salesVendorLoadedDate=null;
+          await loadSalesContext('sales-vendor');
+          renderApp(); showToast('업체 삭제됨');
+        }catch(err){ alert(err.message); }
+      }
+    }, '✕') : null;
+    const card=h('div',{class:'vendor-card', style:'position:relative'},
+      delBtn,
       h('div',{class:'vc-head',style:`background:${v.color||'#9b9a97'}`},
         h('div',null, '▶ ', v.code, v.parent_label?h('span',{class:'vc-parent',style:'margin-left:6px'}, '('+v.parent_label+')'):null),
         h('div',{style:'font-size:11px;font-weight:600;opacity:.9'}, v.completed_count + '건')
@@ -4306,11 +4332,99 @@ function renderSalesVendor(){
     );
     grid.append(card);
   }
-  if (!rows.length){
-    grid.append(h('div',{class:'sales-empty'}, h('div',{class:'ico'},'📈'), '유입처가 없습니다 — admin 에 시드 후 자동 생성'));
+
+  // 수정 모드 — 마지막에 '+ 업체 추가' 카드
+  if (isAdmin && State.salesVendorEdit) {
+    const addCard = h('div',{
+      class:'vendor-card',
+      style:'border:2px dashed #c2c0bc;background:#fafaf8;display:flex;align-items:center;justify-content:center;min-height:230px;cursor:pointer;transition:background .1s',
+      onClick:()=>openVendorAddModal()
+    },
+      h('div',{style:'text-align:center;color:#787774'},
+        h('div',{style:'font-size:34px;font-weight:300;line-height:1'},'+'),
+        h('div',{style:'margin-top:8px;font-size:13px;font-weight:600'},'업체 추가'),
+        h('div',{style:'margin-top:4px;font-size:11px;opacity:.7'},'타 업체 / 신규 유입처')
+      )
+    );
+    grid.append(addCard);
+  }
+
+  if (!rows.length && !(isAdmin && State.salesVendorEdit)){
+    grid.append(h('div',{class:'sales-empty'}, h('div',{class:'ico'},'📈'), '유입처가 없습니다 — 우측 상단 ✎ 수정 → + 업체 추가'));
   }
   wrap.append(grid);
   return wrap;
+}
+
+// 업체 추가 모달 (대표 전용)
+function openVendorAddModal(){
+  const PRESET_COLORS = ['#9b9a97','#7c3aed','#a855f7','#0f766e','#0284c7','#1e40af','#0891b2','#dc2626','#ea580c','#ca8a04','#16a34a','#059669','#9d174d'];
+  const overlay = h('div',{
+    style:'position:fixed;inset:0;background:rgba(15,15,15,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px'
+  });
+  const codeI = h('input',{type:'text',placeholder:'예: A-A, KT-1, 타미통신',
+    style:'width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:7px;font-size:13.5px;background:#fcfcfb;outline:none'});
+  const labelI = h('input',{type:'text',placeholder:'예: 타미통신디비',
+    style:'width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:7px;font-size:13.5px;background:#fcfcfb;outline:none'});
+  const parentI = h('input',{type:'text',placeholder:'예: 타미통신디비 (선택)',
+    style:'width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:7px;font-size:13.5px;background:#fcfcfb;outline:none'});
+  let pickedColor = PRESET_COLORS[0];
+  const colorRow = h('div',{style:'display:flex;flex-wrap:wrap;gap:6px'});
+  function paintColors(){
+    colorRow.innerHTML='';
+    for (const c of PRESET_COLORS){
+      const sel = c===pickedColor;
+      const sw = h('button',{
+        style:`width:30px;height:30px;border-radius:50%;background:${c};border:${sel?'3px solid #0f0f0f':'2px solid transparent'};cursor:pointer;transition:transform .08s;${sel?'transform:scale(1.1)':''}`,
+        title: c,
+        onClick:(e)=>{ e.preventDefault(); pickedColor = c; paintColors(); }
+      });
+      colorRow.append(sw);
+    }
+  }
+  paintColors();
+
+  const cancelBtn = h('button',{class:'btn',style:'padding:8px 16px;font-size:13px'},'취소');
+  const saveBtn = h('button',{class:'btn btn-primary',style:'padding:8px 16px;font-size:13px;font-weight:700'},'추가');
+  cancelBtn.addEventListener('click',()=>overlay.remove());
+  saveBtn.addEventListener('click',async()=>{
+    const code = codeI.value.trim();
+    const label = labelI.value.trim() || code;
+    if (!code) { codeI.focus(); return alert('업체 코드 필수'); }
+    saveBtn.disabled=true; saveBtn.textContent='추가 중…';
+    try{
+      const sortOrder = (State.salesVendors||[]).reduce((m,v)=>Math.max(m, Number(v.sort_order||0)), 0) + 10;
+      await api('/api/sales/vendors',{method:'POST',body:{
+        code, label, parent_label: parentI.value.trim()||null,
+        color: pickedColor, sort_order: sortOrder, active: true
+      }});
+      State.salesVendorsLoaded=false; State.salesVendorLoadedDate=null;
+      await loadSalesContext('sales-vendor');
+      renderApp(); showToast('업체 추가됨');
+      overlay.remove();
+    }catch(e){
+      saveBtn.disabled=false; saveBtn.textContent='추가';
+      alert(e.message);
+    }
+  });
+
+  const card = h('div',{style:'background:#fff;border-radius:12px;padding:22px;width:480px;max-width:92vw;max-height:90vh;overflow:auto'},
+    h('div',{style:'font-weight:800;font-size:17px;margin-bottom:4px'},'＋ 새 업체 추가'),
+    h('div',{style:'font-size:11.5px;color:var(--text-soft);margin-bottom:18px'},'유입분석 카드로 노출됩니다 (코드/라벨/카테고리/색상)'),
+
+    h('div',{style:'font-size:11.5px;font-weight:600;color:var(--text-soft);margin-bottom:5px'},'코드 *'), codeI,
+    h('div',{style:'font-size:11.5px;font-weight:600;color:var(--text-soft);margin:14px 0 5px'},'라벨'), labelI,
+    h('div',{style:'font-size:11.5px;font-weight:600;color:var(--text-soft);margin:14px 0 5px'},'카테고리 (선택)'), parentI,
+    h('div',{style:'font-size:11.5px;font-weight:600;color:var(--text-soft);margin:14px 0 8px'},'헤더 색상'), colorRow,
+
+    h('div',{style:'display:flex;gap:8px;justify-content:flex-end;margin-top:22px'}, cancelBtn, saveBtn)
+  );
+  overlay.append(card);
+  document.body.append(overlay);
+  // 키보드: Esc 닫기, 외부 클릭 보호
+  setTimeout(()=>codeI.focus(),50);
+  const onKey=(e)=>{ if(e.key==='Escape'){ overlay.remove(); document.removeEventListener('keydown',onKey); } };
+  document.addEventListener('keydown',onKey);
 }
 
 // === 일/월 TM 시트(.sheet-input): Excel-style 키보드 + Shift+화살표 범위 + 마우스 드래그 + Delete 일괄 0 ===
