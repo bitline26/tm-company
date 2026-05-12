@@ -1261,17 +1261,7 @@ function renderMyHome(){
   );
 
   // 영업 마감 입력은 별도 탭(내 마감)에서. 여기는 근태(휴가)만.
-  // 2차 직원: 팀 캘린더(같은 2차 직원들 휴가 공유) 추가
-  let teamSection = null;
-  if (Number(me.tier) === 2 && State.users && State.users.length > 1) {
-    teamSection = h('section',{class:'pd-section',style:'margin-top:18px'},
-      h('h3',null,'👥 2차 직원 팀 캘린더 ',
-        h('span',{style:'color:var(--text-soft);font-weight:500;font-size:11.5px;margin-left:6px'},
-          `· 같은 2차 직원 ${State.users.length}명의 휴가/연차 공유`)),
-      renderGrid()
-    );
-  }
-  return h('div',null, stats, calSection, teamSection);
+  return h('div',null, stats, calSection);
 }
 
 function renderMyHistory(){
