@@ -3095,7 +3095,10 @@ async function loadSalesContext(page, force){
 // 클릭 즉시 렌더 + 백그라운드 페치
 async function navTo(key){
   State.page=key;
+  // 사이드바 클릭 = 어떤 상세뷰든 해제 (직원 상세 / 성과 상세 등)
   State.selectedPersonId=null;
+  State.perfPersonId=null;
+  State.perfRangeKey=null;
   // 캐시 미적재 페이지면 로딩 상태 표시
   const needsSalesLoad = key && key.startsWith('sales-') && (
     (key==='sales-orders' && State.salesOrdersLoadedYm !== (State.salesYm||todayYm())) ||
