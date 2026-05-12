@@ -26,15 +26,10 @@ const MANAGER_NAMES = new Set(['문실장']);
 // 대표(관리자) 시드 계정 — 매 ensureSchema 마다 upsert (비번 변경 시 즉시 반영)
 const ADMIN_NAME = '1';
 const ADMIN_DEFAULT_PW = '1';
-// 직원 테스트 계정 (개발용 빠른 로그인)
-// 2/2 = 1차직원, 3/3 = 2차직원
-const EMP_T1_NAME = '2';
-const EMP_T1_PW = '2';
-const EMP_T2_NAME = '3';
-const EMP_T2_PW = '3';
+// 테스트 계정 '2','3' 은 폐기 — DB 에 있으면 마이그레이션이 제거 (직원 목록·PB TM 드롭다운에서도 자동 사라짐)
 
 // 스키마 마커 — 이 버전이 DB에 기록되어 있으면 ensureSchema 풀실행 스킵
-const SCHEMA_VERSION = 15;
+const SCHEMA_VERSION = 16;
 // 1회용 시드 마커 — 이 버전이 _schema_init 에 기록된 적 있으면 bulk seed 건너뜀 (이후 SCHEMA_VERSION 더 올려도 재시드 안 됨)
 const BULK_SEED_MARKER = 15;
 
@@ -294,8 +289,8 @@ export async function ensureSchema() {
       runBulkSeed = !r[0];
     } catch (_) { runBulkSeed = true; }
     if (runBulkSeed) {
-      // admin('1'), test('2','3') 제외 전부 삭제 후 1차 12 + 2차 16 일괄 upsert
-      await sql`DELETE FROM users WHERE role <> 'admin' AND name NOT IN ('2','3')`;
+      // admin('1') 제외 전부 삭제 후 1차 12 + 2차 16 일괄 upsert
+      await sql`DELETE FROM users WHERE role <> 'admin'`;
       const TIER1_SEED = [
         ['문정자','tami13'],['이경민','tami14'],['임세인','tami9612'],
         ['양정연','tami1102'],['장영인','tami0425'],['고윤호','tami0308'],
@@ -346,32 +341,9 @@ export async function ensureSchema() {
             sort_order = -1
     `;
     const adminCleanup = sql`DELETE FROM users WHERE role = 'admin' AND name <> ${ADMIN_NAME}`;
-    // 직원 테스트 계정 (UPSERT — 항상 동기화)
-    // 2/2 = 1차직원 (tier=1), 3/3 = 2차직원 (tier=2)
-    const empT1Pw = hashPassword(EMP_T1_PW);
-    const empT1Upsert = sql`
-      INSERT INTO users (name, password_hash, password_salt, role, registered, tier, sort_order)
-      VALUES (${EMP_T1_NAME}, ${empT1Pw.hash}, ${empT1Pw.salt}, 'employee', TRUE, 1, 998)
-      ON CONFLICT (name) DO UPDATE
-        SET password_hash = EXCLUDED.password_hash,
-            password_salt = EXCLUDED.password_salt,
-            role = 'employee',
-            registered = TRUE,
-            tier = 1
-    `;
-    const empT2Pw = hashPassword(EMP_T2_PW);
-    const empT2Upsert = sql`
-      INSERT INTO users (name, password_hash, password_salt, role, registered, tier, sort_order)
-      VALUES (${EMP_T2_NAME}, ${empT2Pw.hash}, ${empT2Pw.salt}, 'employee', TRUE, 2, 999)
-      ON CONFLICT (name) DO UPDATE
-        SET password_hash = EXCLUDED.password_hash,
-            password_salt = EXCLUDED.password_salt,
-            role = 'employee',
-            registered = TRUE,
-            tier = 2
-    `;
+    // 테스트 계정 '2','3' 폐기 — 매번 idempotent 삭제 (DB 에 있어도 사라지고, 없으면 no-op)
+    const testCleanup = sql`DELETE FROM users WHERE name IN ('2','3') AND role <> 'admin'`;
     // PRESET_NAMES 시드 비활성화 — 신규 직원은 회원가입 페이지에서 직접 신청
-    // (기존 미가입 PRESET 직원은 위 DELETE에서 제거됨)
     const presetInserts = [];
     // 디비 vendor 시드 (이미지 5월8일 기준)
     const VENDOR_SEEDS = [
@@ -389,7 +361,7 @@ export async function ensureSchema() {
         ON CONFLICT (code) DO NOTHING
       `
     );
-    await Promise.all([adminUpsert, adminCleanup, empT1Upsert, empT2Upsert, ...presetInserts, ...vendorInserts]);
+    await Promise.all([adminUpsert, adminCleanup, testCleanup, ...presetInserts, ...vendorInserts]);
 
     // 5단계: 마커 기록 (이후 콜드 스타트는 풀 DDL 스킵)
     await sql`

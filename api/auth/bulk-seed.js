@@ -60,10 +60,10 @@ export default async function handler(req, res){
 
     let removed = 0;
     if (purge){
-      // admin('1'), test('2','3') 제외하고 전부 삭제 (FK ON DELETE CASCADE)
+      // admin('1') 제외 전부 삭제 (FK ON DELETE CASCADE)
       const del = await sql`
         DELETE FROM users
-        WHERE role <> 'admin' AND name NOT IN ('2','3')
+        WHERE role <> 'admin'
         RETURNING id`;
       removed = del.length;
     }
