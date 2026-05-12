@@ -456,12 +456,18 @@
   .vendor-card .vc-head{padding:10px 14px;font-size:13px;font-weight:700;color:#fff;display:flex;justify-content:space-between;align-items:center}
   .vendor-card .vc-parent{font-size:10.5px;font-weight:600;opacity:.85;letter-spacing:0.03em}
   .vendor-card .vc-grid{display:grid;grid-template-columns:repeat(2,1fr);padding:10px;gap:8px}
-  .vendor-card .vc-cell{padding:8px 10px;background:#fafaf8;border-radius:7px;cursor:cell;transition:background .1s}
-  .vendor-card .vc-cell:hover{background:#f1f1ef}
+  .vendor-card .vc-cell{padding:8px 10px;background:#fafaf8;border-radius:7px;transition:outline .08s}
   .vendor-card .vc-cell .lbl{font-size:10.5px;color:var(--text-soft);font-weight:600;letter-spacing:0.04em}
   .vendor-card .vc-cell .val{font-size:16px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
-  .vendor-card .vc-cell.editing{padding:0}
-  .vendor-card .vc-cell.editing input{width:100%;padding:8px 10px;border:none;outline:2px solid #0f0f0f;outline-offset:-2px;font-size:14px;font-weight:700;font-family:inherit}
+  /* 엑셀식 항상 노출 input — 스피너 제거, 보더 없음, 포커스 시 파란 outline */
+  .vendor-card .vc-cell input.vc-input{
+    width:100%;border:none;outline:none;background:transparent;padding:0;margin:0;
+    font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;font-family:inherit;color:inherit;
+    -moz-appearance:textfield;
+  }
+  .vendor-card .vc-cell input.vc-input::-webkit-outer-spin-button,
+  .vendor-card .vc-cell input.vc-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .vendor-card .vc-cell.is-focus{outline:2px solid #2563eb;outline-offset:-2px;background:#fff}
   .vendor-card .vc-stats{padding:0 10px 10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px}
   .vendor-card .vc-stat{padding:7px 10px;border-radius:7px;display:flex;justify-content:space-between;align-items:center}
   .vendor-card .vc-stat.eff{background:#dbeafe;color:#1d4ed8}
@@ -596,8 +602,8 @@ const fmtYmd=(y,m,d)=>`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,
 const todayYm=()=>fmtYm(new Date());
 const daysInMonth=(y,m)=>new Date(y,m,0).getDate();
 
-// 한국 공휴일 (네이버 캘린더 / data.go.kr 한국천문연구원 특일정보 기준) — 빨간날
-// 정적 매핑 (연 1회 업데이트). 날짜 → 휴일 이름 (툴팁 표시용)
+// 한국 공휴일 — /api/holidays?year=YYYY 에서 동적 fetch (date.nager.at + 폴백)
+// 첫 렌더 즉시 표시되도록 최소 폴백을 내장 (API 응답 도착 후 자동 갱신)
 const KR_HOLIDAY_MAP = {
   // 2025
   '2025-01-01':'신정',
@@ -623,6 +629,26 @@ const KR_HOLIDAY_MAP = {
 const KR_HOLIDAYS = new Set(Object.keys(KR_HOLIDAY_MAP));
 function isKrHoliday(ymd){ return KR_HOLIDAYS.has(ymd); }
 function krHolidayName(ymd){ return KR_HOLIDAY_MAP[ymd] || null; }
+
+// 연도별 fetch 캐시 — 같은 연도 중복 요청 방지
+const _holidayYearLoaded = new Set();
+async function ensureHolidaysFor(year){
+  const yk = String(year);
+  if (_holidayYearLoaded.has(yk)) return;
+  _holidayYearLoaded.add(yk);
+  try{
+    const r = await fetch(`/api/holidays?year=${yk}`, { credentials:'same-origin' });
+    if (!r.ok) return;
+    const j = await r.json();
+    if (j && j.holidays) {
+      let changed = false;
+      for (const [d, name] of Object.entries(j.holidays)) {
+        if (KR_HOLIDAY_MAP[d] !== name) { KR_HOLIDAY_MAP[d] = name; KR_HOLIDAYS.add(d); changed = true; }
+      }
+      if (changed && typeof renderApp === 'function') renderApp();
+    }
+  }catch(_){ /* 폴백 정적 매핑 사용 */ }
+}
 function computeKrWorkdays(ym){
   const [y,m] = ym.split('-').map(Number);
   const last = daysInMonth(y,m);
@@ -1702,6 +1728,8 @@ function renderGrid(){
     recIdx[`${r.user_id}|${dateStr}`]=r;
   }
 
+  // 현재 보이는 연도의 공휴일 동기 fetch (백그라운드, 도착 시 자동 리렌더)
+  ensureHolidaysFor(y);
   const headRow=[h('th',{class:'col-name'},'이름')];
   for(let d=1;d<=dim;d++){
     const dow=new Date(y,m-1,d).getDay();
@@ -1713,9 +1741,10 @@ function renderGrid(){
     if(holName) cls.push('holiday');
     if(ymd===todayYmd) cls.push('today-h');
     const labels=['일','월','화','수','목','금','토'];
+    // 구글 캘린더 스타일 — 날짜만 빨강, 요일은 그대로, 휴일명은 툴팁
     headRow.push(h('th',{class:cls.join(' '), title: holName || ''},
       h('div',{style:'font-size:13px;font-weight:700;color:'+(ymd===todayYmd?'#0f0f0f':'inherit')}, d),
-      h('div',{style:'font-size:9.5px;font-weight:500;opacity:.7'}, holName ? holName.length<=3?holName:'공휴' : labels[dow])
+      h('div',{style:'font-size:9.5px;font-weight:500;opacity:.7'}, labels[dow])
     ));
   }
 
@@ -1751,8 +1780,8 @@ function renderGrid(){
         if(rec.status==='REJECTED') chipCls.push('is-rejected');
         inner=h('span',{class:chipCls.join(' ')}, TYPE_TINY[rec.type]||'');
       } else if (isHoliday) {
-        // 공휴일 — '공' 칩 (HOLIDAY 색상)
-        inner=h('span',{class:'chip chip-HOLIDAY',style:'font-size:10.5px;opacity:.85'}, '공');
+        // 공휴일 — 깔끔한 빨간 배경 (라벨 없음, 구글 캘린더 스타일)
+        cls.push('empty');
       } else if (!isWeekend) {
         // 신청 없음 + 평일 → 정상출근 디폴트
         inner=h('span',{class:'chip chip-WORK',style:'font-size:11px;opacity:.7'}, '정상');
@@ -4147,43 +4176,43 @@ function renderSalesVendor(){
   return wrap;
 }
 
+// 엑셀식 — 항상 input 노출, 스피너 없음, blur 자동 저장 (일 TM 마감과 동일 패턴)
 function vendorCell(v, key, label, isPriv){
-  const cell=h('div',{class:'vc-cell'},
+  if (!isPriv) {
+    return h('div',{class:'vc-cell'},
+      h('div',{class:'lbl'}, label),
+      h('div',{class:'val'}, v[key]||0)
+    );
+  }
+  const input = h('input',{
+    class:'vc-input', type:'text', inputmode:'numeric', value:String(v[key]||0)
+  });
+  const cell = h('div',{class:'vc-cell'},
     h('div',{class:'lbl'}, label),
-    h('div',{class:'val'}, v[key]||0)
+    input
   );
-  if (!isPriv) return cell;
-  cell.addEventListener('click', ()=>{
-    if (cell.classList.contains('editing')) return;
-    cell.classList.add('editing'); cell.innerHTML='';
-    const input=h('input',{type:'number',min:0,value:v[key]||0});
-    cell.append(input);
-    setTimeout(()=>{ try{ input.focus(); input.select(); }catch(_){} },10);
-    const finish=async(commit)=>{
-      cell.classList.remove('editing');
-      const newVal = commit?(Number(input.value)||0):v[key];
-      if (commit && newVal !== v[key]){
-        try{
-          await api('/api/sales/vendor-daily',{method:'POST',body:{
-            vendor_id:v.vendor_id, work_date:State.salesDate,
-            db_count:v.db_count, deleted_count:v.deleted_count,
-            received_count:v.received_count, remaining_count:v.remaining_count,
-            completed_count:v.completed_count,
-            [key]: newVal
-          }});
-          v[key] = newVal;
-          renderApp();
-        }catch(e){ alert(e.message); renderApp(); }
-        return;
-      }
-      cell.innerHTML='';
-      cell.append(h('div',{class:'lbl'}, label), h('div',{class:'val'}, v[key]||0));
-    };
-    input.addEventListener('blur',()=>finish(true));
-    input.addEventListener('keydown',e=>{
-      if(e.key==='Enter') input.blur();
-      if(e.key==='Escape') finish(false);
-    });
+  input.addEventListener('focus',()=>{ cell.classList.add('is-focus'); input.select(); });
+  input.addEventListener('blur',async()=>{
+    cell.classList.remove('is-focus');
+    const raw = input.value.replace(/[^0-9-]/g,'');
+    const newVal = Number(raw)||0;
+    input.value = String(newVal);
+    if (newVal === Number(v[key]||0)) return;
+    try{
+      await api('/api/sales/vendor-daily',{method:'POST',body:{
+        vendor_id:v.vendor_id, work_date:State.salesDate,
+        db_count:v.db_count, deleted_count:v.deleted_count,
+        received_count:v.received_count, remaining_count:v.remaining_count,
+        completed_count:v.completed_count,
+        [key]: newVal
+      }});
+      v[key] = newVal;
+      renderApp();
+    }catch(e){ alert(e.message); input.value = String(v[key]||0); }
+  });
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){ e.preventDefault(); input.blur(); }
+    else if(e.key==='Escape'){ input.value = String(v[key]||0); input.blur(); }
   });
   return cell;
 }
