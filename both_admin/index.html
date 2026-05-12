@@ -4240,17 +4240,37 @@ function vendorCell(v, key, label, isPriv){
     const newVal = Number(raw)||0;
     input.value = String(newVal);
     if (newVal === Number(v[key]||0)) return;
-    try{
-      await api('/api/sales/vendor-daily',{method:'POST',body:{
-        vendor_id:v.vendor_id, work_date:State.salesDate,
-        db_count:v.db_count, deleted_count:v.deleted_count,
-        received_count:v.received_count, remaining_count:v.remaining_count,
-        completed_count:v.completed_count,
-        [key]: newVal
-      }});
-      v[key] = newVal;
+    const prev = Number(v[key]||0);
+    v[key] = newVal;  // 낙관적 로컬 갱신
+    // 해당 카드만 inline 업데이트 (renderApp 호출 안 함 — 키보드 이동 끊김 방지)
+    try {
+      const card = cell.closest('.vendor-card');
+      if (card) {
+        const dbN = Number(v.db_count||0), delN = Number(v.deleted_count||0);
+        const recvN = Number(v.received_count||0), cmpN = Number(v.completed_count||0);
+        const denom = dbN - delN;
+        const eff = denom > 0 ? cmpN/denom : 0;
+        const acc = denom > 0 ? recvN/denom : 0;
+        const headBadge = card.querySelector('.vc-head > div:nth-child(2)');
+        if (headBadge) headBadge.textContent = cmpN + '건';
+        const effEl = card.querySelector('.vc-stat.eff .v');
+        if (effEl) effEl.textContent = (eff*100).toFixed(1) + '%';
+        const accEl = card.querySelector('.vc-stat.acc .v');
+        if (accEl) accEl.textContent = (acc*100).toFixed(1) + '%';
+      }
+    } catch(_){}
+    // 저장은 백그라운드로 (await 안 함 → 다음 키 입력 안 막힘)
+    api('/api/sales/vendor-daily',{method:'POST',body:{
+      vendor_id:v.vendor_id, work_date:State.salesDate,
+      db_count:v.db_count, deleted_count:v.deleted_count,
+      received_count:v.received_count, remaining_count:v.remaining_count,
+      completed_count:v.completed_count
+    }}).catch(e=>{
+      v[key] = prev;
+      input.value = String(prev);
+      alert(e.message);
       renderApp();
-    }catch(e){ alert(e.message); input.value = String(v[key]||0); }
+    });
   });
   input.addEventListener('keydown',e=>{
     if(e.key==='Enter'){ e.preventDefault(); input.blur(); return; }
