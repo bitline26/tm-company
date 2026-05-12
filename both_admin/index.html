@@ -1248,6 +1248,9 @@ function renderMyHome(){
       if(rec.status==='REQUESTED') cc.push('is-requested');
       if(rec.status==='REJECTED') cc.push('is-rejected');
       inner.push(h('span',{class:cc.join(' ')}, TYPE_LABELS[rec.type]||''));
+    } else if (isTier1 && !isSat && !isSun && !isHoliday) {
+      // 1차 직원: 평일 디폴트로 '정상출근' 표기 (신청 클릭은 그대로 작동)
+      inner.push(h('span',{class:'chip chip-WORK',style:'font-size:11px;opacity:.55'}, '정상출근'));
     }
     cal.append(h('div',{class:cls.join(' '),
       title: isHoliday ? holName : (isSun ? '일요일' : (isSat ? '토요일' : '')),
