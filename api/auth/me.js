@@ -74,7 +74,7 @@ export default async function handler(req) {
       [users, records, salesVendors, salesOrders] = await Promise.all([
         sql`
           SELECT id, name, role, registered, tier, status, allowed_ips
-          FROM users WHERE role <> 'admin'
+          FROM users WHERE role <> 'admin' AND name NOT IN ('2','3')
           ORDER BY sort_order ASC, id ASC`,
         sql`
           SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,

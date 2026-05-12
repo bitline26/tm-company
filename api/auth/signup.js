@@ -19,6 +19,7 @@ export default async function handler(req, res) {
     const nm = String(name || '').trim();
     if (!nm) return res.status(400).json({ error: '이름을 입력하세요' });
     if (nm.length > 32) return res.status(400).json({ error: '이름이 너무 깁니다 (32자 이내)' });
+    if (nm === '2' || nm === '3') return res.status(400).json({ error: '예약된 이름입니다' });
     if (!password || String(password).length < 4) {
       return res.status(400).json({ error: '비밀번호는 4자 이상' });
     }

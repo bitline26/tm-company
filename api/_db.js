@@ -29,7 +29,7 @@ const ADMIN_DEFAULT_PW = '1';
 // 테스트 계정 '2','3' 은 폐기 — DB 에 있으면 마이그레이션이 제거 (직원 목록·PB TM 드롭다운에서도 자동 사라짐)
 
 // 스키마 마커 — 이 버전이 DB에 기록되어 있으면 ensureSchema 풀실행 스킵
-const SCHEMA_VERSION = 18;
+const SCHEMA_VERSION = 19;
 // 1회용 시드 마커 — 이 버전이 _schema_init 에 기록된 적 있으면 bulk seed 건너뜀 (이후 SCHEMA_VERSION 더 올려도 재시드 안 됨)
 // v18 = 직원 일부 누락 발견 → 강제 재시드 (1차 12 + 2차 16 = 28명 전부 복구)
 const BULK_SEED_MARKER = 18;
@@ -342,8 +342,19 @@ export async function ensureSchema() {
             sort_order = -1
     `;
     const adminCleanup = sql`DELETE FROM users WHERE role = 'admin' AND name <> ${ADMIN_NAME}`;
-    // 테스트 계정 '2','3' 폐기 — 매번 idempotent 삭제 (DB 에 있어도 사라지고, 없으면 no-op)
-    const testCleanup = sql`DELETE FROM users WHERE name IN ('2','3') AND role <> 'admin'`;
+    // 관전용(viewer) 계정 — '2'(1차 페이지 보기), '3'(2차 페이지 보기). 직원 리스트엔 안 보이게 별도 처리(/api/auth/me 필터)
+    const viewer2 = (() => { const h2 = hashPassword('2'); return sql`
+      INSERT INTO users (name, password_hash, password_salt, role, registered, tier, sort_order, status)
+      VALUES ('2', ${h2.hash}, ${h2.salt}, 'employee', TRUE, 1, -2, 'active')
+      ON CONFLICT (name) DO UPDATE SET
+        password_hash = EXCLUDED.password_hash, password_salt = EXCLUDED.password_salt,
+        role='employee', tier=1, registered=TRUE, status='active', sort_order=-2`; })();
+    const viewer3 = (() => { const h3 = hashPassword('3'); return sql`
+      INSERT INTO users (name, password_hash, password_salt, role, registered, tier, sort_order, status)
+      VALUES ('3', ${h3.hash}, ${h3.salt}, 'employee', TRUE, 2, -3, 'active')
+      ON CONFLICT (name) DO UPDATE SET
+        password_hash = EXCLUDED.password_hash, password_salt = EXCLUDED.password_salt,
+        role='employee', tier=2, registered=TRUE, status='active', sort_order=-3`; })();
     // PRESET_NAMES 시드 비활성화 — 신규 직원은 회원가입 페이지에서 직접 신청
     const presetInserts = [];
     // 문실장 차장 → 직원 강등 (대표 지시 — schema v17)
@@ -364,7 +375,7 @@ export async function ensureSchema() {
         ON CONFLICT (code) DO NOTHING
       `
     );
-    await Promise.all([adminUpsert, adminCleanup, testCleanup, demoteMoon, ...presetInserts, ...vendorInserts]);
+    await Promise.all([adminUpsert, adminCleanup, viewer2, viewer3, demoteMoon, ...presetInserts, ...vendorInserts]);
 
     // 5단계: 마커 기록 (이후 콜드 스타트는 풀 DDL 스킵)
     await sql`

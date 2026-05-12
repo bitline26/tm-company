@@ -225,7 +225,7 @@ export default requireAuth(async function handler(req, res) {
     // 결과표 = sales_tm_daily 일별 입력값을 SUM으로 월 누적 (직원이 매일 그날 입력)
     const users = await sql`
       SELECT id, name, role FROM users
-      WHERE role <> 'admin' AND name <> '2'
+      WHERE role <> 'admin' AND name NOT IN ('2','3')
       ORDER BY sort_order ASC, id ASC`;
     const userIds = users.map(u=>u.id);
     const ny2 = m === 12 ? y+1 : y;
