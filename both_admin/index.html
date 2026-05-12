@@ -1075,7 +1075,7 @@ function renderAdminApp(){
 function renderEmployeeApp(){
   const root=$('#app'); root.innerHTML='';
   const me=State.user;
-  if(!['my','history','sales-tm-daily'].includes(State.page)) State.page='my';
+  if(!['my','history','sales-tm-daily','my-closing'].includes(State.page)) State.page='my';
 
   const navItem=(key,label,icon)=>h('button',{
     class:'nav-item '+(State.page===key?'on':''),
@@ -1100,7 +1100,7 @@ function renderEmployeeApp(){
       Number(me.tier)===1 ? null : navItem('history','신청 이력','🕘'),
       // 실적 탭 — 1차 직원만 (2차 직원은 마감 보고 숨김)
       Number(me.tier)===2 ? null : h('div',{class:'nav-group-h'},'실적'),
-      Number(me.tier)===2 ? null : navItem('sales-tm-daily','마감 보고','📅'),
+      Number(me.tier)===2 ? null : navItem('my-closing','마감 보고','📅'),
     ),
     h('div',{class:'side-foot'},
       h('button',{class:'nav-item',onClick:logout},
@@ -1109,7 +1109,7 @@ function renderEmployeeApp(){
     )
   );
 
-  const titleMap={my:'내 근태',history:'신청 이력','sales-tm-daily':'마감 보고'};
+  const titleMap={my:'내 근태',history:'신청 이력','sales-tm-daily':'마감 보고','my-closing':'마감 보고'};
   const title=titleMap[State.page];
   const actions=h('div',{class:'top-actions'});
   if(State.page==='my'){
@@ -1397,7 +1397,12 @@ function renderMyClosing(){
   else if (range==='yesterday'){ const y=new Date(today); y.setDate(y.getDate()-1); from=fmt(y); to=fmt(y); rangeLabel='어제'; }
   else if (range==='thisMonth'){ from=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-01`; to=fmt(today); rangeLabel='당월'; }
   else if (range==='prevMonth'){ const pm=new Date(today.getFullYear(),today.getMonth()-1,1); const last=new Date(today.getFullYear(),today.getMonth(),0); from=fmt(pm); to=fmt(last); rangeLabel='전월'; }
-  else if (range==='3months') { const tm=new Date(today); tm.setMonth(tm.getMonth()-3); from=fmt(tm); to=fmt(today); rangeLabel='최근 3개월'; }
+  else if (range==='3months') {
+    // 직전 3개월 — 오늘이 5월이면 2/3/4월 1일~말일 (현재 월 제외)
+    const fromD = new Date(today.getFullYear(), today.getMonth()-3, 1);
+    const toD   = new Date(today.getFullYear(), today.getMonth(), 0); // 직전 월의 말일
+    from = fmt(fromD); to = fmt(toD); rangeLabel='직전 3개월';
+  }
   else                        { from='2020-01-01'; to=fmt(today); rangeLabel='전체'; }
 
   // 캐시 무효화 — 범위 바뀌면 다시 로드
@@ -1457,13 +1462,49 @@ function renderMyClosing(){
     h('div',{style:'font-size:11px;color:var(--text-soft);font-weight:700;letter-spacing:0.04em;text-transform:uppercase'}, label),
     h('div',{style:'font-size:26px;font-weight:800;font-variant-numeric:tabular-nums'}, val)
   );
-  const statsRow = h('div',{style:'display:flex;gap:12px;padding:14px 24px 0;flex-wrap:wrap'},
-    statCard('총 마감 (건)', fmtNum(totalCount), '#fffaf0'),
-    statCard('총 디비 (건)', fmtNum(totalDb), '#fffaf0'),
-    statCard('일평균 마감', fmtNum(dayAvg,1), '#eef2ff'),
-    statCard('효율', totalDb>0?fmtPct(eff):'—', '#dcfce7'),
-    statCard('근무 / 휴무', `${workedDays}일 / ${offDays}일`, '#fff'),
-  );
+  // 통계 카드 — 3개월치 모드는 월별 3줄(예: 5월 → 2월/3월/4월), 그 외엔 합산 1줄
+  let statsBlock;
+  if (range==='3months') {
+    // 오늘 기준 직전 3개월 산출 (5월 → 2,3,4월)
+    const now = new Date();
+    const months = [];
+    for (let i=3; i>=1; i--){
+      const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+      months.push({y:d.getFullYear(), m:d.getMonth()+1});
+    }
+    const groupBox = (lbl, sub, cards) => h('div',{style:'padding:14px 24px 0'},
+      h('div',{style:'font-size:13px;font-weight:800;color:#0f0f0f;margin-bottom:8px;letter-spacing:.01em;display:flex;align-items:center;gap:8px'},
+        lbl, h('span',{style:'font-size:11px;font-weight:600;color:var(--text-soft)'}, sub)),
+      h('div',{style:'display:flex;gap:12px;flex-wrap:wrap'}, ...cards)
+    );
+    const blocks = [];
+    for (const {y,m} of months){
+      const ym = `${y}-${String(m).padStart(2,'0')}`;
+      const mRows = myRows.filter(r=>String(r.work_date).slice(0,10).startsWith(ym));
+      let mCount=0, mDb=0, mOff=0;
+      mRows.forEach(r=>{ mCount += Number(r.count||0); mDb += Number(r.db_count||0); if (r.is_off) mOff++; });
+      const mDays = mRows.length;
+      const mWorked = mDays - mOff;
+      const mAvg = mWorked>0 ? mCount/mWorked : 0;
+      const mEff = mDb>0 ? mCount/mDb : 0;
+      blocks.push(groupBox(`📊 ${m}월 성과`, `${ym} · 근무 ${mWorked}일 · 휴무 ${mOff}일`, [
+        statCard('총 마감 (건)', fmtNum(mCount), '#fffaf0'),
+        statCard('총 디비 (건)', fmtNum(mDb),    '#fffaf0'),
+        statCard('일평균 마감',  fmtNum(mAvg,1), '#eef2ff'),
+        statCard('일평균 디비',  fmtNum(mWorked>0?mDb/mWorked:0,1), '#eef2ff'),
+        statCard('효율',         mDb>0?fmtPct(mEff):'—', '#dcfce7'),
+      ]));
+    }
+    statsBlock = h('div',{style:'display:flex;flex-direction:column;gap:14px;padding-bottom:8px'}, ...blocks);
+  } else {
+    statsBlock = h('div',{style:'display:flex;gap:12px;padding:14px 24px 0;flex-wrap:wrap'},
+      statCard('총 마감 (건)', fmtNum(totalCount), '#fffaf0'),
+      statCard('총 디비 (건)', fmtNum(totalDb), '#fffaf0'),
+      statCard('일평균 마감', fmtNum(dayAvg,1), '#eef2ff'),
+      statCard('효율', totalDb>0?fmtPct(eff):'—', '#dcfce7'),
+      statCard('근무 / 휴무', `${workedDays}일 / ${offDays}일`, '#fff'),
+    );
+  }
 
   // 일별 표 (최신순)
   const tbody=h('tbody');
@@ -1499,7 +1540,7 @@ function renderMyClosing(){
   const note = h('div',{style:'padding:10px 24px 0;color:var(--text-soft);font-size:11.5px'},
     '※ 대표/관리자가 입력한 본인 마감 결과만 표시됩니다 — 본 페이지에서는 수정할 수 없습니다.');
 
-  return h('div',null, quickBar, statsRow, note, h('div',{style:'padding:14px 24px 40px'}, table));
+  return h('div',null, quickBar, statsBlock, note, h('div',{style:'padding:14px 24px 40px'}, table));
 }
 
 // (구) renderMyClosing 입력 패널 — 사용 안 함 (위 함수로 대체됨, 결과만 표시)
