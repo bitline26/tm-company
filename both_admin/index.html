@@ -3788,16 +3788,9 @@ function renderSalesTM(){
     const input = h('input',{
       type:'text', inputmode:'numeric', value:String(val||0),
       class:'sheet-input',
-      style:`width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;padding:6px 8px;color:${m.fg};`
+      style:`width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;padding:8px 10px;color:${m.fg};cursor:text;`
     });
     const td = h('td',{class:'sheet-cell', style:`padding:0;background:${m.bg};text-align:center`}, input);
-    let _kbd=false;
-    input.addEventListener('keydown',e=>{
-      if(e.key==='Tab') _kbd=true;
-      if(e.key==='Enter'){ e.preventDefault(); input.blur(); }
-      else if(e.key==='Escape'){ input.value = String(val||0); input.blur(); }
-    }, true);
-    input.addEventListener('focus',()=>{ if(_kbd){ try{input.select();}catch(_){} } _kbd=false; });
     input.addEventListener('blur',async()=>{
       const raw = input.value.replace(/[^0-9-]/g,'');
       const newVal = Number(raw)||0;
@@ -3809,6 +3802,10 @@ function renderSalesTM(){
           : { total_count: Number(cur.total_count||0), total_db: newVal };
         await saveMonthlyCell(uid, body);
       }
+    });
+    input.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){ e.preventDefault(); input.blur(); }
+      else if(e.key==='Escape'){ input.value = String(val||0); input.blur(); }
     });
     return td;
   }
@@ -3991,8 +3988,8 @@ function renderSalesTMDaily(){
     }catch(e){ alert(e.message); }
   }
 
-  // 엑셀식 직접 편집 셀 — 셀 느낌 최소화 (강한 outline 제거, auto-select 제거)
-  // 클릭 → 커서 위치 자유, 드래그로 텍스트 선택 → Delete 자연스럽게
+  // 엑셀식 — 브라우저 기본 동작만: 클릭=커서, 드래그=텍스트 선택, Delete/Backspace=삭제
+  // 자동 select·focus 핸들링 일체 제거 → 진짜 시트처럼 자유롭게 편집
   function editableCell(uid, key, val){
     const colDef = colDefs.find(c=>c.key===key) || {};
     const cellBg = colDef.headBg || 'transparent';
@@ -4003,21 +4000,9 @@ function renderSalesTMDaily(){
     const input = h('input',{
       type:'text', inputmode:'numeric', value:String(val||0),
       class:'sheet-input',
-      style:`width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;padding:6px 8px;color:${cellFg};`
+      style:`width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;padding:8px 10px;color:${cellFg};cursor:text;`
     });
     const td = h('td',{class:'sheet-cell', style:`padding:0;background:${cellBg};text-align:center`}, input);
-    // 자동 select 안 함 — 클릭한 위치에 커서 (엑셀 편집모드 동일)
-    // 단, 키보드 Tab 으로 진입 시에만 select (마우스 클릭 진입은 keepCaret)
-    let _kbdEnter=false;
-    input.addEventListener('keydown', e=>{
-      if(e.key==='Tab') _kbdEnter=true;
-      if(e.key==='Enter'){ e.preventDefault(); input.blur(); }
-      else if(e.key==='Escape'){ input.value = String(val||0); input.blur(); }
-    }, true);
-    input.addEventListener('focus',()=>{
-      if (_kbdEnter) { try{input.select();}catch(_){ } }
-      _kbdEnter=false;
-    });
     input.addEventListener('blur',async()=>{
       const raw = input.value.replace(/[^0-9-]/g,'');
       const newVal = Number(raw)||0;
@@ -4025,6 +4010,10 @@ function renderSalesTMDaily(){
       if (newVal !== Number(val||0)) {
         await saveDailyCell(uid, {[key]: newVal});
       }
+    });
+    input.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){ e.preventDefault(); input.blur(); }
+      else if(e.key==='Escape'){ input.value = String(val||0); input.blur(); }
     });
     return td;
   }
@@ -4205,14 +4194,14 @@ function vendorCell(v, key, label, isPriv){
     );
   }
   const input = h('input',{
-    class:'vc-input', type:'text', inputmode:'numeric', value:String(v[key]||0)
+    class:'vc-input', type:'text', inputmode:'numeric', value:String(v[key]||0),
+    style:'cursor:text'
   });
   const cell = h('div',{class:'vc-cell'},
     h('div',{class:'lbl'}, label),
     input
   );
-  let _kbd=false;
-  input.addEventListener('focus',()=>{ cell.classList.add('is-focus'); if(_kbd){ try{input.select();}catch(_){} } _kbd=false; });
+  input.addEventListener('focus',()=>{ cell.classList.add('is-focus'); });
   input.addEventListener('blur',async()=>{
     cell.classList.remove('is-focus');
     const raw = input.value.replace(/[^0-9-]/g,'');
@@ -4232,10 +4221,9 @@ function vendorCell(v, key, label, isPriv){
     }catch(e){ alert(e.message); input.value = String(v[key]||0); }
   });
   input.addEventListener('keydown',e=>{
-    if(e.key==='Tab') _kbd=true;
     if(e.key==='Enter'){ e.preventDefault(); input.blur(); }
     else if(e.key==='Escape'){ input.value = String(v[key]||0); input.blur(); }
-  }, true);
+  });
   return cell;
 }
 
