@@ -4253,8 +4253,33 @@ function vendorCell(v, key, label, isPriv){
     }catch(e){ alert(e.message); input.value = String(v[key]||0); }
   });
   input.addEventListener('keydown',e=>{
-    if(e.key==='Enter'){ e.preventDefault(); input.blur(); }
-    else if(e.key==='Escape'){ input.value = String(v[key]||0); input.blur(); }
+    if(e.key==='Enter'){ e.preventDefault(); input.blur(); return; }
+    if(e.key==='Escape'){ input.value = String(v[key]||0); input.blur(); return; }
+    // 화살표 이동 — DOM 순서로 .vc-input 수집, 카드당 2x2 (4셀: 0=db, 1=삭제, 2=접수, 3=완료)
+    const arrow = e.key==='ArrowUp'||e.key==='ArrowDown'||e.key==='ArrowLeft'||e.key==='ArrowRight';
+    if(!arrow) return;
+    const all = Array.from(document.querySelectorAll('.vendor-grid .vc-input'));
+    const idx = all.indexOf(input);
+    if(idx<0) return;
+    let target = -1;
+    if(e.key==='ArrowUp')   target = idx - 2;          // 같은 컬럼 위(같은 카드 위 행 또는 이전 카드 아래 행)
+    else if(e.key==='ArrowDown') target = idx + 2;     // 같은 컬럼 아래
+    else if(e.key==='ArrowLeft'){
+      // 텍스트 커서가 맨 앞일 때만 옆 칸으로
+      const atStart = input.selectionStart===0 && input.selectionEnd===0;
+      if(!atStart) return;
+      target = idx - 1;
+    }
+    else if(e.key==='ArrowRight'){
+      const atEnd = input.selectionStart===input.value.length && input.selectionEnd===input.value.length;
+      if(!atEnd) return;
+      target = idx + 1;
+    }
+    if(target<0 || target>=all.length) return;
+    e.preventDefault();
+    const next = all[target];
+    next.focus();
+    next.select();
   });
   return cell;
 }
