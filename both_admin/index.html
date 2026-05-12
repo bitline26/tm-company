@@ -1096,7 +1096,8 @@ function renderEmployeeApp(){
     h('nav',{class:'side-nav'},
       h('div',{class:'nav-group-h'},'인사'),
       navItem('my','내 근태','👤'),
-      navItem('history','신청 이력','🕘'),
+      // 신청 이력 — 2차 직원만 (1차 직원은 숨김)
+      Number(me.tier)===1 ? null : navItem('history','신청 이력','🕘'),
       // 실적 탭 — 1차 직원만 (2차 직원은 마감 보고 숨김)
       Number(me.tier)===2 ? null : h('div',{class:'nav-group-h'},'실적'),
       Number(me.tier)===2 ? null : navItem('sales-tm-daily','마감 보고','📅'),
@@ -1121,7 +1122,8 @@ function renderEmployeeApp(){
         h('button',{class:'icon-btn',onClick:()=>change(+1)},'›'),
       ),
       h('button',{class:'btn',onClick:()=>{State.ym=todayYm();loadMonth().then(renderApp);}},'오늘'),
-      h('button',{class:'btn btn-primary',onClick:()=>{
+      // '+ 새 신청' 버튼 — 1차 직원은 숨김 (캘린더 셀 클릭으로 신청)
+      Number(me.tier)===1 ? null : h('button',{class:'btn btn-primary',onClick:()=>{
         const td=fmtYmd(new Date().getFullYear(),new Date().getMonth()+1,new Date().getDate());
         openCellDrawer(me, td, null);
       }},'+ 새 신청')
@@ -1138,6 +1140,10 @@ function renderEmployeeApp(){
 
   // 2차 직원이 sales-tm-daily(마감 보고) 페이지로 직접 진입하면 내 근태로 강제 이동
   if (Number(me.tier)===2 && (State.page==='sales-tm-daily' || State.page==='sales-orders' || State.page==='sales-vendor')) {
+    State.page = 'my';
+  }
+  // 1차 직원: '신청 이력' 탭 직접 진입 차단 → 내 근태로
+  if (Number(me.tier)===1 && State.page==='history') {
     State.page = 'my';
   }
   let content;
