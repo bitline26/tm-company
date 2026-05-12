@@ -21,6 +21,7 @@ export default async function handler(req) {
     // user 인증 쿼리 + 전체 bootstrap 쿼리(att/sales) 동시 발사 → 1 RTT로 마무리
     const userP = sql`
       SELECT id, name, role, registered, tier, status, allowed_ips,
+             ip_mode, ip_group_ids,
              password_hash, password_salt
       FROM users WHERE name = ${name} LIMIT 1`;
     const usersP = sql`
@@ -57,12 +58,25 @@ export default async function handler(req) {
     if (u.role !== 'admin') {
       if (u.status === 'suspended') return json({ error: '계정이 정지되었습니다. 대표에게 문의하세요.' }, { status: 403 });
       if (u.status === 'resigned')  return json({ error: '퇴사 처리된 계정입니다.' }, { status: 403 });
-      // 허용 IP 화이트리스트 (비어있으면 제한 없음)
-      if (Array.isArray(u.allowed_ips) && u.allowed_ips.length > 0) {
-        const xf = req.headers.get('x-forwarded-for') || '';
-        const clientIp = xf.split(',')[0].trim() || req.headers.get('x-real-ip') || '';
-        if (!u.allowed_ips.includes(clientIp)) {
-          return json({ error: `허용되지 않은 위치에서의 접속입니다 (IP: ${clientIp || '알 수 없음'})` }, { status: 403 });
+      // IP 화이트리스트 — 새 그룹 시스템(ip_mode=restricted) + 레거시 allowed_ips 합집합
+      const xf = req.headers.get('x-forwarded-for') || '';
+      const cIp = xf.split(',')[0].trim() || req.headers.get('x-real-ip') || '';
+      let allowSet = new Set();
+      if (Array.isArray(u.allowed_ips)) u.allowed_ips.forEach(s => s && allowSet.add(String(s).trim()));
+      if (u.ip_mode === 'restricted' && Array.isArray(u.ip_group_ids) && u.ip_group_ids.length > 0) {
+        // 활성 그룹 IP만 허용 (그룹이 비활성이면 무시)
+        const grpRows = await sql`
+          SELECT ips FROM ip_groups
+          WHERE id = ANY(${u.ip_group_ids}) AND active = TRUE`;
+        grpRows.forEach(g => (g.ips || []).forEach(ip => ip && allowSet.add(String(ip).trim())));
+      }
+      // 차단 조건: restricted 모드(허용 IP 정해진 직원) AND 그 집합에 현재 IP 없음
+      // restricted 모드인데 집합이 비면 → 등록된 게 없어서 잠긴 상태(차단)
+      // 레거시: ip_mode 미설정(='all') 이고 allowed_ips 만 있으면 옛 동작 유지
+      const useRestrict = u.ip_mode === 'restricted' || (u.ip_mode !== 'restricted' && Array.isArray(u.allowed_ips) && u.allowed_ips.length > 0);
+      if (useRestrict) {
+        if (!allowSet.has(cIp)) {
+          return json({ error: `허용되지 않은 위치에서의 접속입니다 (IP: ${cIp || '알 수 없음'})` }, { status: 403 });
         }
       }
     }

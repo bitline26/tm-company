@@ -478,6 +478,7 @@
   .vendor-card .vc-cell input.vc-input::-webkit-outer-spin-button,
   .vendor-card .vc-cell input.vc-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   .vendor-card .vc-cell.is-focus{outline:2px solid #2563eb;outline-offset:-2px;background:#fff}
+  .vendor-card .vc-cell.in-range{outline:2px solid #2563eb;outline-offset:-2px;background:#eff6ff}
   .vendor-card .vc-stats{padding:0 10px 10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px}
   .vendor-card .vc-stat{padding:7px 10px;border-radius:7px;display:flex;justify-content:space-between;align-items:center}
   .vendor-card .vc-stat.eff{background:#dbeafe;color:#1d4ed8}
@@ -575,6 +576,10 @@ const State = {
 
   // 직원 관리 (admin 전용) — 정지/퇴사/IP
   employeeMgmt: null,        // 전체 직원 배열 (null=미로드)
+
+  // IP 그룹 마스터 (admin 전용) — 제목 + IP 묶음
+  ipGroups: null,            // 그룹 배열 (null=미로드)
+  ipGroupsCurrentIp: '',     // 현재 admin 접속 IP
 
   // 종소리 알람 — 익일 휴무자 발견 시 1회만 울림 (세션당)
   bellRung: false,
@@ -1026,6 +1031,7 @@ function renderAdminApp(){
       isPriv?navItem('approval','승인 대기','✔︎',pendingCount||null):null,
       State.user.role==='admin'?navItem('admin-signup','회원가입','👤'):null,
       State.user.role==='admin'?navItem('employee-mgmt','직원 관리','🛡️'):null,
+      State.user.role==='admin'?navItem('ip-groups','IP 그룹','🌐'):null,
       navItem('grid','팀 캘린더','📅'),
       h('div',{class:'nav-group-h'},'실적'),
       navItem('sales-orders','PB 내역','📋'),
@@ -1049,6 +1055,7 @@ function renderAdminApp(){
   else if(State.page==='approval') content=renderApproval();
   else if(State.page==='signup-approval') { State.page='employee-mgmt'; content=renderEmployeeMgmt(); }
   else if(State.page==='employee-mgmt') content=renderEmployeeMgmt();
+  else if(State.page==='ip-groups') content=renderIpGroups();
   else if(State.page==='admin-signup') content=renderAdminSignup();
   else if(State.page==='sales-orders') content=renderSalesOrders();
   else if(State.page==='sales-tm') content=renderSalesTM();
@@ -1287,7 +1294,7 @@ function _renderHistoryOnly(u){
 
 function renderTopbar(){
   const titleMap={
-    people:'직원',approval:'승인 대기','admin-signup':'회원가입','employee-mgmt':'직원 관리',grid:'팀 캘린더',
+    people:'직원',approval:'승인 대기','admin-signup':'회원가입','employee-mgmt':'직원 관리','ip-groups':'IP 그룹',grid:'팀 캘린더',
     'sales-orders':'PB 내역','sales-tm':'월 TM 마감','sales-tm-daily':'일 TM 마감','sales-vendor':'유입 분석'
   };
   let title=titleMap[State.page]||'';
@@ -2497,6 +2504,18 @@ async function loadEmployeeMgmt(){
   }
 }
 
+async function loadIpGroups(){
+  try{
+    const r=await api('/api/auth/ip-groups');
+    State.ipGroups = r.groups || [];
+    State.ipGroupsCurrentIp = r.currentIp || '';
+  }catch(e){
+    State.ipGroups = [];
+    State.ipGroupsCurrentIp = '';
+    showToast(e.message);
+  }
+}
+
 // 대표 전용 — 직접 직원 계정 생성 (POST /api/auth/signup)
 function renderAdminSignup(){
   const inputStyle = 'width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fcfcfb;outline:none';
@@ -2592,55 +2611,73 @@ function renderEmployeeMgmt(){
     }catch(e){ showToast(e.message); }
   }
 
-  function openIpModal(u){
-    const cur=(u.allowed_ips||[]).join('\n');
+  // IP 그룹 기반 — 직원별 모드(전체/허용IP) + 그룹 다중 체크
+  async function openIpModal(u){
+    // 그룹 로드 보장
+    if(State.ipGroups===null) await loadIpGroups();
     const overlay=h('div',{style:'position:fixed;inset:0;background:rgba(15,15,15,.4);z-index:9999;display:flex;align-items:center;justify-content:center',
       onClick:(e)=>{ if(e.target===overlay) overlay.remove(); }});
-    const ta=h('textarea',{style:'width:100%;height:140px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:13px',
-      placeholder:'한 줄에 IP 하나 (예: 211.222.123.45)\n비우면 IP 제한 해제'},cur);
 
-    // 최근 접속 IP 정보 + 자동 채움
-    const lastIp = u.last_login_ip || '';
-    const lastAt = u.last_login_at ? new Date(u.last_login_at).toLocaleString('ko-KR',{dateStyle:'medium',timeStyle:'short'}) : '';
-    const lockNowBtn = lastIp
-      ? h('button',{class:'btn btn-primary',style:'padding:6px 12px;font-size:12px'},`🔒 ${lastIp} 만 허용`)
-      : null;
-    if(lockNowBtn){
-      lockNowBtn.addEventListener('click',()=>{ ta.value = lastIp; });
+    let mode = u.ip_mode === 'restricted' ? 'restricted' : 'all';
+    const selected = new Set((u.ip_group_ids||[]).map(Number));
+
+    const radioAll = h('input',{type:'radio',name:'ipmode',checked: mode==='all'});
+    const radioRes = h('input',{type:'radio',name:'ipmode',checked: mode==='restricted'});
+    const grpBox = h('div',{style:'border:1px solid var(--border);border-radius:8px;padding:10px;max-height:260px;overflow:auto;background:#fafaf8'});
+
+    function drawGroups(){
+      grpBox.innerHTML='';
+      const list = (State.ipGroups||[]).filter(g=>g.active);
+      if(!list.length){
+        grpBox.append(h('div',{style:'color:var(--text-soft);font-size:12px;padding:8px 4px'},
+          '등록된 IP 그룹이 없습니다. 사이드바 → IP 그룹 메뉴에서 먼저 등록하세요.'));
+        return;
+      }
+      list.forEach(g=>{
+        const cb = h('input',{type:'checkbox',checked: selected.has(g.id), style:'margin-right:8px'});
+        cb.addEventListener('change',()=>{ if(cb.checked) selected.add(g.id); else selected.delete(g.id); });
+        const row = h('label',{style:'display:flex;align-items:flex-start;gap:6px;padding:6px 4px;border-bottom:1px solid #eee;cursor:pointer'},
+          cb,
+          h('div',{style:'flex:1;min-width:0'},
+            h('div',{style:'font-weight:700;font-size:13px'},'▶ '+g.label,
+              h('span',{style:'margin-left:6px;font-size:10.5px;color:var(--text-soft);font-weight:500'},`(${(g.ips||[]).length}개)`)),
+            h('div',{style:'font-size:11px;color:var(--text-soft);font-family:monospace;word-break:break-all'},
+              (g.ips||[]).slice(0,4).join(' / ')+((g.ips||[]).length>4?' …':''))
+          )
+        );
+        grpBox.append(row);
+      });
     }
-    const lastInfo = lastIp
-      ? h('div',{style:'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;margin-bottom:10px;background:#f7f6f3;border-radius:8px;font-size:12px'},
-          h('div',null,
-            h('span',{style:'color:var(--text-soft)'},'최근 접속 IP: '),
-            h('span',{style:'font-family:monospace;font-weight:700;color:var(--text)'}, lastIp),
-            lastAt?h('span',{style:'color:var(--text-soft);margin-left:8px'},lastAt):null),
-          lockNowBtn)
-      : h('div',{style:'padding:10px 12px;margin-bottom:10px;background:#f7f6f3;border-radius:8px;font-size:12px;color:var(--text-soft)'},
-          '아직 로그인 기록이 없어 최근 IP를 알 수 없습니다.');
+    drawGroups();
+
+    function syncDisabled(){ grpBox.style.opacity = mode==='restricted' ? '1' : '0.45'; grpBox.style.pointerEvents = mode==='restricted' ? 'auto' : 'none'; }
+    radioAll.addEventListener('change',()=>{ if(radioAll.checked){ mode='all'; syncDisabled(); } });
+    radioRes.addEventListener('change',()=>{ if(radioRes.checked){ mode='restricted'; syncDisabled(); } });
+    syncDisabled();
+
+    const lastIp = u.last_login_ip || '';
+    const curIp = State.ipGroupsCurrentIp || '';
+    const infoLine = h('div',{style:'padding:8px 12px;margin-bottom:10px;background:#f7f6f3;border-radius:8px;font-size:11.5px;color:var(--text-soft)'},
+      curIp?h('span',null,'★ 현재 접속중인 IP ', h('b',{style:'font-family:monospace;color:#0f0f0f'}, curIp)):null,
+      lastIp?h('span',{style:'margin-left:10px'},' · 직원 최근 IP ', h('b',{style:'font-family:monospace;color:#0f0f0f'}, lastIp)):null);
 
     const save=h('button',{class:'btn btn-primary',style:'padding:8px 16px'},'저장');
     const cancel=h('button',{class:'btn',style:'padding:8px 16px'},'취소');
-    const clear=h('button',{class:'btn btn-danger',style:'padding:8px 14px'},'제한 해제');
     save.addEventListener('click',async()=>{
-      const ips = ta.value.split(/[\n,]/).map(s=>s.trim()).filter(Boolean);
-      await doAction(u,'set_ips',{ips});
-      overlay.remove();
-    });
-    clear.addEventListener('click',async()=>{
-      if(!confirm(`${u.name} 의 IP 제한을 해제합니다`)) return;
-      await doAction(u,'set_ips',{ips:[]});
+      await doAction(u,'set_ip_mode',{mode, group_ids: Array.from(selected)});
       overlay.remove();
     });
     cancel.addEventListener('click',()=>overlay.remove());
-    const card=h('div',{style:'background:#fff;border-radius:12px;padding:22px;width:520px;max-width:92vw'},
-      h('div',{style:'font-weight:700;font-size:15px;margin-bottom:12px'}, `${u.name} · 허용 IP 설정`),
-      lastInfo,
-      h('div',{style:'font-size:12px;color:var(--text-soft);margin-bottom:8px'},
-        '비어있으면 모든 IP에서 접속 가능. IP를 1개 이상 입력하면 그 IP에서만 로그인 허용.'),
-      ta,
-      h('div',{style:'display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:12px'},
-        clear,
-        h('div',{style:'display:flex;gap:8px'},cancel,save))
+
+    const card=h('div',{style:'background:#fff;border-radius:12px;padding:22px;width:560px;max-width:94vw'},
+      h('div',{style:'font-weight:700;font-size:15px;margin-bottom:10px'}, `${u.name} · 접속 IP 허용 설정`),
+      infoLine,
+      h('div',{style:'display:flex;gap:18px;margin-bottom:10px'},
+        h('label',{style:'display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer'}, radioAll, '전체 (모든 IP 허용)'),
+        h('label',{style:'display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer'}, radioRes, '허용 IP (선택된 그룹만)')),
+      h('div',{style:'font-size:11.5px;color:var(--text-soft);margin-bottom:6px'},'허용 IP 선택 — 체크된 그룹의 IP들에서만 로그인 가능'),
+      grpBox,
+      h('div',{style:'display:flex;gap:8px;justify-content:flex-end;margin-top:14px'}, cancel, save)
     );
     overlay.append(card);
     document.body.append(overlay);
@@ -2654,6 +2691,10 @@ function renderEmployeeMgmt(){
       if(!confirm(`${u.name} ${isSus?'정지를 해제합니다':'계정을 정지합니다 (로그인 차단)'}`)) return;
       doAction(u, isSus?'unsuspend':'suspend');
     });
+    // IP 허용 설정 — 모드(전체/허용IP) + 그룹 선택
+    const ipBtn = h('button',{class:'btn',style:'padding:5px 10px;font-size:11.5px'},
+      u.ip_mode==='restricted' ? `IP (${(u.ip_group_ids||[]).length})` : 'IP');
+    ipBtn.addEventListener('click',()=>openIpModal(u));
     // 삭제 — 계정 + 관련 데이터(근태/PB/마감 등) 완전 제거 (복구 불가)
     const delBtn = h('button',{class:'btn btn-danger',style:'padding:5px 10px;font-size:11.5px'},'삭제');
     delBtn.addEventListener('click',()=>{
@@ -2679,15 +2720,104 @@ function renderEmployeeMgmt(){
           )
         )
       ),
-      h('div',{style:'display:flex;gap:6px;flex-shrink:0'}, susBtn, delBtn)
+      h('div',{style:'display:flex;gap:6px;flex-shrink:0'}, ipBtn, susBtn, delBtn)
     );
   });
 
   return h('div',{style:'padding:20px;max-width:880px'},
     h('h2',{style:'margin:0 0 6px;font-size:20px;font-weight:700'},'직원 관리'),
     h('div',{style:'font-size:12px;color:var(--text-soft);margin-bottom:16px'},
-      '계정 정지 · 삭제 — 대표 전용'),
+      '계정 정지 · 삭제 · 허용 IP 설정 — 대표 전용'),
     h('div',null,...rows)
+  );
+}
+
+// ─────────────── IP 그룹 마스터 (대표 전용) ───────────────
+function renderIpGroups(){
+  if(State.ipGroups===null){
+    loadIpGroups().then(()=>{ if(State.user) renderApp(); });
+    return h('div',{class:'empty'},'⏳ IP 그룹 불러오는 중…');
+  }
+  const groups = State.ipGroups;
+  const curIp = State.ipGroupsCurrentIp || '';
+
+  async function save(g){
+    try{
+      await api('/api/auth/ip-groups',{method:'POST',body:{
+        id: g.id||null,
+        label: g.label,
+        ips: g.ips,
+        active: g.active,
+        sort_order: g.sort_order,
+        note: g.note
+      }});
+      State.ipGroups=null;
+      renderApp();
+      showToast('저장 완료');
+    }catch(e){ showToast(e.message); }
+  }
+  async function del(g){
+    if(!confirm(`'${g.label}' IP 그룹을 삭제합니다. 해당 그룹이 할당된 직원에서도 자동 제거됩니다.`)) return;
+    try{
+      await api('/api/auth/ip-groups?id='+g.id,{method:'DELETE'});
+      State.ipGroups=null;
+      renderApp();
+      showToast('삭제됨');
+    }catch(e){ showToast(e.message); }
+  }
+
+  function newGroupRow(){
+    const labelI = h('input',{type:'text',placeholder:'제목 (예: 1차/2차/타미폰)',style:'width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px'});
+    const ipsI = h('textarea',{placeholder:'IP들 — 줄바꿈 / 콤마 / 슬래시 구분 (예: 119.71.102.96, 119.71.102.196)',
+      style:'width:100%;min-height:60px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:12.5px'});
+    const addBtn = h('button',{class:'btn btn-primary',style:'padding:6px 14px;font-size:12.5px'},'+ 등록');
+    addBtn.addEventListener('click',()=>{
+      const label = labelI.value.trim();
+      if(!label){ showToast('제목을 입력하세요'); return; }
+      const ips = ipsI.value.split(/[\s,\/;]+/).map(s=>s.trim()).filter(Boolean);
+      save({label, ips, active:true, sort_order: groups.length, note:null});
+    });
+    return h('div',{style:'display:flex;gap:8px;align-items:flex-start;padding:12px;border:1px dashed var(--border);border-radius:10px;margin-bottom:14px;background:#fff'},
+      h('div',{style:'flex:1;display:grid;gap:6px'}, labelI, ipsI),
+      addBtn);
+  }
+
+  const rows = groups.map((g, idx)=>{
+    const labelI = h('input',{type:'text',value:g.label,style:'width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:700'});
+    const ipsI = h('textarea',{style:'width:100%;min-height:46px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:12px'}, (g.ips||[]).join(', '));
+    const activeI = h('input',{type:'checkbox',checked: g.active!==false});
+    const saveBtn = h('button',{class:'btn btn-primary',style:'padding:5px 10px;font-size:11.5px'},'저장');
+    const delBtn = h('button',{class:'btn btn-danger',style:'padding:5px 10px;font-size:11.5px'},'삭제');
+    saveBtn.addEventListener('click',()=>{
+      const label = labelI.value.trim();
+      if(!label){ showToast('제목 비어있음'); return; }
+      const ips = ipsI.value.split(/[\s,\/;]+/).map(s=>s.trim()).filter(Boolean);
+      save({id:g.id, label, ips, active: activeI.checked, sort_order: g.sort_order, note: g.note});
+    });
+    delBtn.addEventListener('click',()=>del(g));
+
+    return h('div',{style:'display:grid;grid-template-columns:42px 1fr 60px auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;background:#fff'},
+      h('div',{style:'text-align:center;font-weight:700;color:var(--text-soft);font-size:13px'}, (idx+1)),
+      h('div',{style:'display:grid;gap:5px'},
+        labelI,
+        ipsI,
+        h('div',{style:'font-size:10.5px;color:var(--text-soft)'}, `${(g.ips||[]).length}개 IP`)),
+      h('label',{style:'display:flex;align-items:center;gap:5px;font-size:11.5px;justify-content:center'}, activeI, '사용'),
+      h('div',{style:'display:flex;gap:5px'}, saveBtn, delBtn)
+    );
+  });
+
+  return h('div',{style:'padding:20px;max-width:960px'},
+    h('h2',{style:'margin:0 0 6px;font-size:20px;font-weight:700'},'IP 그룹'),
+    h('div',{style:'font-size:12px;color:var(--text-soft);margin-bottom:6px'},
+      `사전 등록한 IP 묶음을 직원에게 할당해서 접속 위치를 제한합니다. 최대 200건.`),
+    curIp ? h('div',{style:'padding:8px 12px;margin-bottom:14px;background:#fef9c3;border:1px solid #fde68a;border-radius:8px;font-size:12.5px'},
+      '★ 현재 접속중인 IP ',
+      h('span',{style:'font-family:monospace;font-weight:800'}, curIp)) : null,
+    newGroupRow(),
+    rows.length
+      ? h('div',null,...rows)
+      : h('div',{class:'empty',style:'padding:30px;text-align:center;color:var(--text-soft)'},'등록된 IP 그룹이 없습니다')
   );
 }
 
@@ -4217,15 +4347,42 @@ function renderSalesVendor(){
   return wrap;
 }
 
-// === 유입분석 셀 화살표 키보드 autorepeat (OS 기본 반복 우회 — 40/sec) ===
+// === 유입분석 셀: Excel-style 키보드 (autorepeat + 범위 선택 + 일괄 삭제) ===
 const _vcNav = { timer: null, initial: null, dir: null };
+const _vcSel = { anchor: null, head: null };  // input 요소 참조
 function _vcStopNav(){
   if(_vcNav.initial){ clearTimeout(_vcNav.initial); _vcNav.initial=null; }
   if(_vcNav.timer){ clearInterval(_vcNav.timer); _vcNav.timer=null; }
   _vcNav.dir=null;
 }
-function _vcMoveOnce(curInput, dir){
-  const arr = Array.from(document.querySelectorAll('.vendor-grid .vc-input'));
+function _vcAllInputs(){ return Array.from(document.querySelectorAll('.vendor-grid .vc-input')); }
+function _vcClearRange(){
+  document.querySelectorAll('.vendor-card .vc-cell.in-range').forEach(el=>el.classList.remove('in-range'));
+  _vcSel.anchor = null; _vcSel.head = null;
+}
+function _vcApplyRange(){
+  const arr = _vcAllInputs();
+  const a = arr.indexOf(_vcSel.anchor);
+  const h = arr.indexOf(_vcSel.head);
+  if(a<0 || h<0){ _vcClearRange(); return; }
+  const lo = Math.min(a,h), hi = Math.max(a,h);
+  arr.forEach((el,i)=>{
+    const c = el.closest('.vc-cell');
+    if(!c) return;
+    if(i>=lo && i<=hi) c.classList.add('in-range'); else c.classList.remove('in-range');
+  });
+}
+function _vcRangeInputs(){
+  if(!_vcSel.anchor || !_vcSel.head) return [];
+  const arr = _vcAllInputs();
+  const a = arr.indexOf(_vcSel.anchor), h = arr.indexOf(_vcSel.head);
+  if(a<0 || h<0) return [];
+  const lo = Math.min(a,h), hi = Math.max(a,h);
+  return arr.slice(lo, hi+1);
+}
+// 한 칸 이동 — focus+select 까지. select=false 면 head 갱신만 (범위 확장용)
+function _vcMoveOnce(curInput, dir, doSelect){
+  const arr = _vcAllInputs();
   const idx = arr.indexOf(curInput);
   if(idx<0) return null;
   let target = -1;
@@ -4235,17 +4392,22 @@ function _vcMoveOnce(curInput, dir){
   else if(dir==='right')target = idx + 1;
   if(target<0 || target>=arr.length) return null;
   const next = arr[target];
-  next.focus(); next.select();
+  next.focus();
+  if(doSelect !== false) next.select();
   return next;
 }
-// 전역 keyup — 화살표 떼면 즉시 정지 (input 포커스가 바뀐 뒤에도 안전)
+// 전역 keyup — 화살표/Shift 떼면 autorepeat 즉시 정지
 if(!window._vcKeyupBound){
   window._vcKeyupBound = true;
   document.addEventListener('keyup', e=>{
-    if(e.key && e.key.indexOf('Arrow')===0) _vcStopNav();
+    if(e.key && (e.key.indexOf('Arrow')===0 || e.key==='Shift')) _vcStopNav();
   }, true);
-  // 마우스 클릭 등 다른 입력으로 포커스 이동 시 정지
-  document.addEventListener('mousedown', ()=> _vcStopNav(), true);
+  // 마우스 클릭 등 다른 입력으로 포커스 이동 시 범위·반복 정지
+  document.addEventListener('mousedown', e=>{
+    _vcStopNav();
+    // .vc-input 안에서의 클릭이 아니면 범위도 해제
+    if(!(e.target && e.target.classList && e.target.classList.contains('vc-input'))) _vcClearRange();
+  }, true);
 }
 
 // 엑셀식 — 항상 input 노출, 스피너 없음, blur 자동 저장 (일 TM 마감과 동일 패턴)
@@ -4304,17 +4466,38 @@ function vendorCell(v, key, label, isPriv){
     });
   });
   input.addEventListener('keydown',e=>{
-    if(e.key==='Enter'){ _vcStopNav(); e.preventDefault(); input.blur(); return; }
-    if(e.key==='Escape'){ _vcStopNav(); input.value = String(v[key]||0); input.blur(); return; }
+    if(e.key==='Enter'){ _vcStopNav(); _vcClearRange(); e.preventDefault(); input.blur(); return; }
+    if(e.key==='Escape'){ _vcStopNav(); _vcClearRange(); input.value = String(v[key]||0); input.blur(); return; }
+    // 범위가 2칸 이상일 때 Delete/Backspace = 일괄 0
+    if((e.key==='Delete' || e.key==='Backspace')){
+      const rng = _vcRangeInputs();
+      if(rng.length >= 2){
+        e.preventDefault();
+        rng.forEach(inp=>{
+          if(inp.value === '0') return;
+          inp.value = '0';
+          inp.dispatchEvent(new Event('blur'));  // blur 핸들러가 낙관적 갱신 + 백그라운드 저장
+        });
+        _vcClearRange();
+        input.focus();
+        return;
+      }
+    }
     const dir = e.key==='ArrowUp'?'up':e.key==='ArrowDown'?'down':e.key==='ArrowLeft'?'left':e.key==='ArrowRight'?'right':null;
     if(!dir) return;
-    // ←/→ 는 텍스트 가장자리에서만 셀 이동 (브라우저 커서 이동과 충돌 방지)
-    if(dir==='left'  && input.selectionStart !== 0) return;
-    if(dir==='right' && input.selectionEnd   !== input.value.length) return;
     e.preventDefault();
-    // OS 자동반복 무시 — 자체 타이머가 처리
-    if(e.repeat) return;
-    // 즉시 1회 이동
+    // ── Shift+화살표 = 범위 확장 (autorepeat 없음)
+    if(e.shiftKey){
+      _vcStopNav();
+      if(!_vcSel.anchor){ _vcSel.anchor = input; _vcSel.head = input; }
+      const cur = _vcSel.head || input;
+      const moved = _vcMoveOnce(cur, dir, /*select*/ false);
+      if(moved){ _vcSel.head = moved; _vcApplyRange(); }
+      return;
+    }
+    // ── 일반 화살표 = 범위 해제 + 셀 이동 (좌우 즉시, 커서 위치 무관)
+    _vcClearRange();
+    if(e.repeat) return; // OS 반복 무시 — 자체 timer
     const moved = _vcMoveOnce(input, dir);
     if(!moved) return;
     // 자체 autorepeat — 100ms 후 시작, 25ms 간격 (40/sec)

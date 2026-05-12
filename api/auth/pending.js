@@ -13,7 +13,7 @@ export default requireAuth(async function handler(req, res) {
     const scope = String(req.query.scope || '');
     if (scope === 'employees') {
       const rows = await sql`
-        SELECT id, name, role, tier, status, allowed_ips,
+        SELECT id, name, role, tier, status, allowed_ips, ip_mode, ip_group_ids,
                last_login_ip, last_login_at, created_at
         FROM users
         WHERE registered = TRUE AND role <> 'admin'
@@ -72,7 +72,7 @@ export default requireAuth(async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
     if (action === 'set_ips') {
-      // ips: 배열 — 빈 배열이면 제한 해제
+      // ips: 배열 — 빈 배열이면 제한 해제 (레거시 호환)
       const rawIps = Array.isArray(body.ips) ? body.ips : [];
       const ips = rawIps
         .map(s => String(s || '').trim())
@@ -80,6 +80,14 @@ export default requireAuth(async function handler(req, res) {
         .slice(0, 20);
       await sql`UPDATE users SET allowed_ips = ${ips} WHERE id = ${uid}`;
       return res.status(200).json({ ok: true, allowed_ips: ips });
+    }
+    // 새 IP 그룹 시스템 — mode: 'all'(전체) | 'restricted'(선택 그룹만), group_ids: int[]
+    if (action === 'set_ip_mode') {
+      const mode = body.mode === 'restricted' ? 'restricted' : 'all';
+      const rawGids = Array.isArray(body.group_ids) ? body.group_ids : [];
+      const groupIds = rawGids.map(n => Number(n)).filter(n => Number.isInteger(n) && n > 0).slice(0, 200);
+      await sql`UPDATE users SET ip_mode = ${mode}, ip_group_ids = ${groupIds} WHERE id = ${uid}`;
+      return res.status(200).json({ ok: true, ip_mode: mode, ip_group_ids: groupIds });
     }
     return res.status(400).json({ error: 'invalid action' });
   }

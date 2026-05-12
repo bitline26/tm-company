@@ -34,7 +34,7 @@ const EMP_T2_NAME = '3';
 const EMP_T2_PW = '3';
 
 // 스키마 마커 — 이 버전이 DB에 기록되어 있으면 ensureSchema 풀실행 스킵
-const SCHEMA_VERSION = 13;
+const SCHEMA_VERSION = 14;
 
 let initialized = false;
 let initPromise = null;
@@ -241,6 +241,24 @@ export async function ensureSchema() {
     // 로그인 추적 — 대표가 직원 관리 페이지에서 최근 접속 IP 확인 + '현재 IP로 잠그기'에 사용
     await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_ip TEXT`;
     await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ`;
+    // IP 그룹 마스터 (대표가 미리 등록, 최대 200) + 직원별 모드/그룹 선택
+    // ip_mode: 'all' = 모든 IP 허용 / 'restricted' = 선택된 그룹의 IP만 허용
+    await sql`
+      CREATE TABLE IF NOT EXISTS ip_groups (
+        id SERIAL PRIMARY KEY,
+        label TEXT UNIQUE NOT NULL,
+        ips TEXT[] NOT NULL DEFAULT '{}',
+        active BOOLEAN NOT NULL DEFAULT TRUE,
+        sort_order INT NOT NULL DEFAULT 0,
+        note TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS ip_mode TEXT NOT NULL DEFAULT 'all'`;
+    await sql`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_ip_mode_check`;
+    await sql`ALTER TABLE users ADD CONSTRAINT users_ip_mode_check CHECK (ip_mode IN ('all','restricted'))`;
+    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS ip_group_ids INT[] NOT NULL DEFAULT '{}'`;
     // PB 내역 상태 — 'UNPAID_PROOF'(미입금:입금증필요) 추가
     await sql`ALTER TABLE sales_orders DROP CONSTRAINT IF EXISTS sales_orders_status_check`;
     await sql`ALTER TABLE sales_orders ADD CONSTRAINT sales_orders_status_check
