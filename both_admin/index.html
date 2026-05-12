@@ -870,13 +870,10 @@ function renderAuth(){
         h('div',{class:'auth-brand-mark'},'TM'),
         h('div',{class:'auth-brand-text'},'티엠컴퍼니')
       ),
-      h('div',{class:'auth-tabs'},
-        h('button',{class:'auth-tab '+(tab.cur==='login'?'on':''),onClick:()=>{tab.cur='login';paint();}},'로그인'),
-        h('button',{class:'auth-tab '+(tab.cur==='signup'?'on':''),onClick:()=>{tab.cur='signup';paint();}},'회원가입'),
-      ),
     );
-    if(tab.cur==='login') card.append(loginForm());
-    else card.append(signupForm());
+    // 회원가입은 대표 어드민에서 직접 등록 — 대문에는 로그인만 노출
+    tab.cur='login';
+    card.append(loginForm());
   }
   paint();
   root.append(h('div',{class:'auth-wrap'},card));
