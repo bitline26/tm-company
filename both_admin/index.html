@@ -4007,8 +4007,14 @@ function renderSalesTM(){
         : { total_count: Number(cur.total_count||0), total_db: newVal };
       await saveMonthlyCell(uid, body);
     };
-    input.addEventListener('focus',()=>{ input.dataset.orig = input.value; });
-    input.addEventListener('blur', ()=>{ input._sheetSave().catch(e=>alert(e.message)); });
+    input.addEventListener('focus',()=>{
+      input.dataset.orig = input.value;
+      if (input.value === '0') input.value = '';
+    });
+    input.addEventListener('blur', ()=>{
+      if (input.value.trim() === '') input.value = '0';
+      input._sheetSave().catch(e=>alert(e.message));
+    });
     return td;
   }
 
@@ -4214,8 +4220,16 @@ function renderSalesTMDaily(){
       if (newVal === Number(val||0)) return;
       await saveDailyCell(uid, {[key]: newVal});
     };
-    input.addEventListener('focus',()=>{ input.dataset.orig = input.value; });
-    input.addEventListener('blur', ()=>{ input._sheetSave().catch(e=>alert(e.message)); });
+    input.addEventListener('focus',()=>{
+      input.dataset.orig = input.value;
+      // 클릭 시 '0' 자동 비우기 — 새 숫자 바로 덮어쓰기 가능
+      if (input.value === '0') input.value = '';
+    });
+    input.addEventListener('blur', ()=>{
+      // 빈값이면 0 으로 복원
+      if (input.value.trim() === '') input.value = '0';
+      input._sheetSave().catch(e=>alert(e.message));
+    });
     return td;
   }
 
@@ -4827,9 +4841,15 @@ function vendorCell(v, key, label, isPriv){
     h('div',{class:'lbl'}, label),
     input
   );
-  input.addEventListener('focus',()=>{ cell.classList.add('is-focus'); });
+  input.addEventListener('focus',()=>{
+    cell.classList.add('is-focus');
+    // 클릭 시 '0' 자동 비우기 — 새 숫자 바로 덮어쓰기
+    if (input.value === '0') input.value = '';
+  });
   input.addEventListener('blur',async()=>{
     cell.classList.remove('is-focus');
+    // 빈값이면 0 으로 복원
+    if (input.value.trim() === '') input.value = '0';
     const raw = input.value.replace(/[^0-9-]/g,'');
     const newVal = Number(raw)||0;
     input.value = String(newVal);
