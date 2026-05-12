@@ -3392,8 +3392,8 @@ function openOrderModal(existingOrder){
   };
 
   const overlay = h('div', {
-    style:'position:fixed;inset:0;background:rgba(15,15,15,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto',
-    onClick:(e)=>{ if(e.target===overlay) overlay.remove(); }
+    style:'position:fixed;inset:0;background:rgba(15,15,15,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto'
+    // 외부 클릭으로 모달 닫히지 않게 — 취소/저장/Esc 로만 닫힘 (오타 방지)
   });
 
   const inputStyle = 'width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:7px;font-size:13.5px;background:#fcfcfb;outline:none';
@@ -3503,6 +3503,17 @@ function openOrderModal(existingOrder){
       else {
         const idx = State.salesOrders.findIndex(x=>x.id===existingOrder.id);
         if (idx>=0) State.salesOrders[idx] = r.order;
+      }
+      // 새 PB 가 현재 보고있는 월(salesYm) 밖이면 화면에서 빠질 수 있으므로,
+      // 해당 월로 자동 점프 + 서버 강제 재조회 (초기화 안 눌러도 즉시 반영 보장)
+      if (isNew && r.order && r.order.consult_date) {
+        const newYm = String(r.order.consult_date).slice(0,7);
+        const curYm = State.salesYm || todayYm();
+        if (curYm !== 'ALL' && newYm !== curYm) {
+          State.salesYm = newYm;
+        }
+        State.salesOrdersLoadedYm = null;
+        loadSalesContext('sales-orders').finally(()=>renderApp());
       }
       renderApp();
       showToast(isNew?'추가됨':'저장됨');
