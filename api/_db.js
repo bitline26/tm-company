@@ -29,9 +29,10 @@ const ADMIN_DEFAULT_PW = '1';
 // 테스트 계정 '2','3' 은 폐기 — DB 에 있으면 마이그레이션이 제거 (직원 목록·PB TM 드롭다운에서도 자동 사라짐)
 
 // 스키마 마커 — 이 버전이 DB에 기록되어 있으면 ensureSchema 풀실행 스킵
-const SCHEMA_VERSION = 17;
+const SCHEMA_VERSION = 18;
 // 1회용 시드 마커 — 이 버전이 _schema_init 에 기록된 적 있으면 bulk seed 건너뜀 (이후 SCHEMA_VERSION 더 올려도 재시드 안 됨)
-const BULK_SEED_MARKER = 15;
+// v18 = 직원 일부 누락 발견 → 강제 재시드 (1차 12 + 2차 16 = 28명 전부 복구)
+const BULK_SEED_MARKER = 18;
 
 let initialized = false;
 let initPromise = null;
@@ -289,8 +290,8 @@ export async function ensureSchema() {
       runBulkSeed = !r[0];
     } catch (_) { runBulkSeed = true; }
     if (runBulkSeed) {
-      // admin('1') 제외 전부 삭제 후 1차 12 + 2차 16 일괄 upsert
-      await sql`DELETE FROM users WHERE role <> 'admin'`;
+      // 1차 12 + 2차 16 upsert (DELETE 안 함 — 기존 PB/근태 등 데이터 보존)
+      // ON CONFLICT (name) DO UPDATE 로 누락된 직원만 INSERT 되고, 있으면 정보만 갱신
       const TIER1_SEED = [
         ['문정자','tami13'],['이경민','tami14'],['임세인','tami9612'],
         ['양정연','tami1102'],['장영인','tami0425'],['고윤호','tami0308'],
