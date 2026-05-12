@@ -16,12 +16,12 @@ if (!url) throw new Error('DATABASE_URL not set');
 export const sql = neon(url);
 
 // 직원 12명 (이미지 근무표 기준) — 회원가입 시 이 이름들 중에서만 선택 가능
-// 문실장 = 차장권한(manager, 월차 승인 가능)
+// 문실장 = 직원(employee) — 차장 권한 해제됨
 export const PRESET_NAMES = [
   '문실장','김상현','이경민','임세인','양정연','장영인',
   '안다혜','지성훈','이기성','고윤호','박철우','최은정',
 ];
-const MANAGER_NAMES = new Set(['문실장']);
+const MANAGER_NAMES = new Set(); // 차장 권한자 없음
 
 // 대표(관리자) 시드 계정 — 매 ensureSchema 마다 upsert (비번 변경 시 즉시 반영)
 const ADMIN_NAME = '1';
@@ -29,7 +29,7 @@ const ADMIN_DEFAULT_PW = '1';
 // 테스트 계정 '2','3' 은 폐기 — DB 에 있으면 마이그레이션이 제거 (직원 목록·PB TM 드롭다운에서도 자동 사라짐)
 
 // 스키마 마커 — 이 버전이 DB에 기록되어 있으면 ensureSchema 풀실행 스킵
-const SCHEMA_VERSION = 16;
+const SCHEMA_VERSION = 17;
 // 1회용 시드 마커 — 이 버전이 _schema_init 에 기록된 적 있으면 bulk seed 건너뜀 (이후 SCHEMA_VERSION 더 올려도 재시드 안 됨)
 const BULK_SEED_MARKER = 15;
 
@@ -345,6 +345,8 @@ export async function ensureSchema() {
     const testCleanup = sql`DELETE FROM users WHERE name IN ('2','3') AND role <> 'admin'`;
     // PRESET_NAMES 시드 비활성화 — 신규 직원은 회원가입 페이지에서 직접 신청
     const presetInserts = [];
+    // 문실장 차장 → 직원 강등 (대표 지시 — schema v17)
+    const demoteMoon = sql`UPDATE users SET role='employee' WHERE name='문실장' AND role='manager'`;
     // 디비 vendor 시드 (이미지 5월8일 기준)
     const VENDOR_SEEDS = [
       ['A-A',  'A-A',  '타미통신디비', '#7c3aed'],
@@ -361,7 +363,7 @@ export async function ensureSchema() {
         ON CONFLICT (code) DO NOTHING
       `
     );
-    await Promise.all([adminUpsert, adminCleanup, testCleanup, ...presetInserts, ...vendorInserts]);
+    await Promise.all([adminUpsert, adminCleanup, testCleanup, demoteMoon, ...presetInserts, ...vendorInserts]);
 
     // 5단계: 마커 기록 (이후 콜드 스타트는 풀 DDL 스킵)
     await sql`
