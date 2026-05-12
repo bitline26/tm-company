@@ -34,7 +34,9 @@ const EMP_T2_NAME = '3';
 const EMP_T2_PW = '3';
 
 // 스키마 마커 — 이 버전이 DB에 기록되어 있으면 ensureSchema 풀실행 스킵
-const SCHEMA_VERSION = 14;
+const SCHEMA_VERSION = 15;
+// 1회용 시드 마커 — 이 버전이 _schema_init 에 기록된 적 있으면 bulk seed 건너뜀 (이후 SCHEMA_VERSION 더 올려도 재시드 안 됨)
+const BULK_SEED_MARKER = 15;
 
 let initialized = false;
 let initPromise = null;
@@ -285,6 +287,53 @@ export async function ensureSchema() {
     ]);
 
     // 4단계: 시드 (병렬)
+    // 1회용 — 1차/2차 명단 일괄 시드. 이미 BULK_SEED_MARKER 가 기록되어 있으면 스킵.
+    let runBulkSeed = false;
+    try {
+      const r = await sql`SELECT 1 AS x FROM _schema_init WHERE version = ${BULK_SEED_MARKER} LIMIT 1`;
+      runBulkSeed = !r[0];
+    } catch (_) { runBulkSeed = true; }
+    if (runBulkSeed) {
+      // admin('1'), test('2','3') 제외 전부 삭제 후 1차 12 + 2차 16 일괄 upsert
+      await sql`DELETE FROM users WHERE role <> 'admin' AND name NOT IN ('2','3')`;
+      const TIER1_SEED = [
+        ['문정자','tami13'],['이경민','tami14'],['임세인','tami9612'],
+        ['양정연','tami1102'],['장영인','tami0425'],['고윤호','tami0308'],
+        ['안다혜','tami0404'],['김상현','tami44'],['박철우','tami0910'],
+        ['이기성','tami1125'],['지성훈','tami02260'],['최은정','tami0426'],
+      ];
+      const TIER2_SEED = [
+        ['공용 강보람','tami0226'],['공용 고윤호','tami308'],['공용 국나래','tami1217'],
+        ['공용 권용훈','tami000'],['공용 김민정','tami1114'],['공용 김선화','tami09240'],
+        ['공용 남성영','tami03010'],['공용 이준헌','tami09150'],['공용 이지윤','tami1004'],
+        ['공용 전은하','tami10220'],['공용 정민지','tami0721'],
+        ['공용 김대헌','tami0214'],['공용 심재범','tami03080'],['공용 이예진','tami03310'],
+        ['공용 이주필','tami03230'],['공용 한재상','tami0423'],
+      ];
+      let so = 100;
+      for (const [nm, pw] of TIER1_SEED) {
+        const h = hashPassword(pw);
+        await sql`
+          INSERT INTO users (name, password_hash, password_salt, role, registered, tier, sort_order, status)
+          VALUES (${nm}, ${h.hash}, ${h.salt}, 'employee', TRUE, 1, ${so}, 'active')
+          ON CONFLICT (name) DO UPDATE SET
+            password_hash = EXCLUDED.password_hash, password_salt = EXCLUDED.password_salt,
+            role='employee', registered=TRUE, tier=1, status='active', sort_order=EXCLUDED.sort_order`;
+        so++;
+      }
+      so = 200;
+      for (const [nm, pw] of TIER2_SEED) {
+        const h = hashPassword(pw);
+        await sql`
+          INSERT INTO users (name, password_hash, password_salt, role, registered, tier, sort_order, status)
+          VALUES (${nm}, ${h.hash}, ${h.salt}, 'employee', TRUE, 2, ${so}, 'active')
+          ON CONFLICT (name) DO UPDATE SET
+            password_hash = EXCLUDED.password_hash, password_salt = EXCLUDED.password_salt,
+            role='employee', registered=TRUE, tier=2, status='active', sort_order=EXCLUDED.sort_order`;
+        so++;
+      }
+    }
+
     const { hash, salt } = hashPassword(ADMIN_DEFAULT_PW);
     const adminUpsert = sql`
       INSERT INTO users (name, password_hash, password_salt, role, registered, sort_order)
