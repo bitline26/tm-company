@@ -436,6 +436,12 @@
   .tm-table .col-input input{width:100%;padding:9px 12px;border:none;outline:2px solid #0f0f0f;outline-offset:-2px;text-align:right;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
   /* 엑셀식 직접 편집 input — type=text 라 spinner 없음, 셀에 딱 맞게 */
   .tm-table input[type=text]::selection{background:#bfdbfe}
+  /* 시트 셀 — 강한 outline 대신 미묘한 강조, 텍스트 드래그 자연스럽게 */
+  .tm-table td.sheet-cell{transition:box-shadow .08s,background .08s;cursor:text}
+  .tm-table td.sheet-cell:hover{background:rgba(15,15,15,.04)}
+  .tm-table td.sheet-cell:focus-within{box-shadow:inset 0 0 0 1.5px #2563eb}
+  .tm-table input.sheet-input::selection{background:#bfdbfe}
+  .vendor-card .vc-cell input.vc-input::selection{background:#bfdbfe}
   .tm-table input[type=number]::-webkit-inner-spin-button,
   .tm-table input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
   .tm-table input[type=number]{-moz-appearance:textfield}
@@ -2642,10 +2648,6 @@ function renderEmployeeMgmt(){
   }
 
   const rows = list.map(u=>{
-    const ipBtn=h('button',{class:'btn',style:'padding:5px 10px;font-size:11.5px'},
-      (u.allowed_ips&&u.allowed_ips.length)?`IP ${u.allowed_ips.length}개`:'IP 제한');
-    ipBtn.addEventListener('click',()=>openIpModal(u));
-
     const isSus = u.status==='suspended';
     const susBtn = h('button',{class:'btn '+(isSus?'btn-primary':''),style:'padding:5px 10px;font-size:11.5px'},
       isSus?'정지 해제':'정지');
@@ -2661,10 +2663,6 @@ function renderEmployeeMgmt(){
       doAction(u, 'delete');
     });
 
-    const ipInfo = (u.allowed_ips&&u.allowed_ips.length)
-      ? h('span',{style:'font-size:11px;color:#c2410c;font-family:monospace'},
-          ' · 🔒 ', u.allowed_ips.slice(0,2).join(', '), u.allowed_ips.length>2?` … +${u.allowed_ips.length-2}`:'')
-      : null;
     const lastIpInfo = u.last_login_ip
       ? h('span',{style:'font-size:11px;color:var(--text-soft);font-family:monospace'},
           ' · 최근 ', u.last_login_ip)
@@ -2678,18 +2676,18 @@ function renderEmployeeMgmt(){
             u.name, tierBadge(u.tier), statusBadge(u.status||'active')
           ),
           h('div',{style:'font-size:11.5px;color:var(--text-soft);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'},
-            u.role==='manager'?'차장':'직원', ipInfo, lastIpInfo
+            u.role==='manager'?'차장':'직원', lastIpInfo
           )
         )
       ),
-      h('div',{style:'display:flex;gap:6px;flex-shrink:0'}, ipBtn, susBtn, delBtn)
+      h('div',{style:'display:flex;gap:6px;flex-shrink:0'}, susBtn, delBtn)
     );
   });
 
   return h('div',{style:'padding:20px;max-width:880px'},
     h('h2',{style:'margin:0 0 6px;font-size:20px;font-weight:700'},'직원 관리'),
     h('div',{style:'font-size:12px;color:var(--text-soft);margin-bottom:16px'},
-      '계정 정지 · 삭제 · 허용 IP 설정 — 대표 전용'),
+      '계정 정지 · 삭제 — 대표 전용'),
     h('div',null,...rows)
   );
 }
@@ -3785,31 +3783,32 @@ function renderSalesTM(){
   function editableMonthCell(uid, key, val){
     const m = key==='total_count' ? colMeta['총갯수'] : colMeta['총 디비'];
     if (!isPriv) {
-      return h('td',{style:`text-align:center;font-variant-numeric:tabular-nums;font-weight:700;background:${m.bg};color:${m.fg};padding:4px 6px`}, fmtNum(val||0));
+      return h('td',{style:`text-align:center;font-variant-numeric:tabular-nums;font-weight:700;background:${m.bg};color:${m.fg};padding:8px 10px`}, fmtNum(val||0));
     }
     const input = h('input',{
       type:'text', inputmode:'numeric', value:String(val||0),
-      style:`width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;font-size:13px;padding:0;color:${m.fg};`
+      class:'sheet-input',
+      style:`width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;padding:6px 8px;color:${m.fg};`
     });
-    const td = h('td',{style:`padding:4px 6px;background:${m.bg};text-align:center`}, input);
-    input.addEventListener('focus',()=>{ td.style.outline='2px solid #2563eb'; input.select(); });
+    const td = h('td',{class:'sheet-cell', style:`padding:0;background:${m.bg};text-align:center`}, input);
+    let _kbd=false;
+    input.addEventListener('keydown',e=>{
+      if(e.key==='Tab') _kbd=true;
+      if(e.key==='Enter'){ e.preventDefault(); input.blur(); }
+      else if(e.key==='Escape'){ input.value = String(val||0); input.blur(); }
+    }, true);
+    input.addEventListener('focus',()=>{ if(_kbd){ try{input.select();}catch(_){} } _kbd=false; });
     input.addEventListener('blur',async()=>{
-      td.style.outline='none';
       const raw = input.value.replace(/[^0-9-]/g,'');
       const newVal = Number(raw)||0;
       input.value = String(newVal);
       if (newVal !== Number(val||0)) {
-        // 기존 행 값 둘 다 보내야 함 (POST는 둘 다 받음)
         const cur = computed.find(x=>x.user_id===uid) || {};
         const body = key==='total_count'
           ? { total_count: newVal, total_db: Number(cur.total_db||0) }
           : { total_count: Number(cur.total_count||0), total_db: newVal };
         await saveMonthlyCell(uid, body);
       }
-    });
-    input.addEventListener('keydown',e=>{
-      if(e.key==='Enter'){ e.preventDefault(); input.blur(); }
-      else if(e.key==='Escape'){ input.value = String(val||0); input.blur(); }
     });
     return td;
   }
@@ -3992,33 +3991,40 @@ function renderSalesTMDaily(){
     }catch(e){ alert(e.message); }
   }
 
-  // 엑셀식 직접 편집 셀 — 항상 input 노출, 스피너 제거, 드래그 선택 가능, 자동 저장
-  // 모든 컬럼 셀 배경 = 헤더 배경(headBg)와 동일 — 시각적 일치
+  // 엑셀식 직접 편집 셀 — 셀 느낌 최소화 (강한 outline 제거, auto-select 제거)
+  // 클릭 → 커서 위치 자유, 드래그로 텍스트 선택 → Delete 자연스럽게
   function editableCell(uid, key, val){
     const colDef = colDefs.find(c=>c.key===key) || {};
     const cellBg = colDef.headBg || 'transparent';
     const cellFg = colDef.headFg || 'inherit';
     if (!isPriv) {
-      return h('td',{style:`text-align:center;font-variant-numeric:tabular-nums;font-weight:700;background:${cellBg};color:${cellFg};padding:4px 6px`}, fmtNum(val||0));
+      return h('td',{style:`text-align:center;font-variant-numeric:tabular-nums;font-weight:700;background:${cellBg};color:${cellFg};padding:8px 10px`}, fmtNum(val||0));
     }
     const input = h('input',{
       type:'text', inputmode:'numeric', value:String(val||0),
-      style:`width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;font-size:13px;padding:0;color:${cellFg};`
+      class:'sheet-input',
+      style:`width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;padding:6px 8px;color:${cellFg};`
     });
-    const td = h('td',{style:`padding:4px 6px;background:${cellBg};text-align:center`}, input);
-    input.addEventListener('focus',()=>{ td.style.outline='2px solid #2563eb'; input.select(); });
+    const td = h('td',{class:'sheet-cell', style:`padding:0;background:${cellBg};text-align:center`}, input);
+    // 자동 select 안 함 — 클릭한 위치에 커서 (엑셀 편집모드 동일)
+    // 단, 키보드 Tab 으로 진입 시에만 select (마우스 클릭 진입은 keepCaret)
+    let _kbdEnter=false;
+    input.addEventListener('keydown', e=>{
+      if(e.key==='Tab') _kbdEnter=true;
+      if(e.key==='Enter'){ e.preventDefault(); input.blur(); }
+      else if(e.key==='Escape'){ input.value = String(val||0); input.blur(); }
+    }, true);
+    input.addEventListener('focus',()=>{
+      if (_kbdEnter) { try{input.select();}catch(_){ } }
+      _kbdEnter=false;
+    });
     input.addEventListener('blur',async()=>{
-      td.style.outline='none';
       const raw = input.value.replace(/[^0-9-]/g,'');
       const newVal = Number(raw)||0;
       input.value = String(newVal);
       if (newVal !== Number(val||0)) {
         await saveDailyCell(uid, {[key]: newVal});
       }
-    });
-    input.addEventListener('keydown',e=>{
-      if(e.key==='Enter'){ e.preventDefault(); input.blur(); }
-      else if(e.key==='Escape'){ input.value = String(val||0); input.blur(); }
     });
     return td;
   }
@@ -4205,7 +4211,8 @@ function vendorCell(v, key, label, isPriv){
     h('div',{class:'lbl'}, label),
     input
   );
-  input.addEventListener('focus',()=>{ cell.classList.add('is-focus'); input.select(); });
+  let _kbd=false;
+  input.addEventListener('focus',()=>{ cell.classList.add('is-focus'); if(_kbd){ try{input.select();}catch(_){} } _kbd=false; });
   input.addEventListener('blur',async()=>{
     cell.classList.remove('is-focus');
     const raw = input.value.replace(/[^0-9-]/g,'');
@@ -4225,9 +4232,10 @@ function vendorCell(v, key, label, isPriv){
     }catch(e){ alert(e.message); input.value = String(v[key]||0); }
   });
   input.addEventListener('keydown',e=>{
+    if(e.key==='Tab') _kbd=true;
     if(e.key==='Enter'){ e.preventDefault(); input.blur(); }
     else if(e.key==='Escape'){ input.value = String(v[key]||0); input.blur(); }
-  });
+  }, true);
   return cell;
 }
 
