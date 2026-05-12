@@ -102,13 +102,29 @@ export default async function handler(req, res){
       created++; sortBase++;
     }
 
+    // 관전용 viewer 계정 '2'(1차), '3'(2차) 강제 생성/갱신
+    const v2 = hashPassword('2');
+    await sql`
+      INSERT INTO users (name, password_hash, password_salt, role, registered, tier, sort_order, status)
+      VALUES ('2', ${v2.hash}, ${v2.salt}, 'employee', TRUE, 1, -2, 'active')
+      ON CONFLICT (name) DO UPDATE SET
+        password_hash=EXCLUDED.password_hash, password_salt=EXCLUDED.password_salt,
+        role='employee', tier=1, registered=TRUE, status='active', sort_order=-2`;
+    const v3 = hashPassword('3');
+    await sql`
+      INSERT INTO users (name, password_hash, password_salt, role, registered, tier, sort_order, status)
+      VALUES ('3', ${v3.hash}, ${v3.salt}, 'employee', TRUE, 2, -3, 'active')
+      ON CONFLICT (name) DO UPDATE SET
+        password_hash=EXCLUDED.password_hash, password_salt=EXCLUDED.password_salt,
+        role='employee', tier=2, registered=TRUE, status='active', sort_order=-3`;
     return res.status(200).json({
       ok: true,
       removed,
       created,
       tier1: TIER1.length,
       tier2: TIER2.length,
-      message: `${created}명 등록 완료 (1차 ${TIER1.length} / 2차 ${TIER2.length}) — 기존 ${removed}명 정리`,
+      viewers: ['2','3'],
+      message: `${created}명 + 관전 2명 등록 완료 (1차 ${TIER1.length} / 2차 ${TIER2.length}) — 기존 ${removed}명 정리`,
     });
   } catch (e) {
     console.error('bulk-seed error:', e);
