@@ -2565,17 +2565,43 @@ function renderAdminSignup(){
   submitBtn.addEventListener('click', submit);
   [nameI,pwI].forEach(el=>el.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); submit(); }}));
 
+  // ── 1차/2차 명단 일괄 등록 (한 번만 사용)
+  const bulkMsg = h('div',{style:'margin-top:8px;font-size:12.5px;min-height:16px'});
+  const bulkBtn = h('button',{class:'btn',style:'padding:9px 16px;font-size:12.5px;font-weight:700'},'📥 1차·2차 명단 일괄 등록');
+  bulkBtn.addEventListener('click',async()=>{
+    if(!confirm('현재 등록된 직원(테스트 계정 2,3 제외)을 전부 삭제하고 1차 12명 + 2차 16명을 새로 등록합니다.\n\n근태·PB·마감 기록도 함께 삭제됩니다(CASCADE).\n계속할까요?')) return;
+    if(!confirm('정말로 진행합니까? 복구할 수 없습니다.')) return;
+    bulkBtn.disabled=true; bulkBtn.textContent='등록 중…';
+    bulkMsg.style.color='var(--text-soft)'; bulkMsg.textContent='요청 중…';
+    try{
+      const r = await api('/api/auth/bulk-seed',{method:'POST',body:{purge:true}});
+      bulkMsg.style.color='#15803d'; bulkMsg.textContent = r.message || `${r.created}명 등록 완료`;
+      State.employeeMgmt = null;
+      try{ await loadMonth(); }catch(_){}
+    }catch(e){
+      bulkMsg.style.color='#b91c1c'; bulkMsg.textContent = e.message || '실패';
+    }finally{
+      bulkBtn.disabled=false; bulkBtn.textContent='📥 1차·2차 명단 일괄 등록';
+    }
+  });
+
   return h('div',{style:'padding:24px;max-width:520px'},
     h('h2',{style:'margin:0 0 6px;font-size:20px;font-weight:700'},'회원가입'),
     h('div',{style:'font-size:12.5px;color:var(--text-soft);margin-bottom:18px'},
       '대표가 직접 직원 계정을 생성합니다. 생성 즉시 로그인 가능 (별도 승인 단계 없음).'),
-    h('div',{style:'background:#fff;border:1px solid var(--border);border-radius:12px;padding:22px'},
+    h('div',{style:'background:#fff;border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:14px'},
       field('이름', nameI, '직원이 로그인할 때 입력하는 이름'),
       field('비밀번호', pwI, '직원에게 따로 안전하게 전달하세요'),
       field('직급 분류', tierSel, '1차 = 휴무만 신청 가능 / 2차 = 휴무·연차·월차·반차·병가'),
       field('권한', roleSel, '차장 = 다른 직원 일정 보기/입력 가능'),
       h('div',{style:'display:flex;justify-content:flex-end;margin-top:8px'}, submitBtn),
       msg
+    ),
+    h('div',{style:'background:#fff;border:1px dashed var(--border);border-radius:12px;padding:18px 22px'},
+      h('div',{style:'font-weight:700;font-size:13px;margin-bottom:4px'},'명단 일괄 등록 (1회용)'),
+      h('div',{style:'font-size:11.5px;color:var(--text-soft);margin-bottom:10px'},
+        '이미지 명단 그대로 1차 12명 + 2차 16명 일괄 가입. 기존 직원 데이터는 사라지니 1회만 사용.'),
+      bulkBtn, bulkMsg
     )
   );
 }
