@@ -436,10 +436,12 @@
   /* 엑셀식 직접 편집 input — type=text 라 spinner 없음, 셀에 딱 맞게 */
   .tm-table input[type=text]::selection{background:#bfdbfe}
   /* 시트 셀 — 강한 outline 대신 미묘한 강조, 텍스트 드래그 자연스럽게 */
-  .tm-table td.sheet-cell{transition:box-shadow .08s,background .08s;cursor:text;position:relative}
+  .tm-table td.sheet-cell{transition:box-shadow .08s,background .08s;cursor:text;position:relative;user-select:none}
   .tm-table td.sheet-cell:hover{background:rgba(15,15,15,.04)}
   .tm-table td.sheet-cell:focus-within{box-shadow:inset 0 0 0 2px #2563eb;z-index:1}
+  .tm-table td.sheet-cell.in-range:not(:focus-within){box-shadow:inset 0 0 0 1.5px #93c5fd;background:rgba(37,99,235,.10)}
   .tm-table input.sheet-input::selection{background:#bfdbfe}
+  .tm-table input.sheet-input{user-select:text}
   .vendor-card .vc-cell input.vc-input::selection{background:#bfdbfe}
   .tm-table input[type=number]::-webkit-inner-spin-button,
   .tm-table input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
@@ -3918,33 +3920,20 @@ function renderSalesTM(){
       style:`width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;padding:8px 10px;color:${m.fg};cursor:text;`
     });
     const td = h('td',{class:'sheet-cell', style:`padding:0;background:${m.bg};text-align:center`}, input);
-    input.addEventListener('blur',async()=>{
+    // 일괄 저장용 후크 — 시트 위임 핸들러가 호출
+    input._sheetSave = async ()=>{
       const raw = input.value.replace(/[^0-9-]/g,'');
       const newVal = Number(raw)||0;
       input.value = String(newVal);
-      if (newVal !== Number(val||0)) {
-        const cur = computed.find(x=>x.user_id===uid) || {};
-        const body = key==='total_count'
-          ? { total_count: newVal, total_db: Number(cur.total_db||0) }
-          : { total_count: Number(cur.total_count||0), total_db: newVal };
-        await saveMonthlyCell(uid, body);
-      }
-    });
-    input.addEventListener('keydown',e=>{
-      if(e.key==='Escape'){ input.value = String(val||0); input.blur(); return; }
-      const moveTo = (dr, dc)=>{
-        const r = Number(input.dataset.r), c = Number(input.dataset.c);
-        const sel = document.querySelector(`.sheet-input[data-r="${r+dr}"][data-c="${c+dc}"]`);
-        if (sel) { e.preventDefault(); sel.focus(); try{sel.select();}catch(_){} return true; }
-        return false;
-      };
-      if(e.key==='Enter'){ e.preventDefault(); if(!moveTo(1,0)) input.blur(); }
-      else if(e.key==='Tab'){ const dc=e.shiftKey?-1:1; moveTo(0, dc); }
-      else if(e.key==='ArrowUp')   moveTo(-1, 0);
-      else if(e.key==='ArrowDown') moveTo( 1, 0);
-      else if(e.key==='ArrowLeft' && input.selectionStart===0 && input.selectionEnd===0) moveTo(0, -1);
-      else if(e.key==='ArrowRight' && input.selectionStart===input.value.length && input.selectionEnd===input.value.length) moveTo(0, 1);
-    });
+      if (newVal === Number(val||0)) return;
+      const cur = computed.find(x=>x.user_id===uid) || {};
+      const body = key==='total_count'
+        ? { total_count: newVal, total_db: Number(cur.total_db||0) }
+        : { total_count: Number(cur.total_count||0), total_db: newVal };
+      await saveMonthlyCell(uid, body);
+    };
+    input.addEventListener('focus',()=>{ input.dataset.orig = input.value; });
+    input.addEventListener('blur', ()=>{ input._sheetSave().catch(e=>alert(e.message)); });
     return td;
   }
 
@@ -4128,7 +4117,7 @@ function renderSalesTMDaily(){
     }catch(e){ alert(e.message); }
   }
 
-  // 엑셀식 — 브라우저 기본 (클릭/드래그/삭제) + 키보드 칸이동 (Tab/Enter/↑↓ + 가장자리에서 ←→)
+  // 엑셀식 — 브라우저 기본 (클릭/드래그/삭제) + 키보드 칸이동 + Shift+화살표 범위 + 마우스 드래그 (위임으로 처리됨)
   function editableCell(uid, key, val, rowIdx, colIdx){
     const colDef = colDefs.find(c=>c.key===key) || {};
     const cellBg = colDef.headBg || 'transparent';
@@ -4142,37 +4131,16 @@ function renderSalesTMDaily(){
       style:`width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;padding:8px 10px;color:${cellFg};cursor:text;`
     });
     const td = h('td',{class:'sheet-cell', style:`padding:0;background:${cellBg};text-align:center`}, input);
-    input.addEventListener('blur',async()=>{
+    // 일괄 저장용 후크 — 시트 위임 핸들러가 호출
+    input._sheetSave = async ()=>{
       const raw = input.value.replace(/[^0-9-]/g,'');
       const newVal = Number(raw)||0;
       input.value = String(newVal);
-      if (newVal !== Number(val||0)) {
-        await saveDailyCell(uid, {[key]: newVal});
-      }
-    });
-    input.addEventListener('keydown',e=>{
-      if(e.key==='Escape'){ input.value = String(val||0); input.blur(); return; }
-      const moveTo = (dr, dc)=>{
-        const r = Number(input.dataset.r), c = Number(input.dataset.c);
-        const sel = document.querySelector(`.sheet-input[data-r="${r+dr}"][data-c="${c+dc}"]`);
-        if (sel) { e.preventDefault(); sel.focus(); try{sel.select();}catch(_){} return true; }
-        return false;
-      };
-      if(e.key==='Enter'){ e.preventDefault(); if(!moveTo(1,0)) input.blur(); }
-      else if(e.key==='Tab'){
-        // Shift+Tab = 왼쪽, Tab = 오른쪽 (브라우저 기본도 같지만 select 강제)
-        const dc = e.shiftKey?-1:1;
-        if (moveTo(0, dc)) return;
-        // 끝이면 다음 행 첫 칸으로 자동 줄바꿈
-        const r = Number(input.dataset.r);
-        const wrap = document.querySelector(`.sheet-input[data-r="${r+(e.shiftKey?-1:1)}"][data-c="${e.shiftKey?'9':'0'}"]`);
-        if (wrap) { e.preventDefault(); wrap.focus(); try{wrap.select();}catch(_){} }
-      }
-      else if(e.key==='ArrowUp')   moveTo(-1, 0);
-      else if(e.key==='ArrowDown') moveTo( 1, 0);
-      else if(e.key==='ArrowLeft' && input.selectionStart===0 && input.selectionEnd===0) moveTo(0, -1);
-      else if(e.key==='ArrowRight' && input.selectionStart===input.value.length && input.selectionEnd===input.value.length) moveTo(0, 1);
-    });
+      if (newVal === Number(val||0)) return;
+      await saveDailyCell(uid, {[key]: newVal});
+    };
+    input.addEventListener('focus',()=>{ input.dataset.orig = input.value; });
+    input.addEventListener('blur', ()=>{ input._sheetSave().catch(e=>alert(e.message)); });
     return td;
   }
 
@@ -4345,6 +4313,188 @@ function renderSalesVendor(){
   return wrap;
 }
 
+// === 일/월 TM 시트(.sheet-input): Excel-style 키보드 + Shift+화살표 범위 + 마우스 드래그 + Delete 일괄 0 ===
+const _shNav = { timer: null, initial: null, dir: null };
+const _shSel = { anchor: null, head: null };  // {r, c}
+const _shDrag = { dragging: false, lastTarget: null };
+function _shCellAt(r, c){ return document.querySelector(`.sheet-input[data-r="${r}"][data-c="${c}"]`); }
+function _shStopNav(){
+  if(_shNav.initial){ clearTimeout(_shNav.initial); _shNav.initial=null; }
+  if(_shNav.timer){ clearInterval(_shNav.timer); _shNav.timer=null; }
+  _shNav.dir = null;
+}
+function _shClearRange(){
+  document.querySelectorAll('.tm-table .sheet-cell.in-range').forEach(td=>td.classList.remove('in-range'));
+  _shSel.anchor = null; _shSel.head = null;
+}
+function _shApplyRange(){
+  document.querySelectorAll('.tm-table .sheet-cell.in-range').forEach(td=>td.classList.remove('in-range'));
+  if(!_shSel.anchor || !_shSel.head) return;
+  const r1 = Math.min(_shSel.anchor.r, _shSel.head.r), r2 = Math.max(_shSel.anchor.r, _shSel.head.r);
+  const c1 = Math.min(_shSel.anchor.c, _shSel.head.c), c2 = Math.max(_shSel.anchor.c, _shSel.head.c);
+  for(let r=r1; r<=r2; r++) for(let c=c1; c<=c2; c++){
+    const inp = _shCellAt(r, c);
+    if(inp && inp.parentElement) inp.parentElement.classList.add('in-range');
+  }
+}
+function _shRangeInputs(){
+  if(!_shSel.anchor || !_shSel.head) return [];
+  const r1 = Math.min(_shSel.anchor.r, _shSel.head.r), r2 = Math.max(_shSel.anchor.r, _shSel.head.r);
+  const c1 = Math.min(_shSel.anchor.c, _shSel.head.c), c2 = Math.max(_shSel.anchor.c, _shSel.head.c);
+  const out = [];
+  for(let r=r1; r<=r2; r++) for(let c=c1; c<=c2; c++){
+    const inp = _shCellAt(r, c);
+    if(inp) out.push(inp);
+  }
+  return out;
+}
+function _shMoveOnce(curInput, dir, doSelect){
+  const r = Number(curInput.dataset.r), c = Number(curInput.dataset.c);
+  let dr=0, dc=0;
+  if(dir==='up') dr=-1; else if(dir==='down') dr=1;
+  else if(dir==='left') dc=-1; else if(dir==='right') dc=1;
+  const next = _shCellAt(r+dr, c+dc);
+  if(!next) return null;
+  next.focus();
+  if(doSelect !== false) try{ next.select(); }catch(_){}
+  return next;
+}
+// 전역 핸들러 한 번만 바인딩 — keydown/mouse 위임
+if(!window._shBound){
+  window._shBound = true;
+  // keyup — 화살표/Shift 떼면 autorepeat 정지
+  document.addEventListener('keyup', e=>{
+    if(e.key && (e.key.indexOf('Arrow')===0 || e.key==='Shift')) _shStopNav();
+  }, true);
+  // keydown 위임
+  document.addEventListener('keydown', e=>{
+    const t = e.target;
+    if(!t || !t.classList || !t.classList.contains('sheet-input')) return;
+    const input = t;
+    // Delete/Backspace + 범위 2칸 이상 → 일괄 0 (직렬 저장 — saveDailyCell이 renderApp 호출하므로 data-r/c 로 재해결)
+    if((e.key==='Delete' || e.key==='Backspace')){
+      const rng = _shRangeInputs();
+      if(rng.length >= 2){
+        e.preventDefault();
+        const positions = rng.map(inp => ({r: inp.dataset.r, c: inp.dataset.c}));
+        const focusPos = { r: input.dataset.r, c: input.dataset.c };
+        (async ()=>{
+          for(const p of positions){
+            const cur = _shCellAt(p.r, p.c);
+            if(!cur || cur.value === '0') continue;
+            cur.value = '0';
+            if(typeof cur._sheetSave === 'function'){
+              try { await cur._sheetSave(); } catch(_){}
+            }
+          }
+          _shClearRange();
+          const back = _shCellAt(focusPos.r, focusPos.c);
+          if(back) back.focus();
+        })();
+        return;
+      }
+    }
+    if(e.key==='Escape'){
+      _shStopNav(); _shClearRange();
+      if(input.dataset.orig !== undefined) input.value = input.dataset.orig;
+      input.blur();
+      return;
+    }
+    if(e.key==='Enter'){
+      _shStopNav(); _shClearRange();
+      e.preventDefault();
+      const moved = _shMoveOnce(input, 'down');
+      if(!moved) input.blur();
+      return;
+    }
+    if(e.key==='Tab'){
+      _shStopNav(); _shClearRange();
+      const moved = _shMoveOnce(input, e.shiftKey?'left':'right');
+      if(moved) e.preventDefault();
+      return;
+    }
+    const dir = e.key==='ArrowUp'?'up':e.key==='ArrowDown'?'down':e.key==='ArrowLeft'?'left':e.key==='ArrowRight'?'right':null;
+    if(!dir) return;
+    e.preventDefault();
+    // Shift+화살표 = 범위 확장
+    if(e.shiftKey){
+      _shStopNav();
+      if(!_shSel.anchor){
+        const r=Number(input.dataset.r), c=Number(input.dataset.c);
+        _shSel.anchor = {r, c}; _shSel.head = {r, c};
+      }
+      let dr=0, dc=0;
+      if(dir==='up') dr=-1; else if(dir==='down') dr=1;
+      else if(dir==='left') dc=-1; else if(dir==='right') dc=1;
+      const nr = _shSel.head.r + dr, nc = _shSel.head.c + dc;
+      const cell = _shCellAt(nr, nc);
+      if(cell){ _shSel.head = {r:nr, c:nc}; _shApplyRange(); cell.focus(); }
+      return;
+    }
+    // 일반 화살표 = 범위 해제 + 자유 이동 (좌우 즉시, 커서 위치 무관)
+    _shClearRange();
+    if(e.repeat) return;
+    const moved = _shMoveOnce(input, dir);
+    if(!moved) return;
+    _shStopNav();
+    _shNav.dir = dir;
+    _shNav.initial = setTimeout(()=>{
+      _shNav.timer = setInterval(()=>{
+        const cur = document.activeElement;
+        if(!cur || !cur.classList || !cur.classList.contains('sheet-input')){ _shStopNav(); return; }
+        const ok = _shMoveOnce(cur, _shNav.dir);
+        if(!ok) _shStopNav();
+      }, 25);
+    }, 100);
+  }, true);
+  // 마우스 드래그 — sheet-cell 위를 드래그하면 범위 선택
+  document.addEventListener('mousedown', e=>{
+    if(e.button !== 0) return; // 좌클릭만
+    const cell = e.target.closest && e.target.closest('.tm-table .sheet-cell');
+    if(!cell){
+      // 표 밖 클릭 → 범위 해제
+      if(!e.target.closest || !e.target.closest('.tm-table')) _shClearRange();
+      return;
+    }
+    const inp = cell.querySelector('.sheet-input');
+    if(!inp) return;
+    const r = Number(inp.dataset.r), c = Number(inp.dataset.c);
+    if(e.shiftKey && _shSel.anchor){
+      _shSel.head = {r, c};
+      _shApplyRange();
+      e.preventDefault();
+      inp.focus();
+    } else {
+      _shClearRange();
+      _shSel.anchor = {r, c};
+      _shSel.head = {r, c};
+    }
+    _shDrag.dragging = true;
+    _shDrag.lastTarget = inp;
+  }, true);
+  document.addEventListener('mouseover', e=>{
+    if(!_shDrag.dragging) return;
+    const cell = e.target.closest && e.target.closest('.tm-table .sheet-cell');
+    if(!cell) return;
+    const inp = cell.querySelector('.sheet-input');
+    if(!inp || inp === _shDrag.lastTarget) return;
+    _shDrag.lastTarget = inp;
+    const r = Number(inp.dataset.r), c = Number(inp.dataset.c);
+    if(!_shSel.anchor){ _shSel.anchor = {r, c}; }
+    _shSel.head = {r, c};
+    _shApplyRange();
+  }, true);
+  document.addEventListener('mouseup', ()=>{
+    if(_shDrag.dragging){
+      _shDrag.dragging = false;
+      // 단일 셀(드래그 안 함)이면 범위 해제 — 일반 클릭 진입 흐름
+      if(_shSel.anchor && _shSel.head && _shSel.anchor.r===_shSel.head.r && _shSel.anchor.c===_shSel.head.c){
+        _shClearRange();
+      }
+    }
+  }, true);
+}
+
 // === 유입분석 셀: Excel-style 키보드 (autorepeat + 범위 선택 + 일괄 삭제) ===
 const _vcNav = { timer: null, initial: null, dir: null };
 const _vcSel = { anchor: null, head: null };  // input 요소 참조
@@ -4394,17 +4544,56 @@ function _vcMoveOnce(curInput, dir, doSelect){
   if(doSelect !== false) next.select();
   return next;
 }
-// 전역 keyup — 화살표/Shift 떼면 autorepeat 즉시 정지
+// 전역 keyup + 마우스 드래그 (한 번만 바인딩)
+const _vcDrag = { dragging: false, lastInput: null };
 if(!window._vcKeyupBound){
   window._vcKeyupBound = true;
   document.addEventListener('keyup', e=>{
     if(e.key && (e.key.indexOf('Arrow')===0 || e.key==='Shift')) _vcStopNav();
   }, true);
-  // 마우스 클릭 등 다른 입력으로 포커스 이동 시 범위·반복 정지
+  // 마우스다운 — vendor 셀이면 드래그 시작, 그 외는 범위 해제
   document.addEventListener('mousedown', e=>{
     _vcStopNav();
-    // .vc-input 안에서의 클릭이 아니면 범위도 해제
-    if(!(e.target && e.target.classList && e.target.classList.contains('vc-input'))) _vcClearRange();
+    if(e.button !== 0) return;
+    const inp = (e.target && e.target.classList && e.target.classList.contains('vc-input')) ? e.target
+              : (e.target && e.target.closest && e.target.closest('.vc-cell') ? e.target.closest('.vc-cell').querySelector('.vc-input') : null);
+    if(!inp){
+      // .vendor-grid 밖이면 범위 해제
+      if(!e.target.closest || !e.target.closest('.vendor-grid')) _vcClearRange();
+      return;
+    }
+    if(e.shiftKey && _vcSel.anchor){
+      _vcSel.head = inp;
+      _vcApplyRange();
+      e.preventDefault();
+      inp.focus();
+    } else {
+      _vcClearRange();
+      _vcSel.anchor = inp;
+      _vcSel.head = inp;
+    }
+    _vcDrag.dragging = true;
+    _vcDrag.lastInput = inp;
+  }, true);
+  document.addEventListener('mouseover', e=>{
+    if(!_vcDrag.dragging) return;
+    const t = e.target;
+    let inp = null;
+    if(t && t.classList && t.classList.contains('vc-input')) inp = t;
+    else if(t && t.closest){ const c = t.closest('.vc-cell'); if(c) inp = c.querySelector('.vc-input'); }
+    if(!inp || inp === _vcDrag.lastInput) return;
+    _vcDrag.lastInput = inp;
+    if(!_vcSel.anchor){ _vcSel.anchor = inp; }
+    _vcSel.head = inp;
+    _vcApplyRange();
+  }, true);
+  document.addEventListener('mouseup', ()=>{
+    if(_vcDrag.dragging){
+      _vcDrag.dragging = false;
+      if(_vcSel.anchor && _vcSel.head && _vcSel.anchor === _vcSel.head){
+        _vcClearRange();  // 단일 클릭은 범위 해제
+      }
+    }
   }, true);
 }
 
