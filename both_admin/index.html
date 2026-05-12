@@ -1169,31 +1169,29 @@ function renderMyHome(){
   const isTier1 = Number(me.tier)===1;
   // self를 selectedPersonId로 설정해두고 person detail 재활용 (단, 좌측 프로필+뒤로가기 제거된 형태)
   const u={id:me.id,name:me.name,role:me.role,tier:me.tier,registered:true};
-  const recs=State.records;  // API가 본인 것만 반환
-  const cnt={ANNUAL:0,MONTHLY:0,HALF:0,SICK:0,OFF:0,UNAUTHORIZED:0};
+  // 2차 직원은 State.records 에 같은 tier=2 다른 직원들 기록도 포함 → 본인 것만 필터
+  const recs=State.records.filter(r=>r.user_id===me.id);
+  const cnt={ANNUAL:0,MONTHLY:0,HALF_AM:0,HALF_PM:0,SICK:0,OFF:0,UNAUTHORIZED:0};
   recs.forEach(r=>{
     if(r.status!=='APPROVED') return;
-    if(r.type==='ANNUAL') cnt.ANNUAL++;
-    else if(r.type==='MONTHLY') cnt.MONTHLY++;
-    else if(r.type==='HALF_AM'||r.type==='HALF_PM') cnt.HALF++;
-    else if(r.type==='SICK') cnt.SICK++;
-    else if(r.type==='OFF') cnt.OFF++;
-    else if(r.type==='UNAUTHORIZED') cnt.UNAUTHORIZED++;
+    if(cnt[r.type]!=null) cnt[r.type]++;
   });
   const wait=recs.filter(r=>r.status==='REQUESTED').length;
 
-  // 분류별 사용 현황 — 1차직원: 휴무/무단결근만, 2차직원: 연차/월차/반차/병가/휴무
+  // 분류별 사용 현황 — 신청 모달의 유형 버튼과 동일 5종
+  // 1차직원: 휴무 / 무단결근
+  // 2차직원: 오전반차 / 오후반차 / 무단결근 / 휴무(병가) / 월차
   const statCells = isTier1
     ? [
         h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.OFF), h('div',{class:'l'},'휴무')),
         h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.UNAUTHORIZED), h('div',{class:'l'},'무단결근')),
       ]
     : [
-        h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.ANNUAL), h('div',{class:'l'},'연차')),
-        h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.MONTHLY), h('div',{class:'l'},'월차')),
-        h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.HALF), h('div',{class:'l'},'반차')),
-        h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.SICK), h('div',{class:'l'},'병가')),
-        h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.OFF), h('div',{class:'l'},'휴무')),
+        h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.HALF_AM),     h('div',{class:'l'},'오전반차')),
+        h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.HALF_PM),     h('div',{class:'l'},'오후반차')),
+        h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.UNAUTHORIZED),h('div',{class:'l'},'무단결근')),
+        h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.OFF+cnt.SICK),h('div',{class:'l'},'휴무(병가)')),
+        h('div',{class:'pd-stat'}, h('div',{class:'v'},cnt.MONTHLY),     h('div',{class:'l'},'월차')),
       ];
 
   const stats=h('section',{class:'pd-section'},
@@ -1775,13 +1773,13 @@ function renderStatChips(){
         h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-sick'}),' 무단결근 ',h('span',{class:'num'},cnt.UNAUTHORIZED)),
       );
     } else {
-      const halfTotal=cnt.HALF_AM+cnt.HALF_PM;
+      // 2차직원: 신청 모달 동일 5종 (오전반차 / 오후반차 / 무단결근 / 휴무(병가) / 월차)
       wrap.append(
-        h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-annual'}),' 연차 ',h('span',{class:'num'},cnt.ANNUAL)),
+        h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-half'}),   ' 오전반차 ',h('span',{class:'num'},cnt.HALF_AM)),
+        h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-half'}),   ' 오후반차 ',h('span',{class:'num'},cnt.HALF_PM)),
+        h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-sick'}),   ' 무단결근 ',h('span',{class:'num'},cnt.UNAUTHORIZED||0)),
+        h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-off'}),    ' 휴무(병가) ',h('span',{class:'num'},(cnt.OFF||0)+(cnt.SICK||0))),
         h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-monthly'}),' 월차 ',h('span',{class:'num'},cnt.MONTHLY)),
-        h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-half'}),' 반차 ',h('span',{class:'num'},halfTotal)),
-        h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-sick'}),' 병가 ',h('span',{class:'num'},cnt.SICK)),
-        h('div',{class:'stat-chip'}, h('span',{class:'stat-dot dot-off'}),' 휴무 ',h('span',{class:'num'},cnt.OFF)),
       );
     }
   }
@@ -4668,11 +4666,37 @@ if(!window._shBound){
     if(!cell) return;
     const inp = cell.querySelector('.sheet-input');
     if(!inp || inp === _shDrag.lastTarget) return;
+    // 셀 경계를 넘은 순간 input 텍스트 드래그-선택 끊고 셀 범위 모드로 전환
+    try { window.getSelection().removeAllRanges(); } catch(_){}
+    if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('sheet-input')) {
+      document.activeElement.blur();
+    }
     _shDrag.lastTarget = inp;
     const r = Number(inp.dataset.r), c = Number(inp.dataset.c);
     if(!_shSel.anchor){ _shSel.anchor = {r, c}; }
     _shSel.head = {r, c};
     _shApplyRange();
+  }, true);
+  // 드래그 중 mousemove 도 같이 추적 (mouseover 만으로는 빠른 드래그 시 누락 가능)
+  document.addEventListener('mousemove', e=>{
+    if(!_shDrag.dragging) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    if(!el) return;
+    const cell = el.closest && el.closest('.tm-table .sheet-cell');
+    if(!cell) return;
+    const inp = cell.querySelector('.sheet-input');
+    if(!inp || inp === _shDrag.lastTarget) return;
+    try { window.getSelection().removeAllRanges(); } catch(_){}
+    if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('sheet-input')) {
+      document.activeElement.blur();
+    }
+    _shDrag.lastTarget = inp;
+    const r = Number(inp.dataset.r), c = Number(inp.dataset.c);
+    if(!_shSel.anchor){ _shSel.anchor = {r, c}; }
+    _shSel.head = {r, c};
+    _shApplyRange();
+    // 드래그 중엔 텍스트 선택 자체 차단 (셀 범위만)
+    e.preventDefault();
   }, true);
   document.addEventListener('mouseup', ()=>{
     if(_shDrag.dragging){
