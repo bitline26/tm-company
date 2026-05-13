@@ -3076,14 +3076,18 @@ const BANK_CODES = {
   'SC제일':'023','한국씨티':'027','카카오뱅크':'090','케이뱅크':'089','토스뱅크':'092',
   '새마을금고':'045','신협':'048','우체국':'071','산업':'002','수협':'007',
   'BNK부산':'032','BNK경남':'039','DGB대구':'031','광주':'034','전북':'037','제주':'035',
+  '저축':'050','HSBC':'054',
+  // 사용자 표기 별칭
+  '국민':'004','아이엠뱅크':'031','iM뱅크':'031','대구':'031','씨티':'027','경남':'039','부산':'032','KEB하나':'081','SC':'023',
 };
 
-// PB 내역 → CSV (Excel 호환, 휴대폰지원금은 수식)
+// PB 내역 → CSV (Excel 호환)
+// 양식(대표 지시): A 은행코드 / B 입금계좌(- 없이) / C 금액 / D 휴대폰지원금(수식) / E 휴대폰지원금(수식)
 function exportPbExcel(rows){
-  const headers = ['No','개통일자','TM','고객명','전화번호','통신사','금액','은행','은행코드','계좌','입금일','상태','메모','휴대폰지원금'];
+  const headers = ['은행코드','입금계좌','금액','휴대폰지원금','휴대폰지원금'];
   const esc = (v)=>{
     const s = String(v==null?'':v);
-    if(s.startsWith('=')) return s; // 수식은 그대로 (CSV 에서 quote 하면 텍스트로 인식됨)
+    if(s.startsWith('=')) return s; // 수식은 그대로 (CSV에서 quote 하면 텍스트로 인식됨)
     if(/[,\n"]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
     return s;
   };
@@ -3091,24 +3095,16 @@ function exportPbExcel(rows){
   rows.forEach((r,i)=>{
     const rowIdx = i + 2; // 헤더 1행 + 1-indexed
     const bankCode = BANK_CODES[String(r.payment_bank||'').trim()] || '';
-    // 휴대폰지원금 수식 — 통신사(F열) 기준 ROUND(금액*요율) (요율은 Excel에서 직접 수정)
-    // SK/KT/LGU 모두 0.05 기본값 — 사용자가 셀에서 바로 수정 가능
-    const subsidy = `=IF(F${rowIdx}="SK",ROUND(G${rowIdx}*0.05,0),IF(F${rowIdx}="KT",ROUND(G${rowIdx}*0.05,0),IF(F${rowIdx}="LGU",ROUND(G${rowIdx}*0.05,0),0)))`;
+    const acctDigits = String(r.payment_account||'').replace(/[^0-9]/g,''); // '-' 제거
+    const amount = Number(r.amount||0);
+    // 휴대폰지원금 자동 수식 — 금액(C열) × 5% 반올림 (요율은 엑셀 셀에서 직접 수정 가능)
+    const subsidy = `=ROUND(C${rowIdx}*0.05,0)`;
     const cells = [
-      i+1,
-      r.consult_date ? String(r.consult_date).slice(0,10) : '',
-      r.tm_name || '',
-      r.customer_name || '',
-      r.customer_phone || '',
-      r.carrier || '',
-      Number(r.amount||0),
-      r.payment_bank || '',
-      bankCode,
-      r.payment_account || '',
-      r.payment_date ? String(r.payment_date).slice(0,10) : '',
-      ORDER_STATUS_LABEL[r.status] || r.status || '',
-      r.note || '',
-      subsidy,
+      bankCode,    // A 은행코드
+      acctDigits,  // B 입금계좌 (- 없이)
+      amount,      // C 금액
+      subsidy,     // D 휴대폰지원금
+      subsidy,     // E 휴대폰지원금
     ];
     lines.push(cells.map(esc).join(','));
   });
