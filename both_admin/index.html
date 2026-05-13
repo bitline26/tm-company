@@ -3465,66 +3465,41 @@ function renderSalesOrders(){
   if (!State._salesOrderChecked) State._salesOrderChecked = new Set();
   const checkedIds = State._salesOrderChecked;
 
-  // 중복 검출 (대표 지시) — 동일 전화번호 2건+ 이고 그중 입금완료가 1건 이상 있으면
-  // PAID/UNPAID 가리지 않고 모두 입금중복 의심 (이중 입금 방지). 입금완료가 없으면 단순 전화중복.
+  // 중복 검출 (대표 지시) — 같은 번호 2건+ 이면 PAID/UNPAID 무관 모두 중복 표시
   const _dup = (function(){
     if (renderSalesOrders._dupCache && renderSalesOrders._dupCache.ref === State.salesOrders) {
       return renderSalesOrders._dupCache;
     }
-    const phoneCount={}, paidPhones=new Set();
+    const phoneCount={};
     State.salesOrders.forEach(o=>{
       const ph = String(o.customer_phone||'').replace(/[^0-9]/g,'');
-      if (ph.length>=8){
-        phoneCount[ph] = (phoneCount[ph]||0)+1;
-        if (o.status === 'PAID') paidPhones.add(ph);
-      }
+      if (ph.length>=8) phoneCount[ph] = (phoneCount[ph]||0)+1;
     });
     const dupPhones = new Set(Object.keys(phoneCount).filter(k=>phoneCount[k]>1));
-    // 입금중복 의심 = 같은 번호 2건+ 이면서 그중 PAID 가 1건 이상 존재
-    const dupPaidPhones = new Set([...dupPhones].filter(p=>paidPhones.has(p)));
-    const cache = { ref: State.salesOrders, dupPhones, dupPaidPhones };
+    const cache = { ref: State.salesOrders, dupPhones };
     renderSalesOrders._dupCache = cache;
     return cache;
   })();
   const dupPhones = _dup.dupPhones;
-  const dupPaidPhones = _dup.dupPaidPhones;
   function isDupRow(r){
     const ph = String(r.customer_phone||'').replace(/[^0-9]/g,'');
     return ph.length>=8 && dupPhones.has(ph);
   }
-  function isPaidDupRow(r){
-    // PAID/UNPAID 무관 — 같은 번호로 입금완료가 존재하는 모든 행을 입금중복으로 표시
-    const ph = String(r.customer_phone||'').replace(/[^0-9]/g,'');
-    return ph.length>=8 && dupPaidPhones.has(ph);
-  }
+  // 단일 중복 표시 — 모든 중복 행을 💰 회색으로 통일
+  function isPaidDupRow(r){ return isDupRow(r); }
 
-  // 입금 중복 배너 (빨강) — 같은 번호로 입금완료 + 다른 PB(미입금이든 입금완료든) 공존
-  if (dupPaidPhones.size > 0){
-    const paidBanner = h('div',{
-      style:'display:flex;align-items:center;gap:10px;padding:11px 16px;margin:0 0 8px;background:#fee2e2;border:1px solid #fca5a5;border-radius:9px;font-size:13px;color:#991b1b'
+  // 중복 배너 (단일) — 같은 번호로 2건+ PAID/UNPAID 포함
+  if (dupPhones.size > 0){
+    const banner = h('div',{
+      style:'display:flex;align-items:center;gap:10px;padding:11px 16px;margin:0 0 10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:9px;font-size:13px;color:#991b1b'
     },
       h('span',{style:'font-size:16px'},'💰'),
       h('div',{style:'flex:1'},
-        h('div',{style:'font-weight:700'}, `입금 중복 의심 ${dupPaidPhones.size}건 — 같은 번호로 입금완료된 PB가 있는데 다른 행도 존재`),
+        h('div',{style:'font-weight:700'}, `중복 PB ${dupPhones.size}건 — 같은 번호로 2건 이상 (입금완료/미입금 포함)`),
         h('div',{style:'font-size:11.5px;color:#7f1d1d;margin-top:2px'},
-          '이미 입금된 고객인데 미입금/입금완료 추가 PB 존재 — 💰 표시된 행 확인. 미입금→입금완료 변경 시 차단됩니다.')),
+          '동일 고객 중복 입력 — 💰 표시된 행 확인. 같은 번호로 이미 입금완료된 게 있으면 미입금→입금완료 변경 차단됩니다.')),
     );
-    wrap.append(paidBanner);
-  }
-
-  // 전화번호 단순 중복 배너 (노랑) — 입금 중복 제외 순수 전화 중복
-  const phoneOnlyDups = new Set([...dupPhones].filter(p=>!dupPaidPhones.has(p)));
-  if (phoneOnlyDups.size > 0){
-    const dupBanner = h('div',{
-      style:'display:flex;align-items:center;gap:10px;padding:11px 16px;margin:0 0 10px;background:#fef3c7;border:1px solid #fcd34d;border-radius:9px;font-size:13px;color:#7c2d12'
-    },
-      h('span',{style:'font-size:16px'},'⚠'),
-      h('div',{style:'flex:1'},
-        h('div',{style:'font-weight:700'}, `중복 의심 PB ${phoneOnlyDups.size}건 (전화번호 동일)`),
-        h('div',{style:'font-size:11.5px;color:#92400e;margin-top:2px'},
-          '동일 고객 PB가 여러 건 — ☢ 표시된 행을 확인하세요')),
-    );
-    wrap.append(dupBanner);
+    wrap.append(banner);
   }
 
   // 필터 적용
