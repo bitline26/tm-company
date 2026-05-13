@@ -407,6 +407,22 @@
 
   .orders-table tr.row-status-CANCELLED td{background:#f3f4f6;color:#6b7280}
   .orders-table tr.row-status-CANCELLED td:first-child::before{background:#9ca3af}
+
+  /* ── 중복 행 강조 (PAID 녹색 등 status 색깔 위에 강제로 덮어쓰기) ── */
+  /* 입금 중복(💰): 같은 번호로 PAID 2건+ → 진한 빨강 + 4px 빨간 좌측 바 */
+  .orders-table tr.row-paid-dup td{background:#fecaca !important}
+  .orders-table tr.row-paid-dup:hover td{background:#fca5a5 !important}
+  .orders-table tr.row-paid-dup td:first-child::before{background:#dc2626 !important;width:5px !important}
+  .orders-table tr.row-paid-dup td{box-shadow:inset 0 -1px 0 #fca5a5}
+  /* 단순 전화 중복(☢): 입금 중복 아닌 경우만 노랑 */
+  .orders-table tr.row-dup:not(.row-paid-dup) td{background:#fef3c7 !important}
+  .orders-table tr.row-dup:not(.row-paid-dup):hover td{background:#fde68a !important}
+  .orders-table tr.row-dup:not(.row-paid-dup) td:first-child::before{background:#f59e0b !important}
+  /* 중복 뱃지 — 흔들림으로 시선 끌기 */
+  @keyframes dup-shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-1.5px)} 75%{transform:translateX(1.5px)} }
+  .orders-table .dup-badge{display:inline-block;font-weight:900;cursor:help;animation:dup-shake 1.6s ease-in-out infinite}
+  .orders-table .dup-badge.paid{color:#991b1b;font-size:15px;margin-right:6px}
+  .orders-table .dup-badge.phone{color:#c2410c;font-size:14px;margin-right:5px}
   .orders-table tr.row-status-CANCELLED .cell{text-decoration:line-through;opacity:.65}
 
   /* 상태 칩 (orders status) */
@@ -3547,7 +3563,7 @@ function renderSalesOrders(){
     // 행 클릭 = PB 편집 모달 (권한 있을 때만). 체크박스/버튼 클릭은 stopPropagation으로 제외.
     const tr=h('tr',{
       class:`row-status-${r.status}`+(isDup?' row-dup':'')+(isPaidDup?' row-paid-dup':''),
-      style: (isPaidDup?'background:#fee2e2;':(isDup?'background:#fff7ed;':'')) + (canEditThis?'cursor:pointer':''),
+      style: canEditThis?'cursor:pointer':'',
       title: isPaidDup?'💰 입금 중복 의심 — 같은 번호로 입금완료 PB가 또 있음':(isDup?'⚠ 중복 의심 — 동일 전화번호 PB가 있음':''),
     });
     if (canEditThis){
@@ -3577,15 +3593,9 @@ function renderSalesOrders(){
       // 고객명 컬럼에 중복 뱃지: 입금 중복(💰 빨강) 우선, 그 외 전화 중복(☢ 주황)
       if (c.k==='customer_name'){
         if (isPaidDup){
-          cell.append(h('span',{
-            style:'display:inline-block;margin-right:5px;color:#991b1b;font-weight:800;cursor:help',
-            title:'같은 번호로 입금완료 PB가 또 있음 — 이중 입금 의심'
-          },'💰'));
+          cell.append(h('span',{class:'dup-badge paid', title:'같은 번호로 입금완료 PB가 또 있음 — 이중 입금 의심'},'💰입금중복'));
         } else if (isDup){
-          cell.append(h('span',{
-            style:'display:inline-block;margin-right:5px;color:#c2410c;font-weight:800;cursor:help',
-            title:'동일 전화번호로 다른 PB가 존재함'
-          },'☢'));
+          cell.append(h('span',{class:'dup-badge phone', title:'동일 전화번호로 다른 PB가 존재함'},'☢'));
         }
       }
       cell.append(renderOrderCell(c, r[c.k], r));
