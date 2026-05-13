@@ -29,7 +29,8 @@ const ADMIN_DEFAULT_PW = '1';
 // 테스트 계정 '2','3' 은 폐기 — DB 에 있으면 마이그레이션이 제거 (직원 목록·PB TM 드롭다운에서도 자동 사라짐)
 
 // 스키마 마커 — 이 버전이 DB에 기록되어 있으면 ensureSchema 풀실행 스킵
-const SCHEMA_VERSION = 21;
+const SCHEMA_VERSION = 22;
+const DEMO_DUP_MARKER = 22;
 // 1회용 시드 마커 — 이 버전이 _schema_init 에 기록된 적 있으면 bulk seed 건너뜀 (이후 SCHEMA_VERSION 더 올려도 재시드 안 됨)
 // v18 = 직원 일부 누락 발견 → 강제 재시드 (1차 12 + 2차 16 = 28명 전부 복구)
 const BULK_SEED_MARKER = 18;
@@ -240,9 +241,32 @@ export async function ensureSchema() {
     await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_ip TEXT`;
     await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ`;
     // v21: 2차직원 이름의 '공용 ' 접두 제거 (대표 지시) — 고윤호 충돌만 " (2차)" suffix
-    // 안전 순서: 충돌 후보 먼저 rename → 그 외 '공용 ' 접두 일괄 제거
     await sql`UPDATE users SET name = '고윤호 (2차)' WHERE name = '공용 고윤호'`;
     await sql`UPDATE users SET name = SUBSTRING(name FROM 4) WHERE name LIKE '공용 %' AND tier = 2`;
+    // v22: 입금 중복 시각화 데모 데이터 1회 시드 (같은 번호로 PAID 2건)
+    let runDemoDup = false;
+    try {
+      const r = await sql`SELECT 1 FROM _schema_init WHERE version = ${DEMO_DUP_MARKER} LIMIT 1`;
+      runDemoDup = !r[0];
+    } catch (_) { runDemoDup = true; }
+    if (runDemoDup) {
+      const t1 = await sql`SELECT id FROM users WHERE tier = 1 AND name NOT IN ('2','3') ORDER BY sort_order ASC LIMIT 1`;
+      if (t1[0]) {
+        const tmId = t1[0].id;
+        const today = new Date().toISOString().slice(0,10);
+        const demoPhone = '010-9999-1234';
+        await sql`
+          INSERT INTO sales_orders
+            (tm_user_id, customer_name, customer_phone, carrier, consult_date,
+             payment_bank, payment_account, amount, payment_date, status, note)
+          VALUES
+            (${tmId}, '데모홍길동(중복)', ${demoPhone}, 'SK', ${today},
+             'KB국민', '110-DEMO-001', 300000, ${today}, 'PAID', '⚠ 데모 — 입금중복 시각화'),
+            (${tmId}, '데모홍길동(중복)', ${demoPhone}, 'SK', ${today},
+             'KB국민', '110-DEMO-002', 350000, ${today}, 'PAID', '⚠ 데모 — 입금중복 시각화')
+          ON CONFLICT DO NOTHING`;
+      }
+    }
     // IP 그룹 마스터 (대표가 미리 등록, 최대 200) + 직원별 모드/그룹 선택
     // ip_mode: 'all' = 모든 IP 허용 / 'restricted' = 선택된 그룹의 IP만 허용
     await sql`

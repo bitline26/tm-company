@@ -3347,21 +3347,6 @@ function renderSalesOrders(){
     filterTm,
     h('div',{style:'flex:1;min-width:160px'}, searchI),
     excelBtn,
-    // 데모 입금중복 생성 (admin 한정) — 시각 확인용. 데이터 확인 후 X 버튼으로 삭제 가능
-    ...(State.user.role==='admin' ? [(()=>{
-      const b = h('button',{class:'btn',style:'padding:7px 11px;font-size:11.5px;background:#fff7ed;border-color:#fdba74;color:#9a3412'},'🧪 데모 중복');
-      b.addEventListener('click',async()=>{
-        if(!confirm('가짜 PAID PB 2건 생성 (같은 전화 → 입금중복 시각화)')) return;
-        try{
-          const r = await api('/api/sales/seed-dup',{method:'POST',body:{}});
-          showToast(r.message || '데모 생성');
-          State.salesOrdersLoadedYm = null;
-          await loadSalesContext('sales-orders', true);
-          renderApp();
-        }catch(e){ showToast(e.message); }
-      });
-      return b;
-    })()] : []),
     addBtn   // 직원도 본인 PB 추가 가능 (server: tm_user_id = me.id 자동)
   );
   wrap.append(toolbar);
