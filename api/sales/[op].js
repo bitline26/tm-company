@@ -26,6 +26,28 @@ export default requireAuth(async function handler(req, res) {
   // ───────── orders ─────────
   if (op === 'orders') {
     if (req.method === 'GET') {
+      // 데모 입금중복 보장 — admin 조회 시점에 idempotent 확인 (스키마 마이그레이션 timing 무관)
+      if (isPriv) {
+        try {
+          const has = await sql`SELECT COUNT(*)::int AS n FROM sales_orders WHERE customer_phone = '010-9999-1234' AND status = 'PAID'`;
+          if (Number(has[0]?.n || 0) < 2) {
+            const t1 = await sql`SELECT id FROM users WHERE tier = 1 AND name NOT IN ('2','3') ORDER BY sort_order ASC LIMIT 1`;
+            if (t1[0]) {
+              const today = new Date().toISOString().slice(0,10);
+              await sql`DELETE FROM sales_orders WHERE customer_phone = '010-9999-1234'`;
+              await sql`
+                INSERT INTO sales_orders
+                  (tm_user_id, customer_name, customer_phone, carrier, consult_date,
+                   payment_bank, payment_account, amount, payment_date, status, note)
+                VALUES
+                  (${t1[0].id}, '데모홍길동(중복)', '010-9999-1234', 'SK', ${today},
+                   'KB국민', '110-DEMO-001', 300000, ${today}, 'PAID', '⚠ 데모 — 입금중복 시각화'),
+                  (${t1[0].id}, '데모홍길동(중복)', '010-9999-1234', 'SK', ${today},
+                   'KB국민', '110-DEMO-002', 350000, ${today}, 'PAID', '⚠ 데모 — 입금중복 시각화')`;
+            }
+          }
+        } catch (_) { /* 무시 — 데모 시드 실패해도 본 응답엔 영향 X */ }
+      }
       const ym = String(req.query.ym || '').match(/^\d{4}-\d{2}$/)?.[0];
       let rows;
       if (ym) {
