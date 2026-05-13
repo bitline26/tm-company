@@ -3779,9 +3779,9 @@ function openOrderModal(existingOrder){
     ),
     h('div',{style:'padding:0 22px 18px'},
       field('메모', noteI),
-      // 자주 쓰는 메모 빠른 입력 — '입금증필요' 한 개
+      // 자주 쓰는 메모 빠른 입력
       (()=>{
-        const PRESETS = ['입금증필요'];
+        const PRESETS = ['입금증필요', '말일꼭입금'];
         const wrap = h('div',{style:'display:flex;flex-wrap:wrap;gap:6px;margin-top:8px'});
         PRESETS.forEach(text=>{
           const chip = h('button',{
