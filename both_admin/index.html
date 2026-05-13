@@ -572,7 +572,8 @@ const State = {
   salesDayClosingTotal: 0,         // 당일 sales_tm_daily.count SUM
   salesMonthClosingTotal: 0,       // 당월 sales_tm_daily.count SUM
   salesMonthVendorCompletedTotal:0,// 당월 sales_vendor_daily.completed_count SUM
-  salesOrdersFilter: { status:'ALL', tm:'ALL', vendor:'ALL', q:'', dateFrom:'', dateTo:'' },
+  // PB 진입 시 디폴트 = 미입금만 노출 (대표 지시)
+  salesOrdersFilter: { status:'UNPAID', tm:'ALL', vendor:'ALL', q:'', dateFrom:'', dateTo:'' },
 
   // 캐시 키 (로드된 컨텍스트 추적 — 같은 키면 페치 스킵)
   salesOrdersLoadedYm: null,
@@ -3196,6 +3197,10 @@ async function loadSalesContext(page, force){
 
 // 클릭 즉시 렌더 + 백그라운드 페치
 async function navTo(key){
+  // PB 내역(sales-orders) 진입 시마다 필터 = 미입금 강제 (대표 지시)
+  if (key === 'sales-orders'){
+    State.salesOrdersFilter = { status:'UNPAID', tm:'ALL', vendor:'ALL', q:'', dateFrom:'', dateTo:'' };
+  }
   State.page=key;
   // 사이드바 클릭 = 어떤 상세뷰든 해제 (직원 상세 / 성과 상세 등)
   State.selectedPersonId=null;
