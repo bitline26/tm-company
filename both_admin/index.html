@@ -2145,13 +2145,16 @@ function renderPeople(){
       return true;
     }
 
-    // 1차 직원만 노출 + 한글 ㄱㄴㄷ 정렬 (대표 지시 — 2차 직원 제외)
+    // 1차 + 2차 직원 모두 노출 + 한글 ㄱㄴㄷ 정렬 (대표 지시 — 기존 동작 복원)
     let people=State.users
       .filter(u=>u.name!=='2' && u.name!=='3')
-      .filter(u=>Number(u.tier)===1)
       .filter(u=>!q||u.name.includes(q))
       .slice()
-      .sort((a,b)=>String(a.name).localeCompare(String(b.name), 'ko'));
+      .sort((a,b)=>{
+        const ta=Number(a.tier)||9, tb=Number(b.tier)||9;
+        if(ta!==tb) return ta-tb;
+        return String(a.name).localeCompare(String(b.name), 'ko');
+      });
 
     // 날짜 범위 설정된 경우: 그 범위에 기록 있는 직원만
     let totalRecords=0;
