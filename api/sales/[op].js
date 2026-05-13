@@ -264,12 +264,12 @@ export default requireAuth(async function handler(req, res) {
     const rows = users.map(u => {
       const d = dMap[u.id] || { total_count: 0, total_db: 0 };
       const a = attMap[u.id] || { off_full: 0, off_half: 0 };
-      const m = mMap[u.id]; // monthly override (대표 직접 편집 우선)
+      const m = mMap[u.id]; // monthly override — 총갯수만 허용. 총디비는 항상 일별 합산.
       const offDays = Number(a.off_full) + Number(a.off_half) * 0.5;
       return {
         user_id: u.id, name: u.name, role: u.role,
         total_count: m && m.total_count != null ? Number(m.total_count) : d.total_count,
-        total_db:    m && m.total_db    != null ? Number(m.total_db)    : d.total_db,
+        total_db:    d.total_db,  // 일 TM 마감 db_count 합산 자동 (override 폐기 — 대표 지시)
         off_days: offDays,
         half_days: Number(a.off_half),
         is_overridden: !!m,

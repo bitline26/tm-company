@@ -29,7 +29,7 @@ const ADMIN_DEFAULT_PW = '1';
 // 테스트 계정 '2','3' 은 폐기 — DB 에 있으면 마이그레이션이 제거 (직원 목록·PB TM 드롭다운에서도 자동 사라짐)
 
 // 스키마 마커 — 이 버전이 DB에 기록되어 있으면 ensureSchema 풀실행 스킵
-const SCHEMA_VERSION = 20;
+const SCHEMA_VERSION = 21;
 // 1회용 시드 마커 — 이 버전이 _schema_init 에 기록된 적 있으면 bulk seed 건너뜀 (이후 SCHEMA_VERSION 더 올려도 재시드 안 됨)
 // v18 = 직원 일부 누락 발견 → 강제 재시드 (1차 12 + 2차 16 = 28명 전부 복구)
 const BULK_SEED_MARKER = 18;
@@ -239,6 +239,10 @@ export async function ensureSchema() {
     // 로그인 추적 — 대표가 직원 관리 페이지에서 최근 접속 IP 확인 + '현재 IP로 잠그기'에 사용
     await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_ip TEXT`;
     await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ`;
+    // v21: 2차직원 이름의 '공용 ' 접두 제거 (대표 지시) — 고윤호 충돌만 " (2차)" suffix
+    // 안전 순서: 충돌 후보 먼저 rename → 그 외 '공용 ' 접두 일괄 제거
+    await sql`UPDATE users SET name = '고윤호 (2차)' WHERE name = '공용 고윤호'`;
+    await sql`UPDATE users SET name = SUBSTRING(name FROM 4) WHERE name LIKE '공용 %' AND tier = 2`;
     // IP 그룹 마스터 (대표가 미리 등록, 최대 200) + 직원별 모드/그룹 선택
     // ip_mode: 'all' = 모든 IP 허용 / 'restricted' = 선택된 그룹의 IP만 허용
     await sql`
@@ -299,12 +303,12 @@ export async function ensureSchema() {
         ['이기성','tami1125'],['지성훈','tami02260'],['최은정','tami0426'],
       ];
       const TIER2_SEED = [
-        ['공용 강보람','tami0226'],['공용 고윤호','tami308'],['공용 국나래','tami1217'],
-        ['공용 권용훈','tami000'],['공용 김민정','tami1114'],['공용 김선화','tami09240'],
-        ['공용 남성영','tami03010'],['공용 이준헌','tami09150'],['공용 이지윤','tami1004'],
-        ['공용 전은하','tami10220'],['공용 정민지','tami0721'],
-        ['공용 김대헌','tami0214'],['공용 심재범','tami03080'],['공용 이예진','tami03310'],
-        ['공용 이주필','tami03230'],['공용 한재상','tami0423'],
+        ['강보람','tami0226'],['고윤호 (2차)','tami308'],['국나래','tami1217'],
+        ['권용훈','tami000'],['김민정','tami1114'],['김선화','tami09240'],
+        ['남성영','tami03010'],['이준헌','tami09150'],['이지윤','tami1004'],
+        ['전은하','tami10220'],['정민지','tami0721'],
+        ['김대헌','tami0214'],['심재범','tami03080'],['이예진','tami03310'],
+        ['이주필','tami03230'],['한재상','tami0423'],
       ];
       let so = 100;
       for (const [nm, pw] of TIER1_SEED) {

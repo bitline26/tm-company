@@ -4007,7 +4007,8 @@ function renderSalesTM(){
   }
   function editableMonthCell(uid, key, val, rowIdx, colIdx){
     const m = key==='total_count' ? colMeta['총갯수'] : colMeta['총 디비'];
-    if (!isPriv) {
+    // 총디비는 자동 합산 — 일 TM 마감 db_count 합 (override 폐기). 비편집 셀로 렌더.
+    if (!isPriv || key==='total_db') {
       return h('td',{style:`text-align:center;font-variant-numeric:tabular-nums;font-weight:700;background:${m.bg};color:${m.fg};padding:8px 10px`}, fmtNum(val||0));
     }
     const input = h('input',{
@@ -4595,28 +4596,79 @@ if(!window._shBound){
     const t = e.target;
     if(!t || !t.classList || !t.classList.contains('sheet-input')) return;
     const input = t;
-    // Delete/Backspace + 범위 2칸 이상 → 일괄 0 (직렬 저장 — saveDailyCell이 renderApp 호출하므로 data-r/c 로 재해결)
-    if((e.key==='Delete' || e.key==='Backspace')){
+    // Delete/Backspace — 단일도 0 처리, 범위면 일괄 0 (직렬 저장)
+    if(e.key==='Delete' || e.key==='Backspace'){
       const rng = _shRangeInputs();
+      const targets = rng.length >= 2 ? rng.map(inp=>({r:inp.dataset.r, c:inp.dataset.c}))
+                                       : [{r: input.dataset.r, c: input.dataset.c}];
+      e.preventDefault();
+      const focusPos = { r: input.dataset.r, c: input.dataset.c };
+      (async ()=>{
+        for(const p of targets){
+          const cur = _shCellAt(p.r, p.c);
+          if(!cur || cur.value === '0') continue;
+          cur.value = '0';
+          if(typeof cur._sheetSave === 'function'){
+            try { await cur._sheetSave(); } catch(_){}
+          }
+        }
+        _shClearRange();
+        const back = _shCellAt(focusPos.r, focusPos.c);
+        if(back){ back.focus(); try{back.select();}catch(_){} }
+      })();
+      return;
+    }
+    // Ctrl/Cmd + C — 범위 → TSV 클립보드 (범위 없으면 단일 셀)
+    if((e.ctrlKey || e.metaKey) && (e.key==='c' || e.key==='C')){
+      const rng = _shRangeInputs();
+      let cellsByRow;
       if(rng.length >= 2){
         e.preventDefault();
-        const positions = rng.map(inp => ({r: inp.dataset.r, c: inp.dataset.c}));
-        const focusPos = { r: input.dataset.r, c: input.dataset.c };
-        (async ()=>{
-          for(const p of positions){
-            const cur = _shCellAt(p.r, p.c);
-            if(!cur || cur.value === '0') continue;
-            cur.value = '0';
+        const r1 = Math.min(_shSel.anchor.r, _shSel.head.r), r2 = Math.max(_shSel.anchor.r, _shSel.head.r);
+        const c1 = Math.min(_shSel.anchor.c, _shSel.head.c), c2 = Math.max(_shSel.anchor.c, _shSel.head.c);
+        const lines = [];
+        for(let r=r1; r<=r2; r++){
+          const row = [];
+          for(let c=c1; c<=c2; c++){
+            const inp = _shCellAt(r, c);
+            row.push(inp ? inp.value : '');
+          }
+          lines.push(row.join('\t'));
+        }
+        const tsv = lines.join('\n');
+        try { navigator.clipboard.writeText(tsv); }catch(_){}
+        return;
+      }
+      // 단일 셀이면 브라우저 기본 (input value 복사)에 맡김
+      return;
+    }
+    // Ctrl/Cmd + V — TSV 파싱해서 현재 셀 기준 우/하로 채워넣기
+    if((e.ctrlKey || e.metaKey) && (e.key==='v' || e.key==='V')){
+      e.preventDefault();
+      (async ()=>{
+        let text = '';
+        try { text = await navigator.clipboard.readText(); } catch(_) { return; }
+        if(!text) return;
+        const rows = text.replace(/\r/g,'').replace(/\n$/,'').split('\n').map(r=>r.split('\t'));
+        const r0 = Number(input.dataset.r), c0 = Number(input.dataset.c);
+        for(let i=0; i<rows.length; i++){
+          for(let j=0; j<rows[i].length; j++){
+            const cur = _shCellAt(r0+i, c0+j);
+            if(!cur) continue;
+            const raw = String(rows[i][j]||'').replace(/[^0-9-]/g,'');
+            const nv = String(Number(raw)||0);
+            if(cur.value === nv) continue;
+            cur.value = nv;
             if(typeof cur._sheetSave === 'function'){
               try { await cur._sheetSave(); } catch(_){}
             }
           }
-          _shClearRange();
-          const back = _shCellAt(focusPos.r, focusPos.c);
-          if(back) back.focus();
-        })();
-        return;
-      }
+        }
+        _shClearRange();
+        const back = _shCellAt(r0, c0);
+        if(back){ back.focus(); try{back.select();}catch(_){} }
+      })();
+      return;
     }
     if(e.key==='Escape'){
       _shStopNav(); _shClearRange();
@@ -4911,7 +4963,7 @@ function vendorCell(v, key, label, isPriv){
   input.addEventListener('keydown',e=>{
     if(e.key==='Enter'){ _vcStopNav(); _vcClearRange(); e.preventDefault(); input.blur(); return; }
     if(e.key==='Escape'){ _vcStopNav(); _vcClearRange(); input.value = String(v[key]||0); input.blur(); return; }
-    // 범위가 2칸 이상일 때 Delete/Backspace = 일괄 0
+    // Delete/Backspace — 범위 2칸 이상이면 일괄 0
     if((e.key==='Delete' || e.key==='Backspace')){
       const rng = _vcRangeInputs();
       if(rng.length >= 2){
@@ -4919,12 +4971,49 @@ function vendorCell(v, key, label, isPriv){
         rng.forEach(inp=>{
           if(inp.value === '0') return;
           inp.value = '0';
-          inp.dispatchEvent(new Event('blur'));  // blur 핸들러가 낙관적 갱신 + 백그라운드 저장
+          inp.dispatchEvent(new Event('blur'));
         });
         _vcClearRange();
         input.focus();
         return;
       }
+    }
+    // Ctrl/Cmd + C — 범위 TSV 복사 (단일 셀은 브라우저 기본)
+    if((e.ctrlKey || e.metaKey) && (e.key==='c' || e.key==='C')){
+      const rng = _vcRangeInputs();
+      if(rng.length >= 2){
+        e.preventDefault();
+        // 유입분석은 1D 인덱스 — 같은 카드 4셀(2x2)이 연속 인덱스. 카드 단위 줄바꿈은 무시하고 한 줄로 본다.
+        const tsv = rng.map(inp=>inp.value).join('\t');
+        try { navigator.clipboard.writeText(tsv); }catch(_){}
+        return;
+      }
+      return;
+    }
+    // Ctrl/Cmd + V — TSV 파싱해 현재 input 부터 우측으로 채움
+    if((e.ctrlKey || e.metaKey) && (e.key==='v' || e.key==='V')){
+      e.preventDefault();
+      (async ()=>{
+        let text = '';
+        try { text = await navigator.clipboard.readText(); } catch(_) { return; }
+        if(!text) return;
+        const flat = text.replace(/\r/g,'').replace(/\n$/,'').split(/[\t\n]/);
+        const all = _vcAllInputs();
+        const start = all.indexOf(input);
+        if(start < 0) return;
+        for(let i=0; i<flat.length; i++){
+          const cur = all[start + i];
+          if(!cur) break;
+          const raw = String(flat[i]||'').replace(/[^0-9-]/g,'');
+          const nv = String(Number(raw)||0);
+          if(cur.value === nv) continue;
+          cur.value = nv;
+          cur.dispatchEvent(new Event('blur'));
+        }
+        _vcClearRange();
+        input.focus();
+      })();
+      return;
     }
     const dir = e.key==='ArrowUp'?'up':e.key==='ArrowDown'?'down':e.key==='ArrowLeft'?'left':e.key==='ArrowRight'?'right':null;
     if(!dir) return;
