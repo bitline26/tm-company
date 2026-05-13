@@ -1852,6 +1852,7 @@ function renderGrid(){
 
   const tbody=h('tbody');
   for(const u of State.users){
+    if(u.name==='2' || u.name==='3') continue; // viewer 계정 비노출
     const isSelf=u.id===State.user.id;
     const tr=h('tr',{class:isSelf?'row-self':''});
     tr.append(h('td',{class:'col-name'},
@@ -2128,7 +2129,7 @@ function renderPeople(){
       return true;
     }
 
-    let people=State.users.filter(u=>!q||u.name.includes(q));
+    let people=State.users.filter(u=>u.name!=='2' && u.name!=='3').filter(u=>!q||u.name.includes(q));
 
     // 날짜 범위 설정된 경우: 그 범위에 기록 있는 직원만
     let totalRecords=0;
@@ -3172,7 +3173,7 @@ function renderSalesOrders(){
 
   const filterTm=h('select',null,
     h('option',{value:'ALL'},'전체 TM'),
-    ...State.users.filter(u=>Number(u.tier)===1).map(u=>h('option',{value:String(u.id)},u.name))
+    ...State.users.filter(u=>Number(u.tier)===1 && u.name!=='2').map(u=>h('option',{value:String(u.id)},u.name))
   );
   filterTm.value=State.salesOrdersFilter.tm;
   filterTm.addEventListener('change',()=>{State.salesOrdersFilter.tm=filterTm.value;renderApp();});
@@ -3576,7 +3577,7 @@ function startEditCell(td, cell, col, row, isPriv){
     input.addEventListener('blur',()=>finish(false));
   } else if (col.type==='tm'){
     input=h('select',null, h('option',{value:''},'—'),
-      ...State.users.filter(u=>Number(u.tier)===1).map(u=>h('option',{value:String(u.id)},u.name)));
+      ...State.users.filter(u=>Number(u.tier)===1 && u.name!=='2').map(u=>h('option',{value:String(u.id)},u.name)));
     input.value=row.tm_user_id?String(row.tm_user_id):'';
     input.addEventListener('change',()=>finish(true, input.value));
     input.addEventListener('blur',()=>finish(false));
@@ -3631,7 +3632,7 @@ function openOrderModal(existingOrder){
 
   const tmSel = h('select',{style:inputStyle},
     h('option',{value:''},'— 선택 —'),
-    ...State.users.filter(u=>Number(u.tier)===1).map(u=>h('option',{value:String(u.id)}, u.name))
+    ...State.users.filter(u=>Number(u.tier)===1 && u.name!=='2').map(u=>h('option',{value:String(u.id)}, u.name))
   );
   tmSel.value = o.tm_user_id ? String(o.tm_user_id) : (isPriv?'':String(me.id));
   if (!isPriv) tmSel.disabled = true;
@@ -4972,6 +4973,7 @@ function exportCsv(){
   for(let d=1;d<=dim;d++) head.push(`${m}/${d}`);
   rows.push(head);
   for(const u of State.users){
+    if(u.name==='2' || u.name==='3') continue; // viewer 계정 비노출 (CSV 도)
     const row=[u.name, u.role==='manager'?'차장':'직원'];
     for(let d=1;d<=dim;d++){
       const ymd=fmtYmd(y,m,d);

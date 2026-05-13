@@ -27,6 +27,7 @@ export default async function handler(req) {
     const usersP = sql`
       SELECT id, name, role, registered, tier, status, allowed_ips
       FROM users WHERE role <> 'admin' AND registered = TRUE
+        AND name NOT IN ('2','3')
       ORDER BY sort_order ASC, id ASC`;
     const recordsP = sql`
       SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,
