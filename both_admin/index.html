@@ -2145,16 +2145,13 @@ function renderPeople(){
       return true;
     }
 
-    // 1차 직원 → 2차 직원, 각 tier 내 한글 ㄱㄴㄷ 정렬
+    // 1차 직원만 노출 + 한글 ㄱㄴㄷ 정렬 (대표 지시 — 2차 직원 제외)
     let people=State.users
       .filter(u=>u.name!=='2' && u.name!=='3')
+      .filter(u=>Number(u.tier)===1)
       .filter(u=>!q||u.name.includes(q))
       .slice()
-      .sort((a,b)=>{
-        const ta=Number(a.tier)||9, tb=Number(b.tier)||9;
-        if(ta!==tb) return ta-tb;
-        return String(a.name).localeCompare(String(b.name), 'ko');
-      });
+      .sort((a,b)=>String(a.name).localeCompare(String(b.name), 'ko'));
 
     // 날짜 범위 설정된 경우: 그 범위에 기록 있는 직원만
     let totalRecords=0;
@@ -2489,7 +2486,12 @@ function renderPerformanceDetail(){
   else if (range==='yesterday'){ const y=new Date(today); y.setDate(y.getDate()-1); from=fmt(y); to=fmt(y); rangeLabel='어제'; }
   else if (range==='thisMonth'){ from=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-01`; to=fmt(today); rangeLabel='당월'; }
   else if (range==='prevMonth'){ const pm=new Date(today.getFullYear(),today.getMonth()-1,1); const last=new Date(today.getFullYear(),today.getMonth(),0); from=fmt(pm); to=fmt(last); rangeLabel='전월'; }
-  else if (range==='3months') { const tm=new Date(today); tm.setMonth(tm.getMonth()-3); from=fmt(tm); to=fmt(today); rangeLabel='최근 3개월'; }
+  else if (range==='3months') {
+    // 직전 3개월 — 오늘이 5월이면 2/3/4월 1일~말일 (현재 월 제외)
+    const fromD = new Date(today.getFullYear(), today.getMonth()-3, 1);
+    const toD   = new Date(today.getFullYear(), today.getMonth(), 0);
+    from = fmt(fromD); to = fmt(toD); rangeLabel='직전 3개월';
+  }
   else                        { from='2020-01-01'; to=fmt(today); rangeLabel='전체'; }
 
   // 캐시 키 (사용자+범위)
@@ -2556,14 +2558,51 @@ function renderPerformanceDetail(){
     h('div',{style:'font-size:11px;color:var(--text-soft);font-weight:700;letter-spacing:0.04em;text-transform:uppercase'}, label),
     h('div',{style:'font-size:26px;font-weight:800;font-variant-numeric:tabular-nums'}, val)
   );
-  const statsRow=h('div',{style:'display:flex;gap:12px;padding:0 0 14px;flex-wrap:wrap'},
-    statCard('총 마감', fmtNum(totalCount), '#fffaf0'),
-    statCard('총 디비', fmtNum(totalDb), '#fffaf0'),
-    statCard('일평균 마감', fmtNum(dayAvg,1), '#eef2ff'),
-    statCard('일평균 디비', fmtNum(dbAvg,1), '#eef2ff'),
-    statCard('효율', totalDb>0?fmtPct(eff):'—', '#dcfce7'),
-    statCard('근무 / 휴무', `${workedDays}일 / ${offDays}일`, '#fff'),
-  );
+  // 3개월치 모드 — 월별 3줄(예: 5월 → 2/3/4월), 그 외엔 합산 1줄 (대표 지시)
+  let statsRow;
+  if (range==='3months'){
+    const now = new Date();
+    const months = [];
+    for (let i=3; i>=1; i--){
+      const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+      months.push({y:d.getFullYear(), m:d.getMonth()+1});
+    }
+    const groupBox = (lbl, sub, cards) => h('div',{style:'padding:0 0 0'},
+      h('div',{style:'font-size:13px;font-weight:800;color:#0f0f0f;margin-bottom:8px;letter-spacing:.01em;display:flex;align-items:center;gap:8px'},
+        lbl, h('span',{style:'font-size:11px;font-weight:600;color:var(--text-soft)'}, sub)),
+      h('div',{style:'display:flex;gap:12px;flex-wrap:wrap'}, ...cards)
+    );
+    const blocks = [];
+    for (const {y,m} of months){
+      const ym = `${y}-${String(m).padStart(2,'0')}`;
+      const mRows = rows.filter(r=>String(r.work_date).slice(0,10).startsWith(ym));
+      let mCount=0, mDb=0, mOff=0;
+      mRows.forEach(r=>{ mCount += Number(r.count||0); mDb += Number(r.db_count||0); if (r.is_off) mOff++; });
+      const mDays = mRows.length;
+      const mWorked = mDays - mOff;
+      const mAvg = mWorked>0 ? mCount/mWorked : 0;
+      const mDbAvg = mWorked>0 ? mDb/mWorked : 0;
+      const mEff = mDb>0 ? mCount/mDb : 0;
+      blocks.push(groupBox(`📊 ${m}월 성과`, `${ym} · 근무 ${mWorked}일 · 휴무 ${mOff}일`, [
+        statCard('총 마감', fmtNum(mCount), '#fffaf0'),
+        statCard('총 디비', fmtNum(mDb), '#fffaf0'),
+        statCard('일평균 마감', fmtNum(mAvg,1), '#eef2ff'),
+        statCard('일평균 디비', fmtNum(mDbAvg,1), '#eef2ff'),
+        statCard('효율', mDb>0?fmtPct(mEff):'—', '#dcfce7'),
+        statCard('근무 / 휴무', `${mWorked}일 / ${mOff}일`, '#fff'),
+      ]));
+    }
+    statsRow = h('div',{style:'display:flex;flex-direction:column;gap:14px;padding:0 0 14px'}, ...blocks);
+  } else {
+    statsRow = h('div',{style:'display:flex;gap:12px;padding:0 0 14px;flex-wrap:wrap'},
+      statCard('총 마감', fmtNum(totalCount), '#fffaf0'),
+      statCard('총 디비', fmtNum(totalDb), '#fffaf0'),
+      statCard('일평균 마감', fmtNum(dayAvg,1), '#eef2ff'),
+      statCard('일평균 디비', fmtNum(dbAvg,1), '#eef2ff'),
+      statCard('효율', totalDb>0?fmtPct(eff):'—', '#dcfce7'),
+      statCard('근무 / 휴무', `${workedDays}일 / ${offDays}일`, '#fff'),
+    );
+  }
 
   // 일별 표 (최신순)
   const tbody=h('tbody');
@@ -4120,8 +4159,12 @@ function renderSalesTM(){
   const total=State.salesTmTotal;
   const unitPrice=Number(period.unit_price||0);
 
-  // 각 행 함수 계산
-  const rows=State.salesTmRows.slice();
+  // 1차 직원만 + 한글 ㄱㄴㄷ 정렬 (대표 지시)
+  const _tierById=new Map(State.users.map(u=>[u.id, Number(u.tier)||0]));
+  const rows=State.salesTmRows
+    .filter(r=>_tierById.get(r.user_id)===1)
+    .slice()
+    .sort((a,b)=>String(a.name).localeCompare(String(b.name), 'ko'));
   const computed=rows.map(r=>{
     const offFloat = r.off_days + (r.half_days||0)*0.5;   // 반차 0.5
     const denom = Math.max(0.0001, elapsed - offFloat);
@@ -4274,11 +4317,11 @@ function renderSalesTMDaily(){
   const isPriv=me.role==='admin'||me.role==='manager';
   const wrap=h('div');
 
-  // 로컬(KST) 오늘 — UTC slice 쓰면 새벽에 하루 어긋남. 항상 실시간 오늘로 자동 갱신
+  // 로컬(KST) 오늘 — UTC slice 쓰면 새벽에 하루 어긋남
   const _dNow = new Date();
   const todayLocalD = `${_dNow.getFullYear()}-${String(_dNow.getMonth()+1).padStart(2,'0')}-${String(_dNow.getDate()).padStart(2,'0')}`;
-  // 저장값이 어제 이전이면 자동으로 오늘로 (날짜 바뀌면 실시간 반영)
-  if (!State.salesTmDailyDate || State.salesTmDailyDate < todayLocalD) {
+  // 최초 진입 시에만 오늘로 (사용자가 빠른 날짜 버튼으로 과거 일자 선택한 경우 그대로 유지)
+  if (!State.salesTmDailyDate) {
     State.salesTmDailyDate = todayLocalD;
   }
   const d = State.salesTmDailyDate;
@@ -4344,8 +4387,11 @@ function renderSalesTMDaily(){
   const dayRows = (State.salesTmDailyRows||[])
     .filter(r=>String(r.work_date).slice(0,10)===d);
   const byUser = {}; dayRows.forEach(r=>byUser[r.user_id]=r);
-  // 관전용 viewer 계정('2','3')은 일 TM 마감 행에서도 제외
-  const users = State.users.filter(u=>u.role!=='admin' && u.name!=='2' && u.name!=='3');
+  // 1차 직원만 + 한글 ㄱㄴㄷ 정렬 (대표 지시 — 2차 직원 제외)
+  const users = State.users
+    .filter(u=>u.role!=='admin' && u.name!=='2' && u.name!=='3' && Number(u.tier)===1)
+    .slice()
+    .sort((a,b)=>String(a.name).localeCompare(String(b.name), 'ko'));
 
   const fmtNum=(n,p=0)=>(Number(n||0)).toLocaleString('ko-KR',{maximumFractionDigits:p});
   const fmtPct=(n)=>((n||0)*100).toFixed(1)+'%';
