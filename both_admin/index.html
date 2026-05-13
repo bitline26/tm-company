@@ -585,10 +585,13 @@ const State = {
   salesTmTodayMap: {},       // { user_id → {db_count, is_off} }
   myTmToday: null,           // 본인 오늘 (employee home 용)
 
-  // 일 TM 마감 페이지
-  salesTmDailyDate: null,    // 선택 일자 (YYYY-MM-DD)
-  salesTmDailyRows: [],      // 그달 sales_tm_daily 전체 행
-  salesTmDailyLoadedYm: null,
+  // 일 TM 마감 페이지 — 날짜 범위 (FROM ~ TO)
+  salesTmDailyDate: null,    // (레거시 호환) 단일일 — 사용 안 함
+  salesTmDailyFrom: null,    // 시작일 (YYYY-MM-DD)
+  salesTmDailyTo:   null,    // 종료일 (YYYY-MM-DD)
+  salesTmDailyRows: [],      // 범위 내 sales_tm_daily 행
+  salesTmDailyLoadedYm: null,// (레거시) — 신규 코드는 salesTmDailyLoadedKey 사용
+  salesTmDailyLoadedKey: null, // 'from|to' 로드된 범위 키
 
   // 퍼포먼스 상세 (TM 마감에서 직원 클릭 시)
   perfPersonId: null,        // 선택된 직원
@@ -3252,13 +3255,16 @@ async function loadSalesContext(page, force){
       }).catch(()=>{}));
     }
   } else if (page==='sales-tm-daily'){
-    const d = State.salesTmDailyDate || (new Date().toISOString().slice(0,10));
-    State.salesTmDailyDate = d;
-    const ymKey = d.slice(0,7);
-    if (force || State.salesTmDailyLoadedYm !== ymKey){
-      tasks.push(api(`/api/sales/tm-daily?ym=${ymKey}`).then(r=>{
+    const today = new Date().toISOString().slice(0,10);
+    if (!State.salesTmDailyFrom) State.salesTmDailyFrom = today;
+    if (!State.salesTmDailyTo)   State.salesTmDailyTo   = today;
+    const f = State.salesTmDailyFrom, t = State.salesTmDailyTo;
+    const key = `${f}|${t}`;
+    if (force || State.salesTmDailyLoadedKey !== key){
+      tasks.push(api(`/api/sales/tm-daily?from=${f}&to=${t}`).then(r=>{
         State.salesTmDailyRows = r.rows || [];
-        State.salesTmDailyLoadedYm = ymKey;
+        State.salesTmDailyLoadedKey = key;
+        State.salesTmDailyLoadedYm = t.slice(0,7); // 레거시 호환
       }));
     }
   } else if (page==='sales-vendor'){
@@ -3294,7 +3300,7 @@ async function navTo(key){
   const needsSalesLoad = key && key.startsWith('sales-') && (
     (key==='sales-orders' && State.salesOrdersLoadedYm !== (State.salesYm||todayYm())) ||
     (key==='sales-tm'     && State.salesTmLoadedKey   !== `${State.salesYm||todayYm()}|${State.salesCutoff||new Date().toISOString().slice(0,10)}`) ||
-    (key==='sales-tm-daily' && State.salesTmDailyLoadedYm !== (State.salesTmDailyDate||new Date().toISOString().slice(0,10)).slice(0,7)) ||
+    (key==='sales-tm-daily' && State.salesTmDailyLoadedKey !== `${State.salesTmDailyFrom||new Date().toISOString().slice(0,10)}|${State.salesTmDailyTo||new Date().toISOString().slice(0,10)}`) ||
     (key==='sales-vendor' && State.salesVendorLoadedDate !== (State.salesDate||new Date().toISOString().slice(0,10)))
   );
   const needsClosingLoad = (key==='my-closing' && State.myClosingLoadedYm !== (State.salesYm||todayYm()));
@@ -4115,17 +4121,26 @@ function renderSalesTM(){
     )
   );
 
-  // 빠른 날짜 필터 — TM 마감은 월/cutoff 기반
+  // 빠른 날짜 필터 — 월 TM 마감은 단일 월 기반 (다중 월 집계는 일 TM 마감에서)
+  // 각 버튼이 다른 월/cutoff 조합으로 이동 (이전엔 4개 버튼이 동일 결과 — 대표 지시로 차별화)
   const fmtYmdLocalT=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const _t=new Date();
   const _todayYmd=fmtYmdLocalT(_t);
   const _yd=new Date(_t); _yd.setDate(_yd.getDate()-1); const _ydYmd=fmtYmdLocalT(_yd);
   const _curYm=`${_t.getFullYear()}-${String(_t.getMonth()+1).padStart(2,'0')}`;
+  const _curLast=fmtYmdLocalT(new Date(_t.getFullYear(), _t.getMonth()+1, 0)); // 현재월 말일
   const _prevD=new Date(_t.getFullYear(), _t.getMonth()-1, 1);
   const _prevYm=`${_prevD.getFullYear()}-${String(_prevD.getMonth()+1).padStart(2,'0')}`;
   const _prevLast=new Date(_t.getFullYear(), _t.getMonth(), 0);
   const _prevLastYmd=fmtYmdLocalT(_prevLast);
-  const _3mD=new Date(_t); _3mD.setMonth(_3mD.getMonth()-3); const _3mYmd=fmtYmdLocalT(_3mD);
+  // 3개월 전 (오늘이 5월이면 2월) — 그 월 말일
+  const _3mD=new Date(_t.getFullYear(), _t.getMonth()-3, 1);
+  const _3mYm=`${_3mD.getFullYear()}-${String(_3mD.getMonth()+1).padStart(2,'0')}`;
+  const _3mLastYmd=fmtYmdLocalT(new Date(_3mD.getFullYear(), _3mD.getMonth()+1, 0));
+  // 12개월 전
+  const _12mD=new Date(_t.getFullYear(), _t.getMonth()-12, 1);
+  const _12mYm=`${_12mD.getFullYear()}-${String(_12mD.getMonth()+1).padStart(2,'0')}`;
+  const _12mLastYmd=fmtYmdLocalT(new Date(_12mD.getFullYear(), _12mD.getMonth()+1, 0));
 
   async function applyTmRange(targetYm, targetCutoff){
     State.salesYm = targetYm; State.salesCutoff = targetCutoff;
@@ -4140,14 +4155,14 @@ function renderSalesTM(){
   const curYmT=State.salesYm||_curYm, curCutT=State.salesCutoff||_todayYmd;
   const quickBarT = h('div',{class:'sales-toolbar',style:'gap:6px;flex-wrap:wrap'},
     h('span',{class:'label'},'빠른 날짜'),
-    qBtnT('오늘',                ()=>applyTmRange(_curYm, _todayYmd),    curYmT===_curYm && curCutT===_todayYmd),
-    qBtnT('어제',                ()=>applyTmRange(_curYm, _ydYmd),       curYmT===_curYm && curCutT===_ydYmd),
-    qBtnT('당월',                ()=>applyTmRange(_curYm, _todayYmd),    curYmT===_curYm && curCutT===_todayYmd),
-    qBtnT('전월',                ()=>applyTmRange(_prevYm,_prevLastYmd), curYmT===_prevYm && curCutT===_prevLastYmd),
-    qBtnT('3개월치',  ()=>applyTmRange(_curYm, _todayYmd),    false),
-    qBtnT('전체',                ()=>applyTmRange(_curYm, _todayYmd),    false),
+    qBtnT('오늘',     ()=>applyTmRange(_curYm,  _todayYmd),    curYmT===_curYm  && curCutT===_todayYmd),
+    qBtnT('어제',     ()=>applyTmRange(_curYm,  _ydYmd),       curYmT===_curYm  && curCutT===_ydYmd),
+    qBtnT('당월',     ()=>applyTmRange(_curYm,  _curLast),     curYmT===_curYm  && curCutT===_curLast),
+    qBtnT('전월',     ()=>applyTmRange(_prevYm, _prevLastYmd), curYmT===_prevYm && curCutT===_prevLastYmd),
+    qBtnT('3개월전',  ()=>applyTmRange(_3mYm,   _3mLastYmd),   curYmT===_3mYm   && curCutT===_3mLastYmd),
+    qBtnT('1년전',    ()=>applyTmRange(_12mYm,  _12mLastYmd),  curYmT===_12mYm  && curCutT===_12mLastYmd),
     h('span',{style:'margin-left:8px;color:var(--text-soft);font-size:11px'},
-      `※ TM 마감은 월(${curYmT}) + 마감기준(${curCutT}) 기준`)
+      `※ 월 TM 마감 — ${curYmT} · 마감기준 ${curCutT}`)
   );
   wrap.append(quickBarT, toolbar);
 
@@ -4321,75 +4336,89 @@ function renderSalesTMDaily(){
   const wrap=h('div');
 
   // 로컬(KST) 오늘 — UTC slice 쓰면 새벽에 하루 어긋남
+  const fmtYmdLocalD=(dd)=>`${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,'0')}-${String(dd.getDate()).padStart(2,'0')}`;
   const _dNow = new Date();
-  const todayLocalD = `${_dNow.getFullYear()}-${String(_dNow.getMonth()+1).padStart(2,'0')}-${String(_dNow.getDate()).padStart(2,'0')}`;
-  // 최초 진입 시에만 오늘로 (사용자가 빠른 날짜 버튼으로 과거 일자 선택한 경우 그대로 유지)
-  if (!State.salesTmDailyDate) {
-    State.salesTmDailyDate = todayLocalD;
-  }
-  const d = State.salesTmDailyDate;
-  if (State.loadingPage==='sales-tm-daily' && State.salesTmDailyLoadedYm===null){
+  const todayLocalD = fmtYmdLocalD(_dNow);
+  // 최초 진입: 오늘 단일일
+  if (!State.salesTmDailyFrom) State.salesTmDailyFrom = todayLocalD;
+  if (!State.salesTmDailyTo)   State.salesTmDailyTo   = todayLocalD;
+  const from = State.salesTmDailyFrom;
+  const to   = State.salesTmDailyTo;
+  const isSingleDay = (from === to);
+
+  if (State.loadingPage==='sales-tm-daily' && State.salesTmDailyLoadedKey===null){
     return h('div',{class:'sales-empty',style:'padding:80px 20px'},
       h('div',{class:'ico'},'⏳'),
       h('div',null,'일 TM 마감 로딩 중…'));
   }
 
-  const dateI=h('input',{type:'date',value:d});
-  dateI.addEventListener('change',async()=>{
-    State.salesTmDailyDate = dateI.value;
-    const ymKey = dateI.value.slice(0,7);
-    if (State.salesTmDailyLoadedYm !== ymKey){
-      State.salesTmDailyLoadedYm = null;
-      State.loadingPage='sales-tm-daily'; renderApp();
-      await loadSalesContext('sales-tm-daily');
-      State.loadingPage=null;
-    }
-    renderApp();
-  });
+  async function applyRange(f, t){
+    if (f > t) { const x=f; f=t; t=x; } // FROM 이 TO 보다 늦으면 스왑
+    State.salesTmDailyFrom = f; State.salesTmDailyTo = t;
+    State.salesTmDailyLoadedKey = null;
+    State.loadingPage='sales-tm-daily'; renderApp();
+    await loadSalesContext('sales-tm-daily');
+    State.loadingPage=null; renderApp();
+  }
 
-  // 빠른 날짜 필터 — 일 TM 마감
-  const fmtYmdLocalD=(dd)=>`${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,'0')}-${String(dd.getDate()).padStart(2,'0')}`;
-  const _dt=new Date();
-  const _dToday=fmtYmdLocalD(_dt);
+  const fromI=h('input',{type:'date',value:from});
+  const toI=h('input',{type:'date',value:to});
+  fromI.addEventListener('change',()=>applyRange(fromI.value, toI.value));
+  toI.addEventListener('change',()=>applyRange(fromI.value, toI.value));
+
+  // 빠른 날짜 — 모두 의미 있는 구간 (단일일/구간 혼용)
+  const _dt=_dNow;
+  const _dToday=todayLocalD;
   const _dY=new Date(_dt); _dY.setDate(_dY.getDate()-1); const _dYesterday=fmtYmdLocalD(_dY);
   const _dMonthStart=fmtYmdLocalD(new Date(_dt.getFullYear(),_dt.getMonth(),1));
-  const _dPrevLast=fmtYmdLocalD(new Date(_dt.getFullYear(),_dt.getMonth(),0));
-  const _d3m=new Date(_dt); _d3m.setMonth(_d3m.getMonth()-3); const _d3mYmd=fmtYmdLocalD(_d3m);
+  const _dPrevFirst=fmtYmdLocalD(new Date(_dt.getFullYear(),_dt.getMonth()-1,1));
+  const _dPrevLast =fmtYmdLocalD(new Date(_dt.getFullYear(),_dt.getMonth(),0));
+  const _d3mStart  =fmtYmdLocalD(new Date(_dt.getFullYear(),_dt.getMonth()-3,1));
+  const _allStart  ='2020-01-01';
 
-  async function applyDailyDate(target){
-    State.salesTmDailyDate = target;
-    const ymKey = target.slice(0,7);
-    if (State.salesTmDailyLoadedYm !== ymKey){
-      State.salesTmDailyLoadedYm = null;
-      State.loadingPage='sales-tm-daily'; renderApp();
-      await loadSalesContext('sales-tm-daily');
-      State.loadingPage=null;
-    }
-    renderApp();
-  }
-  function qBtnD(label, onClick, active){
-    return h('button',{class:'btn'+(active?' btn-primary':''), style:'padding:6px 12px;font-size:12px', onClick}, label);
+  const presets = [
+    {label:'오늘',    f:_dToday,      t:_dToday},
+    {label:'어제',    f:_dYesterday,  t:_dYesterday},
+    {label:'당월',    f:_dMonthStart, t:_dToday},
+    {label:'전월',    f:_dPrevFirst,  t:_dPrevLast},
+    {label:'3개월치', f:_d3mStart,    t:_dPrevLast},
+    {label:'전체',    f:_allStart,    t:_dToday},
+  ];
+  function qBtnD(p){
+    const active = (from===p.f && to===p.t);
+    return h('button',{class:'btn'+(active?' btn-primary':''), style:'padding:6px 12px;font-size:12px',
+      onClick:()=>applyRange(p.f, p.t)}, p.label);
   }
   const quickBarD = h('div',{class:'sales-toolbar',style:'gap:6px;flex-wrap:wrap'},
     h('span',{class:'label'},'빠른 날짜'),
-    qBtnD('오늘',                ()=>applyDailyDate(_dToday),       d===_dToday),
-    qBtnD('어제',                ()=>applyDailyDate(_dYesterday),   d===_dYesterday),
-    qBtnD('당월',                ()=>applyDailyDate(_dMonthStart),  d===_dMonthStart),
-    qBtnD('전월',                ()=>applyDailyDate(_dPrevLast),    d===_dPrevLast),
-    qBtnD('3개월치',  ()=>applyDailyDate(_d3mYmd),       d===_d3mYmd),
-    qBtnD('전체',                ()=>applyDailyDate(_dToday),       false),
+    ...presets.map(qBtnD)
   );
   const toolbar=h('div',{class:'sales-toolbar'},
-    h('span',{class:'label'},'일자'), dateI,
+    h('span',{class:'label'},'기간'), fromI, h('span',{style:'color:var(--text-soft)'},'~'), toI,
     h('span',{style:'margin-left:8px;color:var(--text-soft);font-size:11px'},
-      `※ 일 TM 마감 — ${d} 기준`)
+      isSingleDay
+        ? `※ 일 TM 마감 — ${from} 기준 (단일일 · 셀 편집 가능)`
+        : `※ 일 TM 마감 — ${from} ~ ${to} 합산 (범위 · 읽기 전용)`)
   );
   wrap.append(quickBarD, toolbar);
 
-  // 데이터: 그 일자에 해당하는 행만
-  const dayRows = (State.salesTmDailyRows||[])
-    .filter(r=>String(r.work_date).slice(0,10)===d);
-  const byUser = {}; dayRows.forEach(r=>byUser[r.user_id]=r);
+  // 데이터: 범위(from~to) 내 행
+  const rangeRows = (State.salesTmDailyRows||[])
+    .filter(r=>{
+      const dd = String(r.work_date).slice(0,10);
+      return dd >= from && dd <= to;
+    });
+  // 단일일이면 직접 매핑, 범위면 SUM 집계
+  const SUM_KEYS = ['db_count','received','count','cancelled','waiting','reserved','newpay_fail','absent','prospect','recontact'];
+  const byUser = {};
+  if (isSingleDay) {
+    rangeRows.forEach(r=>{ byUser[r.user_id] = r; });
+  } else {
+    rangeRows.forEach(r=>{
+      if (!byUser[r.user_id]) { byUser[r.user_id] = {user_id:r.user_id}; SUM_KEYS.forEach(k=>byUser[r.user_id][k]=0); }
+      SUM_KEYS.forEach(k=>{ byUser[r.user_id][k] += Number(r[k]||0); });
+    });
+  }
   // 1차 직원만 + 한글 ㄱㄴㄷ 정렬 (대표 지시 — 2차 직원 제외)
   const users = State.users
     .filter(u=>u.role!=='admin' && u.name!=='2' && u.name!=='3' && Number(u.tier)===1)
@@ -4431,7 +4460,7 @@ function renderSalesTMDaily(){
   const tbody=h('tbody');
 
   async function saveDailyCell(uid, patch){
-    const cur = byUser[uid] || { user_id:uid, work_date:d };
+    const d = from; // 단일일 모드일 때만 호출됨 — work_date = from(=to)
     const body = { user_id: uid, work_date: d, ...patch };
     try{
       const r = await api('/api/sales/tm-daily',{method:'POST',body});
@@ -4443,12 +4472,12 @@ function renderSalesTMDaily(){
     }catch(e){ alert(e.message); }
   }
 
-  // 엑셀식 — 브라우저 기본 (클릭/드래그/삭제) + 키보드 칸이동 + Shift+화살표 범위 + 마우스 드래그 (위임으로 처리됨)
+  // 엑셀식 — 단일일 모드에서만 편집. 범위 모드는 합산 표시 (읽기 전용)
   function editableCell(uid, key, val, rowIdx, colIdx){
     const colDef = colDefs.find(c=>c.key===key) || {};
     const cellBg = colDef.headBg || 'transparent';
     const cellFg = colDef.headFg || 'inherit';
-    if (!isPriv) {
+    if (!isPriv || !isSingleDay) {
       return h('td',{style:`text-align:center;font-variant-numeric:tabular-nums;font-weight:700;background:${cellBg};color:${cellFg};padding:8px 10px`}, fmtNum(val||0));
     }
     const input = h('input',{
