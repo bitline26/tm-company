@@ -2783,6 +2783,16 @@ function renderEmployeeMgmt(){
       if(!confirm(`${u.name} ${isSus?'정지를 해제합니다':'계정을 정지합니다 (로그인 차단)'}`)) return;
       doAction(u, isSus?'unsuspend':'suspend');
     });
+    // 이름 수정 — 삭제 대신 안전한 대체 (계정·근태·PB 보존)
+    const renameBtn = h('button',{class:'btn',style:'padding:5px 10px;font-size:11.5px'},'이름수정');
+    renameBtn.addEventListener('click',async()=>{
+      const next = prompt(`'${u.name}' 의 새 이름을 입력하세요 (계정·근태·PB 데이터는 유지됩니다)`, u.name);
+      if(next == null) return;
+      const nm = next.trim();
+      if(!nm){ showToast('이름이 비었습니다'); return; }
+      if(nm === u.name){ return; }
+      await doAction(u, 'rename', { name: nm });
+    });
     // IP 허용 설정 — 모드(전체/허용IP) + 그룹 선택
     const ipBtn = h('button',{class:'btn',style:'padding:5px 10px;font-size:11.5px'},
       u.ip_mode==='restricted' ? `IP (${(u.ip_group_ids||[]).length})` : 'IP');
@@ -2812,7 +2822,7 @@ function renderEmployeeMgmt(){
           )
         )
       ),
-      h('div',{style:'display:flex;gap:6px;flex-shrink:0'}, ipBtn, susBtn, delBtn)
+      h('div',{style:'display:flex;gap:6px;flex-shrink:0'}, renameBtn, ipBtn, susBtn, delBtn)
     );
   });
 
@@ -3044,6 +3054,61 @@ const ORDER_STATUS_LIST=['UNPAID','PAID'];
 const CARRIER_LIST=['SK','KT','LGU'];
 const fmtKRW=(n)=>'₩'+(Number(n||0)).toLocaleString('ko-KR');
 
+// 한국 시중은행 코드 (3자리, 금융결제원 표준)
+const BANK_CODES = {
+  'KB국민':'004','신한':'088','우리':'020','하나':'081','농협':'011','IBK기업':'003',
+  'SC제일':'023','한국씨티':'027','카카오뱅크':'090','케이뱅크':'089','토스뱅크':'092',
+  '새마을금고':'045','신협':'048','우체국':'071','산업':'002','수협':'007',
+  'BNK부산':'032','BNK경남':'039','DGB대구':'031','광주':'034','전북':'037','제주':'035',
+};
+
+// PB 내역 → CSV (Excel 호환, 휴대폰지원금은 수식)
+function exportPbExcel(rows){
+  const headers = ['No','개통일자','TM','고객명','전화번호','통신사','금액','은행','은행코드','계좌','입금일','상태','메모','휴대폰지원금'];
+  const esc = (v)=>{
+    const s = String(v==null?'':v);
+    if(s.startsWith('=')) return s; // 수식은 그대로 (CSV 에서 quote 하면 텍스트로 인식됨)
+    if(/[,\n"]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
+    return s;
+  };
+  const lines = [headers.map(esc).join(',')];
+  rows.forEach((r,i)=>{
+    const rowIdx = i + 2; // 헤더 1행 + 1-indexed
+    const bankCode = BANK_CODES[String(r.payment_bank||'').trim()] || '';
+    // 휴대폰지원금 수식 — 통신사(F열) 기준 ROUND(금액*요율) (요율은 Excel에서 직접 수정)
+    // SK/KT/LGU 모두 0.05 기본값 — 사용자가 셀에서 바로 수정 가능
+    const subsidy = `=IF(F${rowIdx}="SK",ROUND(G${rowIdx}*0.05,0),IF(F${rowIdx}="KT",ROUND(G${rowIdx}*0.05,0),IF(F${rowIdx}="LGU",ROUND(G${rowIdx}*0.05,0),0)))`;
+    const cells = [
+      i+1,
+      r.consult_date ? String(r.consult_date).slice(0,10) : '',
+      r.tm_name || '',
+      r.customer_name || '',
+      r.customer_phone || '',
+      r.carrier || '',
+      Number(r.amount||0),
+      r.payment_bank || '',
+      bankCode,
+      r.payment_account || '',
+      r.payment_date ? String(r.payment_date).slice(0,10) : '',
+      ORDER_STATUS_LABEL[r.status] || r.status || '',
+      r.note || '',
+      subsidy,
+    ];
+    lines.push(cells.map(esc).join(','));
+  });
+  // UTF-8 BOM 필수 (Excel 한글 깨짐 방지)
+  const csv = '﻿' + lines.join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `PB내역_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
 async function loadSalesContext(page, force){
   const tasks = [];
   // vendor 마스터 한 번만
@@ -3257,11 +3322,31 @@ function renderSalesOrders(){
   );
   wrap.append(quickBar);
 
+  // 엑셀 다운로드 — 현재 필터 결과를 CSV(수식 포함) 로 내려받기
+  const excelBtn = h('button',{class:'btn',style:'padding:7px 12px;font-size:12px;font-weight:700'},'📊 엑셀 다운로드');
+  excelBtn.addEventListener('click',()=>{
+    let out = State.salesOrders.slice();
+    const ff = State.salesOrdersFilter;
+    if(ff.status !== 'ALL') out = out.filter(r => r.status === ff.status);
+    if(ff.tm     !== 'ALL') out = out.filter(r => String(r.tm_user_id) === ff.tm);
+    if(ff.vendor !== 'ALL') out = out.filter(r => String(r.vendor_id) === ff.vendor);
+    if(ff.dateFrom) out = out.filter(r => String(r.consult_date||'').slice(0,10) >= ff.dateFrom);
+    if(ff.dateTo)   out = out.filter(r => String(r.consult_date||'').slice(0,10) <= ff.dateTo);
+    if(ff.q){
+      const q = ff.q.trim().toLowerCase();
+      out = out.filter(r => (String(r.customer_name||'')+String(r.customer_phone||'')+String(r.note||'')).toLowerCase().includes(q));
+    }
+    if(!out.length){ showToast('다운로드할 PB 없음'); return; }
+    exportPbExcel(out);
+    showToast(`${out.length}건 다운로드`);
+  });
+
   const toolbar=h('div',{class:'sales-toolbar'},
     h('span',{class:'label'},'월'), ymI,
     filterStatus,
     filterTm,
     h('div',{style:'flex:1;min-width:160px'}, searchI),
+    excelBtn,
     addBtn   // 직원도 본인 PB 추가 가능 (server: tm_user_id = me.id 자동)
   );
   wrap.append(toolbar);
@@ -3270,37 +3355,61 @@ function renderSalesOrders(){
   if (!State._salesOrderChecked) State._salesOrderChecked = new Set();
   const checkedIds = State._salesOrderChecked;
 
-  // 중복 검출 — State.salesOrders 가 변하지 않으면 재계산 스킵 (메모이제이션)
+  // 중복 검출 — 전화 단순 중복 + 입금 중복(PAID 2건 이상) 분리
   const _dup = (function(){
     if (renderSalesOrders._dupCache && renderSalesOrders._dupCache.ref === State.salesOrders) {
       return renderSalesOrders._dupCache;
     }
-    const phoneCount={};
+    const phoneCount={}, paidPhoneCount={};
     State.salesOrders.forEach(o=>{
       const ph = String(o.customer_phone||'').replace(/[^0-9]/g,'');
-      if (ph.length>=8) phoneCount[ph] = (phoneCount[ph]||0)+1;
+      if (ph.length>=8){
+        phoneCount[ph] = (phoneCount[ph]||0)+1;
+        if (o.status === 'PAID') paidPhoneCount[ph] = (paidPhoneCount[ph]||0)+1;
+      }
     });
     const dupPhones = new Set(Object.keys(phoneCount).filter(k=>phoneCount[k]>1));
-    const cache = { ref: State.salesOrders, dupPhones };
+    const dupPaidPhones = new Set(Object.keys(paidPhoneCount).filter(k=>paidPhoneCount[k]>1));
+    const cache = { ref: State.salesOrders, dupPhones, dupPaidPhones };
     renderSalesOrders._dupCache = cache;
     return cache;
   })();
   const dupPhones = _dup.dupPhones;
+  const dupPaidPhones = _dup.dupPaidPhones;
   function isDupRow(r){
     const ph = String(r.customer_phone||'').replace(/[^0-9]/g,'');
     return ph.length>=8 && dupPhones.has(ph);
   }
+  function isPaidDupRow(r){
+    const ph = String(r.customer_phone||'').replace(/[^0-9]/g,'');
+    return r.status === 'PAID' && ph.length>=8 && dupPaidPhones.has(ph);
+  }
 
-  // 중복 의심 배너 — 전화번호 동일 PB 2건 이상
-  if (dupPhones.size > 0){
+  // 입금 중복 배너 (빨강) — 같은 번호로 PAID 2건 이상
+  if (dupPaidPhones.size > 0){
+    const paidBanner = h('div',{
+      style:'display:flex;align-items:center;gap:10px;padding:11px 16px;margin:0 0 8px;background:#fee2e2;border:1px solid #fca5a5;border-radius:9px;font-size:13px;color:#991b1b'
+    },
+      h('span',{style:'font-size:16px'},'💰'),
+      h('div',{style:'flex:1'},
+        h('div',{style:'font-weight:700'}, `입금 중복 의심 ${dupPaidPhones.size}건 — 같은 번호로 입금완료 PB가 2건 이상`),
+        h('div',{style:'font-size:11.5px;color:#7f1d1d;margin-top:2px'},
+          '동일 고객에게 이중 입금 처리됐을 가능성 — 💰 표시된 행을 확인하세요')),
+    );
+    wrap.append(paidBanner);
+  }
+
+  // 전화번호 단순 중복 배너 (노랑) — 입금 중복 제외 순수 전화 중복
+  const phoneOnlyDups = new Set([...dupPhones].filter(p=>!dupPaidPhones.has(p)));
+  if (phoneOnlyDups.size > 0){
     const dupBanner = h('div',{
       style:'display:flex;align-items:center;gap:10px;padding:11px 16px;margin:0 0 10px;background:#fef3c7;border:1px solid #fcd34d;border-radius:9px;font-size:13px;color:#7c2d12'
     },
       h('span',{style:'font-size:16px'},'⚠'),
       h('div',{style:'flex:1'},
-        h('div',{style:'font-weight:700'}, `중복 의심 PB ${dupPhones.size}건 (전화번호 동일)`),
+        h('div',{style:'font-weight:700'}, `중복 의심 PB ${phoneOnlyDups.size}건 (전화번호 동일)`),
         h('div',{style:'font-size:11.5px;color:#92400e;margin-top:2px'},
-          '동일 고객에게 중복 입금되지 않도록 ☢ 표시된 행을 확인하세요')),
+          '동일 고객 PB가 여러 건 — ☢ 표시된 행을 확인하세요')),
     );
     wrap.append(dupBanner);
   }
@@ -3434,11 +3543,12 @@ function renderSalesOrders(){
   for (const r of rows){
     const canEditThis = isPriv || r.tm_user_id === State.user.id;
     const isDup = isDupRow(r);
+    const isPaidDup = isPaidDupRow(r);
     // 행 클릭 = PB 편집 모달 (권한 있을 때만). 체크박스/버튼 클릭은 stopPropagation으로 제외.
     const tr=h('tr',{
-      class:`row-status-${r.status}`+(isDup?' row-dup':''),
-      style: (isDup?'background:#fff7ed;':'') + (canEditThis?'cursor:pointer':''),
-      title: isDup?'⚠ 중복 의심 — 동일 전화번호 PB가 있음':'',
+      class:`row-status-${r.status}`+(isDup?' row-dup':'')+(isPaidDup?' row-paid-dup':''),
+      style: (isPaidDup?'background:#fee2e2;':(isDup?'background:#fff7ed;':'')) + (canEditThis?'cursor:pointer':''),
+      title: isPaidDup?'💰 입금 중복 의심 — 같은 번호로 입금완료 PB가 또 있음':(isDup?'⚠ 중복 의심 — 동일 전화번호 PB가 있음':''),
     });
     if (canEditThis){
       tr.addEventListener('click', (e)=>{
@@ -3464,12 +3574,19 @@ function renderSalesOrders(){
       const td=h('td');
       const cell=h('div',{class:'cell'});
       td.append(cell);
-      // 고객명 컬럼에 ☢ 뱃지 추가
-      if (isDup && c.k==='customer_name'){
-        cell.append(h('span',{
-          style:'display:inline-block;margin-right:5px;color:#c2410c;font-weight:800;cursor:help',
-          title:'동일 전화번호로 다른 PB가 존재함'
-        },'☢'));
+      // 고객명 컬럼에 중복 뱃지: 입금 중복(💰 빨강) 우선, 그 외 전화 중복(☢ 주황)
+      if (c.k==='customer_name'){
+        if (isPaidDup){
+          cell.append(h('span',{
+            style:'display:inline-block;margin-right:5px;color:#991b1b;font-weight:800;cursor:help',
+            title:'같은 번호로 입금완료 PB가 또 있음 — 이중 입금 의심'
+          },'💰'));
+        } else if (isDup){
+          cell.append(h('span',{
+            style:'display:inline-block;margin-right:5px;color:#c2410c;font-weight:800;cursor:help',
+            title:'동일 전화번호로 다른 PB가 존재함'
+          },'☢'));
+        }
       }
       cell.append(renderOrderCell(c, r[c.k], r));
       tr.append(td);

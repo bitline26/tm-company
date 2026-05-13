@@ -71,6 +71,21 @@ export default requireAuth(async function handler(req, res) {
       await sql`DELETE FROM users WHERE id = ${uid} AND role <> 'admin'`;
       return res.status(200).json({ ok: true });
     }
+    // 이름 수정 — 삭제 후 재가입하면 PB/근태/마감 데이터 다 날아가니 이름만 바꿔주는 안전 경로
+    if (action === 'rename') {
+      const newName = String(body.name||'').trim();
+      if (!newName) return res.status(400).json({ error: '새 이름을 입력하세요' });
+      if (newName.length > 32) return res.status(400).json({ error: '이름이 너무 깁니다 (32자 이내)' });
+      if (newName === '1' || newName === '2' || newName === '3') {
+        return res.status(400).json({ error: '예약된 이름은 사용할 수 없습니다' });
+      }
+      // 중복 체크
+      const dup = await sql`SELECT id FROM users WHERE name = ${newName} AND id <> ${uid} LIMIT 1`;
+      if (dup[0]) return res.status(409).json({ error: '같은 이름의 직원이 이미 있습니다' });
+      const rows = await sql`UPDATE users SET name = ${newName} WHERE id = ${uid} AND role <> 'admin' RETURNING id, name`;
+      if (!rows[0]) return res.status(404).json({ error: '대상 직원이 없습니다' });
+      return res.status(200).json({ ok: true, name: rows[0].name });
+    }
     if (action === 'set_ips') {
       // ips: 배열 — 빈 배열이면 제한 해제 (레거시 호환)
       const rawIps = Array.isArray(body.ips) ? body.ips : [];
