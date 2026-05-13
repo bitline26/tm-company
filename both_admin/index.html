@@ -2145,7 +2145,16 @@ function renderPeople(){
       return true;
     }
 
-    let people=State.users.filter(u=>u.name!=='2' && u.name!=='3').filter(u=>!q||u.name.includes(q));
+    // 1차 직원 → 2차 직원, 각 tier 내 한글 ㄱㄴㄷ 정렬
+    let people=State.users
+      .filter(u=>u.name!=='2' && u.name!=='3')
+      .filter(u=>!q||u.name.includes(q))
+      .slice()
+      .sort((a,b)=>{
+        const ta=Number(a.tier)||9, tb=Number(b.tier)||9;
+        if(ta!==tb) return ta-tb;
+        return String(a.name).localeCompare(String(b.name), 'ko');
+      });
 
     // 날짜 범위 설정된 경우: 그 범위에 기록 있는 직원만
     let totalRecords=0;
@@ -2692,8 +2701,15 @@ function renderEmployeeMgmt(){
     loadEmployeeMgmt().then(()=>{ if(State.user) renderApp(); });
     return h('div',{class:'empty'},'⏳ 직원 목록 불러오는 중…');
   }
-  // 관전용 viewer 계정('2','3')은 노출 제외
-  const list = (State.employeeMgmt||[]).filter(u=>u.name!=='2' && u.name!=='3');
+  // 관전용 viewer 계정('2','3')은 노출 제외 + 1차→2차 / 각 tier 내 한글 ㄱㄴㄷ
+  const list = (State.employeeMgmt||[])
+    .filter(u=>u.name!=='2' && u.name!=='3')
+    .slice()
+    .sort((a,b)=>{
+      const ta=Number(a.tier)||9, tb=Number(b.tier)||9;
+      if(ta!==tb) return ta-tb;
+      return String(a.name).localeCompare(String(b.name), 'ko');
+    });
   if(!list.length) return h('div',{class:'empty'},'등록된 직원이 없습니다');
 
   const statusBadge=(s)=>{
@@ -2717,6 +2733,33 @@ function renderEmployeeMgmt(){
       renderApp();
       showToast('적용 완료');
     }catch(e){ showToast(e.message); }
+  }
+
+  // 비밀번호 변경 모달 (대표 전용)
+  function openPwModal(u){
+    const overlay = h('div',{style:'position:fixed;inset:0;background:rgba(15,15,15,.4);z-index:9999;display:flex;align-items:center;justify-content:center',
+      onClick:(e)=>{ if(e.target===overlay) overlay.remove(); }});
+    const pwI = h('input',{type:'text',placeholder:'새 비밀번호',
+      style:'width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;outline:none'});
+    const card = h('div',{style:'background:#fff;border-radius:14px;padding:22px;width:360px;max-width:92vw;box-shadow:0 8px 32px rgba(0,0,0,.18)'},
+      h('div',{style:'font-size:16px;font-weight:800;margin-bottom:6px'}, `🔑 ${u.name} 비밀번호 변경`),
+      h('div',{style:'color:var(--text-soft);font-size:11.5px;margin-bottom:14px'}, '직원이 이 비번으로 즉시 로그인 가능합니다 (1~64자)'),
+      pwI,
+      h('div',{style:'display:flex;gap:8px;margin-top:16px;justify-content:flex-end'},
+        h('button',{class:'btn',onClick:()=>overlay.remove()},'취소'),
+        h('button',{class:'btn btn-primary',
+          onClick:async()=>{
+            const v = pwI.value.trim();
+            if(!v){ showToast('새 비밀번호를 입력하세요'); return; }
+            try{
+              await api('/api/auth/pending',{method:'POST',body:{id:u.id, action:'set_password', password:v}});
+              overlay.remove();
+              showToast(`${u.name} 비밀번호 변경 완료`);
+            }catch(e){ showToast(e.message); }
+          }},'변경')));
+    overlay.append(card);
+    document.body.append(overlay);
+    setTimeout(()=>pwI.focus(),50);
   }
 
   // IP 그룹 기반 — 직원별 모드(전체/허용IP) + 그룹 다중 체크
@@ -2809,6 +2852,9 @@ function renderEmployeeMgmt(){
       if(nm === u.name){ return; }
       await doAction(u, 'rename', { name: nm });
     });
+    // 비밀번호 변경 — 대표가 새 비번 직접 설정
+    const pwBtn = h('button',{class:'btn',style:'padding:5px 10px;font-size:11.5px'},'비번');
+    pwBtn.addEventListener('click',()=>openPwModal(u));
     // IP 허용 설정 — 모드(전체/허용IP) + 그룹 선택
     const ipBtn = h('button',{class:'btn',style:'padding:5px 10px;font-size:11.5px'},
       u.ip_mode==='restricted' ? `IP (${(u.ip_group_ids||[]).length})` : 'IP');
@@ -2838,7 +2884,7 @@ function renderEmployeeMgmt(){
           )
         )
       ),
-      h('div',{style:'display:flex;gap:6px;flex-shrink:0'}, renameBtn, ipBtn, susBtn, delBtn)
+      h('div',{style:'display:flex;gap:6px;flex-shrink:0'}, renameBtn, pwBtn, ipBtn, susBtn, delBtn)
     );
   });
 

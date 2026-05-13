@@ -1,4 +1,4 @@
-import { sql, requireAuth, readJson } from '../_db.js';
+import { sql, requireAuth, readJson, hashPassword } from '../_db.js';
 
 // 대표 전용 — 회원가입 승인 + 직원 관리(정지/퇴사/IP)
 // GET  /api/auth/pending                       → 승인 대기 목록
@@ -85,6 +85,19 @@ export default requireAuth(async function handler(req, res) {
       const rows = await sql`UPDATE users SET name = ${newName} WHERE id = ${uid} AND role <> 'admin' RETURNING id, name`;
       if (!rows[0]) return res.status(404).json({ error: '대상 직원이 없습니다' });
       return res.status(200).json({ ok: true, name: rows[0].name });
+    }
+    // 비밀번호 변경 (대표 전용) — 직원 관리에서 새 비번 설정
+    if (action === 'set_password') {
+      const newPw = String(body.password || '').trim();
+      if (!newPw) return res.status(400).json({ error: '새 비밀번호를 입력하세요' });
+      if (newPw.length < 1 || newPw.length > 64) {
+        return res.status(400).json({ error: '비밀번호 길이가 잘못됐습니다 (1~64자)' });
+      }
+      const { hash, salt } = hashPassword(newPw);
+      await sql`
+        UPDATE users SET password_hash = ${hash}, password_salt = ${salt}
+        WHERE id = ${uid} AND role <> 'admin'`;
+      return res.status(200).json({ ok: true });
     }
     if (action === 'set_ips') {
       // ips: 배열 — 빈 배열이면 제한 해제 (레거시 호환)
