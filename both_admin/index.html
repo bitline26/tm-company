@@ -386,18 +386,18 @@
   .orders-table tr[class*=" row-status-"] td:first-child::before{
     content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
   }
-  /* 입금완료 — 청록(민트) 톤 */
-  .orders-table tr.row-status-PAID td{background:#ccfbf1}
-  .orders-table tr.row-status-PAID:hover td{background:#99f6e4}
-  .orders-table tr.row-status-PAID td:first-child::before{background:#14b8a6;width:4px}
+  /* 입금완료 — 차분한 회색 톤 */
+  .orders-table tr.row-status-PAID td{background:#f3f4f6;color:#4b5563}
+  .orders-table tr.row-status-PAID:hover td{background:#e5e7eb}
+  .orders-table tr.row-status-PAID td:first-child::before{background:#9ca3af;width:4px}
 
-  /* 미입금 — 살구/오렌지 톤 (입금완료와 확실히 구별) */
+  /* 미입금 — 빨강 */
   .orders-table tr.row-status-UNPAID td,
-  .orders-table tr.row-status-UNPAID_PROOF td{background:#ffedd5}
+  .orders-table tr.row-status-UNPAID_PROOF td{background:#fee2e2}
   .orders-table tr.row-status-UNPAID:hover td,
-  .orders-table tr.row-status-UNPAID_PROOF:hover td{background:#fed7aa}
+  .orders-table tr.row-status-UNPAID_PROOF:hover td{background:#fecaca}
   .orders-table tr.row-status-UNPAID td:first-child::before,
-  .orders-table tr.row-status-UNPAID_PROOF td:first-child::before{background:#f97316;width:4px}
+  .orders-table tr.row-status-UNPAID_PROOF td:first-child::before{background:#ef4444;width:4px}
 
   .orders-table tr.row-status-IN_PROGRESS td{background:#fef3c7}
   .orders-table tr.row-status-IN_PROGRESS:hover td{background:#fde68a}
@@ -410,21 +410,21 @@
   .orders-table tr.row-status-CANCELLED td{background:#f3f4f6;color:#6b7280}
   .orders-table tr.row-status-CANCELLED td:first-child::before{background:#9ca3af}
 
-  /* ── 중복 행 강조 (PAID 녹색 등 status 색깔 위에 강제로 덮어쓰기) ── */
-  /* 입금 중복(💰): 같은 번호로 PAID 2건+ → 진한 빨강 + 4px 빨간 좌측 바 */
-  .orders-table tr.row-paid-dup td{background:#fecaca !important}
-  .orders-table tr.row-paid-dup:hover td{background:#fca5a5 !important}
-  .orders-table tr.row-paid-dup td:first-child::before{background:#dc2626 !important;width:5px !important}
-  .orders-table tr.row-paid-dup td{box-shadow:inset 0 -1px 0 #fca5a5}
+  /* ── 중복 행 강조 (회색/빨강 status 색과 완전히 다른 강한 오렌지) ── */
+  /* 입금 중복(💰): 같은 번호로 PAID 2건+ → 진한 오렌지 + 굵은 좌측 바 */
+  .orders-table tr.row-paid-dup td{background:#fed7aa !important;color:#7c2d12 !important}
+  .orders-table tr.row-paid-dup:hover td{background:#fdba74 !important}
+  .orders-table tr.row-paid-dup td:first-child::before{background:#ea580c !important;width:6px !important}
+  .orders-table tr.row-paid-dup td{box-shadow:inset 0 -1px 0 #fb923c}
   /* 단순 전화 중복(☢): 입금 중복 아닌 경우만 노랑 */
   .orders-table tr.row-dup:not(.row-paid-dup) td{background:#fef3c7 !important}
   .orders-table tr.row-dup:not(.row-paid-dup):hover td{background:#fde68a !important}
-  .orders-table tr.row-dup:not(.row-paid-dup) td:first-child::before{background:#f59e0b !important}
+  .orders-table tr.row-dup:not(.row-paid-dup) td:first-child::before{background:#eab308 !important}
   /* 중복 뱃지 — 흔들림으로 시선 끌기 */
-  @keyframes dup-shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-1.5px)} 75%{transform:translateX(1.5px)} }
-  .orders-table .dup-badge{display:inline-block;font-weight:900;cursor:help;animation:dup-shake 1.6s ease-in-out infinite}
-  .orders-table .dup-badge.paid{color:#991b1b;font-size:15px;margin-right:6px}
-  .orders-table .dup-badge.phone{color:#c2410c;font-size:14px;margin-right:5px}
+  @keyframes dup-shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-2px)} 75%{transform:translateX(2px)} }
+  .orders-table .dup-badge{display:inline-block;font-weight:900;cursor:help;animation:dup-shake 1.4s ease-in-out infinite}
+  .orders-table .dup-badge.paid{color:#9a3412;font-size:15px;margin-right:6px;padding:2px 8px;background:#fff;border:2px solid #ea580c;border-radius:6px}
+  .orders-table .dup-badge.phone{color:#a16207;font-size:14px;margin-right:5px}
   .orders-table tr.row-status-CANCELLED .cell{text-decoration:line-through;opacity:.65}
 
   /* 상태 칩 (orders status) */
@@ -575,7 +575,7 @@ const State = {
   salesDayClosingTotal: 0,         // 당일 sales_tm_daily.count SUM
   salesMonthClosingTotal: 0,       // 당월 sales_tm_daily.count SUM
   salesMonthVendorCompletedTotal:0,// 당월 sales_vendor_daily.completed_count SUM
-  salesOrdersFilter: { status:'UNPAID', tm:'ALL', vendor:'ALL', q:'', dateFrom:'', dateTo:'' },
+  salesOrdersFilter: { status:'ALL', tm:'ALL', vendor:'ALL', q:'', dateFrom:'', dateTo:'' },
 
   // 캐시 키 (로드된 컨텍스트 추적 — 같은 키면 페치 스킵)
   salesOrdersLoadedYm: null,
@@ -3329,7 +3329,7 @@ function renderSalesOrders(){
     h('button',{class:'btn',style:'padding:6px 14px;font-size:12px',
       onClick:()=>{
         // 필터/날짜 초기화
-        State.salesOrdersFilter={status:'UNPAID',tm:'ALL',vendor:'ALL',q:'',dateFrom:'',dateTo:''};
+        State.salesOrdersFilter={status:'ALL',tm:'ALL',vendor:'ALL',q:'',dateFrom:'',dateTo:''};
         State.salesYm = thisYm;
         State.salesOrdersLoadedYm = null;
         State._salesOrderChecked = new Set();
@@ -3483,8 +3483,8 @@ function renderSalesOrders(){
   }
   const curStatus = State.salesOrdersFilter.status;
   const sumRow = h('div',{style:'display:flex;gap:10px;margin:0 0 12px;flex-wrap:wrap'},
-    summaryCard('🔴 미입금',   cntUnpaid,   sumUnpaid, '#fef2f2','#991b1b','#fca5a5','UNPAID', curStatus==='UNPAID'),
-    summaryCard('🟢 입금완료', cntPaid,     sumPaid,   '#d1fae5','#065f46','#6ee7b7','PAID',   curStatus==='PAID'),
+    summaryCard('🔴 미입금',   cntUnpaid,   sumUnpaid, '#fee2e2','#991b1b','#fca5a5','UNPAID', curStatus==='UNPAID'),
+    summaryCard('⚪ 입금완료', cntPaid,     sumPaid,   '#f3f4f6','#374151','#d1d5db','PAID',   curStatus==='PAID'),
     summaryCard('전체',        rows.length, sumTotal,  '#fff',   '#37352f','#e9e9e7','ALL',    curStatus==='ALL'),
   );
   wrap.append(sumRow);
