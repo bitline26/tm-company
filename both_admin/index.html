@@ -413,8 +413,12 @@
 
   .orders-table tr.row-status-CANCELLED .cell{text-decoration:line-through;opacity:.65}
 
-  /* ── 중복 행 — 행 배경은 status 색(PAID 초록 / UNPAID 빨강) 그대로 유지.
-       중복 표시는 뱃지(💰 / ☢)로만. ── */
+  /* ── 중복 행 ──
+     입금 중복(PAID 2건+ 같은 번호) 행만 회색으로 덮어씀.
+     단순 전화번호 중복(row-dup, PAID 아님)은 status 색(빨강) 그대로 유지. */
+  .orders-table tr.row-paid-dup td{background:#f3f4f6 !important;color:#4b5563 !important}
+  .orders-table tr.row-paid-dup:hover td{background:#e5e7eb !important}
+  .orders-table tr.row-paid-dup td:first-child::before{background:#9ca3af !important}
   @keyframes dup-shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-2px)} 75%{transform:translateX(2px)} }
   .orders-table .dup-badge{display:inline-block;font-weight:900;cursor:help;animation:dup-shake 1.4s ease-in-out infinite}
   .orders-table .dup-badge.paid{color:#4b5563;font-size:15px;margin-right:6px;padding:2px 8px;background:#fff;border:2px solid #9ca3af;border-radius:6px}
