@@ -386,16 +386,18 @@
   .orders-table tr[class*=" row-status-"] td:first-child::before{
     content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
   }
-  .orders-table tr.row-status-PAID td{background:#d1fae5}
-  .orders-table tr.row-status-PAID:hover td{background:#a7f3d0}
-  .orders-table tr.row-status-PAID td:first-child::before{background:#10b981}
+  /* 입금완료 — 청록(민트) 톤 */
+  .orders-table tr.row-status-PAID td{background:#ccfbf1}
+  .orders-table tr.row-status-PAID:hover td{background:#99f6e4}
+  .orders-table tr.row-status-PAID td:first-child::before{background:#14b8a6;width:4px}
 
+  /* 미입금 — 살구/오렌지 톤 (입금완료와 확실히 구별) */
   .orders-table tr.row-status-UNPAID td,
-  .orders-table tr.row-status-UNPAID_PROOF td{background:#fef2f2}
+  .orders-table tr.row-status-UNPAID_PROOF td{background:#ffedd5}
   .orders-table tr.row-status-UNPAID:hover td,
-  .orders-table tr.row-status-UNPAID_PROOF:hover td{background:#fee2e2}
+  .orders-table tr.row-status-UNPAID_PROOF:hover td{background:#fed7aa}
   .orders-table tr.row-status-UNPAID td:first-child::before,
-  .orders-table tr.row-status-UNPAID_PROOF td:first-child::before{background:#ef4444}
+  .orders-table tr.row-status-UNPAID_PROOF td:first-child::before{background:#f97316;width:4px}
 
   .orders-table tr.row-status-IN_PROGRESS td{background:#fef3c7}
   .orders-table tr.row-status-IN_PROGRESS:hover td{background:#fde68a}

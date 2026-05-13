@@ -1,7 +1,7 @@
 // 영업 모듈 통합 디스패처 (Vercel 함수 수 절감 — 1 function)
 // /api/sales/orders, /api/sales/vendors, /api/sales/period,
 // /api/sales/tm-summary, /api/sales/tm-daily, /api/sales/vendor-daily
-import { sql, requireAuth, readJson } from '../_db.js';
+import { sql, requireAuth, readJson, ensureSchema } from '../_db.js';
 
 const ORDER_STATUS = new Set(['PAID','IN_PROGRESS','UNPAID','UNPAID_PROOF','PARTIAL','CANCELLED']);
 
@@ -16,6 +16,9 @@ function weekdaysInMonth(y, m) {
 }
 
 export default requireAuth(async function handler(req, res) {
+  // 마이그레이션 완료 보장 — requireAuth 는 백그라운드로 ensureSchema 발사하므로 명시 대기
+  // (데모 시드 등 신규 마이그레이션이 첫 호출에 즉시 반영돼야 함)
+  await ensureSchema();
   const op = String(req.query.op || '').toLowerCase();
   const me = req.user;
   const isPriv = me.role === 'admin' || me.role === 'manager';
