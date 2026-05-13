@@ -4618,58 +4618,7 @@ if(!window._shBound){
       })();
       return;
     }
-    // Ctrl/Cmd + C — 범위 → TSV 클립보드 (범위 없으면 단일 셀)
-    if((e.ctrlKey || e.metaKey) && (e.key==='c' || e.key==='C')){
-      const rng = _shRangeInputs();
-      let cellsByRow;
-      if(rng.length >= 2){
-        e.preventDefault();
-        const r1 = Math.min(_shSel.anchor.r, _shSel.head.r), r2 = Math.max(_shSel.anchor.r, _shSel.head.r);
-        const c1 = Math.min(_shSel.anchor.c, _shSel.head.c), c2 = Math.max(_shSel.anchor.c, _shSel.head.c);
-        const lines = [];
-        for(let r=r1; r<=r2; r++){
-          const row = [];
-          for(let c=c1; c<=c2; c++){
-            const inp = _shCellAt(r, c);
-            row.push(inp ? inp.value : '');
-          }
-          lines.push(row.join('\t'));
-        }
-        const tsv = lines.join('\n');
-        try { navigator.clipboard.writeText(tsv); }catch(_){}
-        return;
-      }
-      // 단일 셀이면 브라우저 기본 (input value 복사)에 맡김
-      return;
-    }
-    // Ctrl/Cmd + V — TSV 파싱해서 현재 셀 기준 우/하로 채워넣기
-    if((e.ctrlKey || e.metaKey) && (e.key==='v' || e.key==='V')){
-      e.preventDefault();
-      (async ()=>{
-        let text = '';
-        try { text = await navigator.clipboard.readText(); } catch(_) { return; }
-        if(!text) return;
-        const rows = text.replace(/\r/g,'').replace(/\n$/,'').split('\n').map(r=>r.split('\t'));
-        const r0 = Number(input.dataset.r), c0 = Number(input.dataset.c);
-        for(let i=0; i<rows.length; i++){
-          for(let j=0; j<rows[i].length; j++){
-            const cur = _shCellAt(r0+i, c0+j);
-            if(!cur) continue;
-            const raw = String(rows[i][j]||'').replace(/[^0-9-]/g,'');
-            const nv = String(Number(raw)||0);
-            if(cur.value === nv) continue;
-            cur.value = nv;
-            if(typeof cur._sheetSave === 'function'){
-              try { await cur._sheetSave(); } catch(_){}
-            }
-          }
-        }
-        _shClearRange();
-        const back = _shCellAt(r0, c0);
-        if(back){ back.focus(); try{back.select();}catch(_){} }
-      })();
-      return;
-    }
+    // Ctrl+C / Ctrl+V 는 표준 copy/paste 이벤트 핸들러에서 처리 (clipboardData 사용 — 권한 불필요)
     if(e.key==='Escape'){
       _shStopNav(); _shClearRange();
       if(input.dataset.orig !== undefined) input.value = input.dataset.orig;
@@ -4789,11 +4738,65 @@ if(!window._shBound){
   document.addEventListener('mouseup', ()=>{
     if(_shDrag.dragging){
       _shDrag.dragging = false;
-      // 단일 셀(드래그 안 함)이면 범위 해제 — 일반 클릭 진입 흐름
       if(_shSel.anchor && _shSel.head && _shSel.anchor.r===_shSel.head.r && _shSel.anchor.c===_shSel.head.c){
+        // 단일 클릭(드래그 X) — 범위 해제
         _shClearRange();
+      } else if(_shSel.anchor){
+        // 드래그 완료 — anchor 셀에 포커스 (Ctrl+C/V/Del 동작용)
+        const a = _shCellAt(_shSel.anchor.r, _shSel.anchor.c);
+        if(a) a.focus();
       }
     }
+  }, true);
+  // === copy 이벤트 — clipboardData 직접 set, 권한 불필요 ===
+  document.addEventListener('copy', e=>{
+    const t = document.activeElement;
+    if(!t || !t.classList || !t.classList.contains('sheet-input')) return;
+    const rng = _shRangeInputs();
+    if(rng.length < 2) return; // 단일 셀은 브라우저 기본
+    const r1 = Math.min(_shSel.anchor.r,_shSel.head.r), r2 = Math.max(_shSel.anchor.r,_shSel.head.r);
+    const c1 = Math.min(_shSel.anchor.c,_shSel.head.c), c2 = Math.max(_shSel.anchor.c,_shSel.head.c);
+    const lines = [];
+    for(let r=r1; r<=r2; r++){
+      const row = [];
+      for(let c=c1; c<=c2; c++){
+        const inp = _shCellAt(r, c);
+        row.push(inp ? inp.value : '');
+      }
+      lines.push(row.join('\t'));
+    }
+    if(e.clipboardData){
+      e.clipboardData.setData('text/plain', lines.join('\n'));
+      e.preventDefault();
+    }
+  }, true);
+  // === paste 이벤트 — TSV 파싱해 현재 셀 기준 우/하로 채움 ===
+  document.addEventListener('paste', e=>{
+    const t = document.activeElement;
+    if(!t || !t.classList || !t.classList.contains('sheet-input')) return;
+    const text = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
+    if(!text) return;
+    e.preventDefault();
+    const rows = text.replace(/\r/g,'').replace(/\n$/,'').split('\n').map(r=>r.split('\t'));
+    const r0 = Number(t.dataset.r), c0 = Number(t.dataset.c);
+    (async ()=>{
+      for(let i=0; i<rows.length; i++){
+        for(let j=0; j<rows[i].length; j++){
+          const cur = _shCellAt(r0+i, c0+j);
+          if(!cur) continue;
+          const raw = String(rows[i][j]||'').replace(/[^0-9-]/g,'');
+          const nv = String(Number(raw)||0);
+          if(cur.value === nv) continue;
+          cur.value = nv;
+          if(typeof cur._sheetSave === 'function'){
+            try { await cur._sheetSave(); } catch(_){}
+          }
+        }
+      }
+      _shClearRange();
+      const back = _shCellAt(r0, c0);
+      if(back){ back.focus(); try{back.select();}catch(_){} }
+    })();
   }, true);
 }
 
@@ -4893,9 +4896,46 @@ if(!window._vcKeyupBound){
     if(_vcDrag.dragging){
       _vcDrag.dragging = false;
       if(_vcSel.anchor && _vcSel.head && _vcSel.anchor === _vcSel.head){
-        _vcClearRange();  // 단일 클릭은 범위 해제
+        _vcClearRange();
+      } else if(_vcSel.anchor){
+        _vcSel.anchor.focus();  // 드래그 완료 — anchor 포커스
       }
     }
+  }, true);
+  // === copy 이벤트 (vendor) ===
+  document.addEventListener('copy', e=>{
+    const t = document.activeElement;
+    if(!t || !t.classList || !t.classList.contains('vc-input')) return;
+    const rng = _vcRangeInputs();
+    if(rng.length < 2) return;
+    const tsv = rng.map(inp=>inp.value).join('\t');
+    if(e.clipboardData){
+      e.clipboardData.setData('text/plain', tsv);
+      e.preventDefault();
+    }
+  }, true);
+  // === paste 이벤트 (vendor) — TSV → 현재 input 부터 우측으로 채움 ===
+  document.addEventListener('paste', e=>{
+    const t = document.activeElement;
+    if(!t || !t.classList || !t.classList.contains('vc-input')) return;
+    const text = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
+    if(!text) return;
+    e.preventDefault();
+    const flat = text.replace(/\r/g,'').replace(/\n$/,'').split(/[\t\n]/);
+    const all = _vcAllInputs();
+    const start = all.indexOf(t);
+    if(start < 0) return;
+    for(let i=0; i<flat.length; i++){
+      const cur = all[start + i];
+      if(!cur) break;
+      const raw = String(flat[i]||'').replace(/[^0-9-]/g,'');
+      const nv = String(Number(raw)||0);
+      if(cur.value === nv) continue;
+      cur.value = nv;
+      cur.dispatchEvent(new Event('blur'));
+    }
+    _vcClearRange();
+    t.focus();
   }, true);
 }
 
@@ -4978,43 +5018,7 @@ function vendorCell(v, key, label, isPriv){
         return;
       }
     }
-    // Ctrl/Cmd + C — 범위 TSV 복사 (단일 셀은 브라우저 기본)
-    if((e.ctrlKey || e.metaKey) && (e.key==='c' || e.key==='C')){
-      const rng = _vcRangeInputs();
-      if(rng.length >= 2){
-        e.preventDefault();
-        // 유입분석은 1D 인덱스 — 같은 카드 4셀(2x2)이 연속 인덱스. 카드 단위 줄바꿈은 무시하고 한 줄로 본다.
-        const tsv = rng.map(inp=>inp.value).join('\t');
-        try { navigator.clipboard.writeText(tsv); }catch(_){}
-        return;
-      }
-      return;
-    }
-    // Ctrl/Cmd + V — TSV 파싱해 현재 input 부터 우측으로 채움
-    if((e.ctrlKey || e.metaKey) && (e.key==='v' || e.key==='V')){
-      e.preventDefault();
-      (async ()=>{
-        let text = '';
-        try { text = await navigator.clipboard.readText(); } catch(_) { return; }
-        if(!text) return;
-        const flat = text.replace(/\r/g,'').replace(/\n$/,'').split(/[\t\n]/);
-        const all = _vcAllInputs();
-        const start = all.indexOf(input);
-        if(start < 0) return;
-        for(let i=0; i<flat.length; i++){
-          const cur = all[start + i];
-          if(!cur) break;
-          const raw = String(flat[i]||'').replace(/[^0-9-]/g,'');
-          const nv = String(Number(raw)||0);
-          if(cur.value === nv) continue;
-          cur.value = nv;
-          cur.dispatchEvent(new Event('blur'));
-        }
-        _vcClearRange();
-        input.focus();
-      })();
-      return;
-    }
+    // Ctrl+C / Ctrl+V 는 표준 copy/paste 이벤트 핸들러에서 처리
     const dir = e.key==='ArrowUp'?'up':e.key==='ArrowDown'?'down':e.key==='ArrowLeft'?'left':e.key==='ArrowRight'?'right':null;
     if(!dir) return;
     e.preventDefault();

@@ -69,6 +69,17 @@ export default async function handler(req) {
     const { start, end } = ymToRange(ym);
     const isPriv = user.role === 'admin' || user.role === 'manager';
 
+    // 2차 직원 이름의 '공용 ' 접두는 표시 단계에서도 즉시 제거 (DB 마이그레이션 전이어도 화면엔 깔끔히)
+    const _renamePub = (arr) => {
+      for (const u of (arr || [])) {
+        if (u && typeof u.name === 'string') {
+          if (u.name === '공용 고윤호') u.name = '고윤호 (2차)';
+          else if (u.name.startsWith('공용 ') && Number(u.tier) === 2) u.name = u.name.slice(3);
+        }
+      }
+      return arr;
+    };
+
     let users, records, salesVendors = [], salesOrders = null;
     if (isPriv) {
       [users, records, salesVendors, salesOrders] = await Promise.all([
@@ -96,6 +107,8 @@ export default async function handler(req) {
           WHERE o.consult_date >= ${start} AND o.consult_date < ${end}
           ORDER BY (o.payment_date IS NULL), o.payment_date ASC, o.consult_date ASC, o.id ASC`,
       ]);
+      _renamePub(users);
+      _renamePub(salesOrders); // tm_name 도 동일 패턴이면 안 맞지만 PB는 1차 직원만 담당이라 영향 없음
     } else if (Number(user.tier) === 2) {
       // 2차 직원 — 같은 tier=2 직원들의 정보 + 근태 공유
       [users, records, salesVendors] = await Promise.all([
@@ -121,6 +134,7 @@ export default async function handler(req) {
       if (user.name === '3' && !users.find(u=>u.id===user.id)) {
         users.unshift({ id: user.id, name: user.name, role: user.role, tier: user.tier, registered: true });
       }
+      _renamePub(users);
     } else {
       users = [{ id: user.id, name: user.name, role: user.role, tier: user.tier, registered: true }];
       [records, salesVendors] = await Promise.all([

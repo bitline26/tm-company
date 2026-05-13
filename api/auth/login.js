@@ -107,9 +107,21 @@ export default async function handler(req) {
       }
     }
 
+    // 표시 단계 rename — '공용 ' 접두 제거 (마이그레이션 전 대비)
+    const _renamePub = (arr) => {
+      for (const x of (arr || [])) {
+        if (x && typeof x.name === 'string') {
+          if (x.name === '공용 고윤호') x.name = '고윤호 (2차)';
+          else if (x.name.startsWith('공용 ') && Number(x.tier) === 2) x.name = x.name.slice(3);
+        }
+      }
+      return arr;
+    };
+
     let users, records, salesVendors, salesOrders;
     if (isPriv) {
       [users, records, salesVendors, salesOrders] = await Promise.all([usersP, recordsP, vendorsP, ordersP]);
+      _renamePub(users);
     } else if (Number(u.tier) === 2) {
       // 2차 직원 — 같은 tier=2 직원들의 정보 + 근태 공유
       const [allUsers, allRecords, vendors] = await Promise.all([usersP, recordsP, vendorsP]);
@@ -118,6 +130,7 @@ export default async function handler(req) {
       if (u.name === '3' && !users.find(x=>x.id===u.id)) {
         users.unshift({ id: u.id, name: u.name, role: u.role, tier: u.tier, registered: true });
       }
+      _renamePub(users);
       const tier2Ids = new Set(users.map(x=>x.id));
       records = allRecords.filter(r => tier2Ids.has(r.user_id));
       salesVendors = vendors;
