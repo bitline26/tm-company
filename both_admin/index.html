@@ -5028,15 +5028,39 @@ if(!window._vcKeyupBound){
       }
     }
   }, true);
-  // === copy 이벤트 (vendor) ===
+  // === copy 이벤트 (vendor) — 카드 내 2x2 격자 보존 (행=\n, 열=\t) ===
   document.addEventListener('copy', e=>{
     const t = document.activeElement;
     if(!t || !t.classList || !t.classList.contains('vc-input')) return;
     const rng = _vcRangeInputs();
     if(rng.length < 2) return;
-    const tsv = rng.map(inp=>inp.value).join('\t');
+    // 각 카드별로 묶고, 카드 안에서 (행=index/2, 열=index%2) 격자로 복원
+    const byCard = new Map();
+    for (const inp of rng){
+      const card = inp.closest('.vendor-card');
+      if(!card) continue;
+      if(!byCard.has(card)) byCard.set(card, []);
+      byCard.get(card).push(inp);
+    }
+    const lines = [];
+    for (const [card, inps] of byCard){
+      const cardInps = Array.from(card.querySelectorAll('.vc-input'));
+      const cells = inps.map(inp => {
+        const idx = cardInps.indexOf(inp);
+        return { r: Math.floor(idx/2), c: idx%2, v: inp.value };
+      });
+      const rs = [...new Set(cells.map(x=>x.r))].sort();
+      const cs = [...new Set(cells.map(x=>x.c))].sort();
+      for (const r of rs){
+        const row = cs.map(c => {
+          const hit = cells.find(x=>x.r===r && x.c===c);
+          return hit ? hit.v : '';
+        });
+        lines.push(row.join('\t'));
+      }
+    }
     if(e.clipboardData){
-      e.clipboardData.setData('text/plain', tsv);
+      e.clipboardData.setData('text/plain', lines.join('\n'));
       e.preventDefault();
     }
   }, true);
