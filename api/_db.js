@@ -243,10 +243,10 @@ export async function ensureSchema() {
     // v21: 2차직원 이름의 '공용 ' 접두 제거 (대표 지시) — 고윤호 충돌만 " (2차)" suffix
     await sql`UPDATE users SET name = '고윤호 (2차)' WHERE name = '공용 고윤호'`;
     await sql`UPDATE users SET name = SUBSTRING(name FROM 4) WHERE name LIKE '공용 %' AND tier = 2`;
-    // v23: 2차직원 이름 오타 정정 (대표 지시) — 전은하→전은용, 이준헌→이준형, 남성영→남선영
-    await sql`UPDATE users SET name = '전은용' WHERE name = '전은하'`;
-    await sql`UPDATE users SET name = '이준형' WHERE name = '이준헌'`;
-    await sql`UPDATE users SET name = '남선영' WHERE name = '남성영'`;
+    // v23-rollback: 이름 정정 철회 — 이미 새 이름으로 바뀐 DB 행을 원래 이름으로 되돌림
+    await sql`UPDATE users SET name = '전은하' WHERE name = '전은용'`;
+    await sql`UPDATE users SET name = '이준헌' WHERE name = '이준형'`;
+    await sql`UPDATE users SET name = '남성영' WHERE name = '남선영'`;
     // v22: 입금 중복 시각화 데모 데이터 1회 시드 (같은 번호로 PAID 2건)
     let runDemoDup = false;
     try {
@@ -333,8 +333,8 @@ export async function ensureSchema() {
       const TIER2_SEED = [
         ['강보람','tami0226'],['고윤호 (2차)','tami308'],['국나래','tami1217'],
         ['권용훈','tami000'],['김민정','tami1114'],['김선화','tami09240'],
-        ['남선영','tami03010'],['이준형','tami09150'],['이지윤','tami1004'],
-        ['전은용','tami10220'],['정민지','tami0721'],
+        ['남성영','tami03010'],['이준헌','tami09150'],['이지윤','tami1004'],
+        ['전은하','tami10220'],['정민지','tami0721'],
         ['김대헌','tami0214'],['심재범','tami03080'],['이예진','tami03310'],
         ['이주필','tami03230'],['한재상','tami0423'],
       ];
