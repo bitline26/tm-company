@@ -3465,21 +3465,23 @@ function renderSalesOrders(){
   if (!State._salesOrderChecked) State._salesOrderChecked = new Set();
   const checkedIds = State._salesOrderChecked;
 
-  // 중복 검출 — 전화 단순 중복 + 입금 중복(PAID 2건 이상) 분리
+  // 중복 검출 (대표 지시) — 동일 전화번호 2건+ 이고 그중 입금완료가 1건 이상 있으면
+  // PAID/UNPAID 가리지 않고 모두 입금중복 의심 (이중 입금 방지). 입금완료가 없으면 단순 전화중복.
   const _dup = (function(){
     if (renderSalesOrders._dupCache && renderSalesOrders._dupCache.ref === State.salesOrders) {
       return renderSalesOrders._dupCache;
     }
-    const phoneCount={}, paidPhoneCount={};
+    const phoneCount={}, paidPhones=new Set();
     State.salesOrders.forEach(o=>{
       const ph = String(o.customer_phone||'').replace(/[^0-9]/g,'');
       if (ph.length>=8){
         phoneCount[ph] = (phoneCount[ph]||0)+1;
-        if (o.status === 'PAID') paidPhoneCount[ph] = (paidPhoneCount[ph]||0)+1;
+        if (o.status === 'PAID') paidPhones.add(ph);
       }
     });
     const dupPhones = new Set(Object.keys(phoneCount).filter(k=>phoneCount[k]>1));
-    const dupPaidPhones = new Set(Object.keys(paidPhoneCount).filter(k=>paidPhoneCount[k]>1));
+    // 입금중복 의심 = 같은 번호 2건+ 이면서 그중 PAID 가 1건 이상 존재
+    const dupPaidPhones = new Set([...dupPhones].filter(p=>paidPhones.has(p)));
     const cache = { ref: State.salesOrders, dupPhones, dupPaidPhones };
     renderSalesOrders._dupCache = cache;
     return cache;
@@ -3491,20 +3493,21 @@ function renderSalesOrders(){
     return ph.length>=8 && dupPhones.has(ph);
   }
   function isPaidDupRow(r){
+    // PAID/UNPAID 무관 — 같은 번호로 입금완료가 존재하는 모든 행을 입금중복으로 표시
     const ph = String(r.customer_phone||'').replace(/[^0-9]/g,'');
-    return r.status === 'PAID' && ph.length>=8 && dupPaidPhones.has(ph);
+    return ph.length>=8 && dupPaidPhones.has(ph);
   }
 
-  // 입금 중복 배너 (빨강) — 같은 번호로 PAID 2건 이상
+  // 입금 중복 배너 (빨강) — 같은 번호로 입금완료 + 다른 PB(미입금이든 입금완료든) 공존
   if (dupPaidPhones.size > 0){
     const paidBanner = h('div',{
       style:'display:flex;align-items:center;gap:10px;padding:11px 16px;margin:0 0 8px;background:#fee2e2;border:1px solid #fca5a5;border-radius:9px;font-size:13px;color:#991b1b'
     },
       h('span',{style:'font-size:16px'},'💰'),
       h('div',{style:'flex:1'},
-        h('div',{style:'font-weight:700'}, `입금 중복 의심 ${dupPaidPhones.size}건 — 같은 번호로 입금완료 PB가 2건 이상`),
+        h('div',{style:'font-weight:700'}, `입금 중복 의심 ${dupPaidPhones.size}건 — 같은 번호로 입금완료된 PB가 있는데 다른 행도 존재`),
         h('div',{style:'font-size:11.5px;color:#7f1d1d;margin-top:2px'},
-          '동일 고객에게 이중 입금 처리됐을 가능성 — 💰 표시된 행을 확인하세요')),
+          '이미 입금된 고객인데 미입금/입금완료 추가 PB 존재 — 💰 표시된 행 확인. 미입금→입금완료 변경 시 차단됩니다.')),
     );
     wrap.append(paidBanner);
   }
@@ -3594,6 +3597,29 @@ function renderSalesOrders(){
       h('div',{style:'flex:1'}),
       h('button',{class:'btn btn-primary',style:'padding:7px 16px;font-size:12.5px;background:#10b981;border-color:#10b981',
         onClick:async()=>{
+          // 입금 중복 차단 (대표 지시) — 같은 번호로 이미 PAID 행이 있는데 미입금→입금완료로 바꾸려 할 때 경고/차단
+          const blocked = [];
+          for (const id of checkedIdsInView){
+            const r = State.salesOrders.find(x=>x.id===id);
+            if (!r || r.status === 'PAID') continue;
+            const ph = String(r.customer_phone||'').replace(/[^0-9]/g,'');
+            if (ph.length < 8) continue;
+            const existPaid = State.salesOrders.find(x=>{
+              if (x.id === r.id || x.status !== 'PAID') return false;
+              return String(x.customer_phone||'').replace(/[^0-9]/g,'') === ph;
+            });
+            if (existPaid) blocked.push({r, existPaid});
+          }
+          if (blocked.length){
+            const list = blocked.slice(0,5).map(({r,existPaid})=>{
+              const d=String(existPaid.consult_date||'').slice(0,10);
+              const amt=existPaid.amount?` · ₩${Number(existPaid.amount).toLocaleString('ko-KR')}`:'';
+              return `· ${r.customer_name||'(이름없음)'} ${r.customer_phone} — 기 입금: ${d}${amt}`;
+            }).join('\n');
+            const extra = blocked.length>5?`\n외 ${blocked.length-5}건`:'';
+            alert(`⛔ 입금 중복 차단 ${blocked.length}건\n\n다음 PB는 같은 전화번호로 이미 입금완료 행이 존재합니다. 이중 입금 방지를 위해 처리할 수 없습니다:\n${list}${extra}\n\n해당 행 체크 해제 후 다시 시도하세요.`);
+            return;
+          }
           if(!confirm(`선택한 ${checkedIdsInView.length}건을 모두 입금완료로 변경합니다`)) return;
           let okCnt=0, failCnt=0;
           await Promise.all(checkedIdsInView.map(async id=>{
@@ -3943,6 +3969,23 @@ function openOrderModal(existingOrder){
       status:         statusSel.value || 'UNPAID',
       note:           noteI.value.trim() || null,
     };
+    // 입금 중복 차단 (대표 지시) — 같은 번호로 이미 입금완료된 PB가 있을 때 PAID 로 저장 차단
+    if (body.status === 'PAID' && body.customer_phone){
+      const ph = String(body.customer_phone).replace(/[^0-9]/g,'');
+      if (ph.length >= 8){
+        const existPaid = (State.salesOrders||[]).find(x=>{
+          if (existingOrder && x.id === existingOrder.id) return false;
+          if (x.status !== 'PAID') return false;
+          return String(x.customer_phone||'').replace(/[^0-9]/g,'') === ph;
+        });
+        if (existPaid){
+          const d=String(existPaid.consult_date||'').slice(0,10);
+          const amt=existPaid.amount?` · ₩${Number(existPaid.amount).toLocaleString('ko-KR')}`:'';
+          alert(`⛔ 입금 중복 차단\n\n이 전화번호로 이미 입금완료된 PB가 있습니다:\n· ${d} · ${existPaid.customer_name||'(이름없음)'}${amt}\n\n이중 입금 방지 — 입금완료로 저장할 수 없습니다.\n(미입금 상태로는 저장 가능)`);
+          return;
+        }
+      }
+    }
     saveBtn.disabled = true; saveBtn.textContent = '저장 중…';
     try{
       const r = await api('/api/sales/orders',{method:'POST',body});
