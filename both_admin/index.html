@@ -98,7 +98,10 @@
   .sidebar{width:240px;background:var(--bg-soft);border-right:1px solid var(--border);padding:14px 8px;display:flex;flex-direction:column;gap:2px}
   .side-user{padding:10px 10px 14px;border-bottom:1px solid var(--border-soft);margin-bottom:8px}
   .side-user-name{font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px}
-  .role-badge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:600;background:var(--gray-soft);color:var(--text-soft)}
+  .role-badge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:600;background:var(--gray-soft);color:var(--text-soft);white-space:nowrap}
+  /* 일/월 TM 마감 — 직원 이름 셀 한 줄 표시 (이름 + 1차 뱃지) */
+  .tm-table tbody td:first-child{white-space:nowrap;min-width:140px}
+  .tm-table tbody td:first-child > span{white-space:nowrap}
   .role-admin{background:var(--purple-soft);color:var(--purple)}
   .role-manager{background:var(--blue-soft);color:var(--blue)}
   .side-user-meta{font-size:11px;color:var(--text-soft);margin-top:2px}
@@ -420,9 +423,11 @@
   .orders-table tr.row-paid-dup:hover td{background:#e5e7eb !important}
   .orders-table tr.row-paid-dup td:first-child::before{background:#9ca3af !important}
   @keyframes dup-shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-2px)} 75%{transform:translateX(2px)} }
-  .orders-table .dup-badge{display:inline-block;font-weight:900;cursor:help;animation:dup-shake 1.4s ease-in-out infinite}
-  .orders-table .dup-badge.paid{color:#4b5563;font-size:15px;margin-right:6px;padding:2px 8px;background:#fff;border:2px solid #9ca3af;border-radius:6px}
-  .orders-table .dup-badge.phone{color:#6b7280;font-size:14px;margin-right:5px}
+  .orders-table .dup-badge{display:inline-block;font-weight:900;cursor:help;animation:dup-shake 1.4s ease-in-out infinite;white-space:nowrap}
+  .orders-table .dup-badge.paid{color:#4b5563;font-size:12px;margin-right:6px;padding:2px 8px;background:#fff;border:2px solid #9ca3af;border-radius:6px;white-space:nowrap}
+  .orders-table .dup-badge.phone{color:#6b7280;font-size:14px;margin-right:5px;white-space:nowrap}
+  /* PB 고객명 셀 — 중복 뱃지 + 이름 한 줄 */
+  .orders-table tbody td .cell{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;white-space:nowrap}
 
   /* 상태 칩 (orders status) */
   .st-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:5px;font-size:11px;font-weight:700;letter-spacing:-0.005em;white-space:nowrap;border:1px solid transparent}
@@ -3432,6 +3437,83 @@ function renderSalesOrders(){
   );
   wrap.append(quickBar);
 
+  // 엑셀 양식 일괄 등록 (대표 지시) — 양식 순서: TM·개통일자·고객명·전화번호·통신사·금액·은행·계좌·입금일·상태·메모
+  const importBtn = h('button',{class:'btn',style:'padding:7px 12px;font-size:12px;font-weight:700;background:#0f0f0f;color:#fff;border-color:#0f0f0f'},'📥 양식 추가');
+  importBtn.addEventListener('click', ()=>{
+    const fi = document.createElement('input');
+    fi.type='file'; fi.accept='.xlsx,.xls,.csv';
+    fi.addEventListener('change', async ()=>{
+      const file = fi.files?.[0]; if (!file) return;
+      try{
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, {type:'array', cellDates:true});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(ws, {defval:'', raw:false});
+        if (!json.length){ alert('빈 양식입니다'); return; }
+        // 컬럼명 매핑 (한글 헤더 → PB 필드)
+        const COL = (row, ...keys)=>{
+          for (const k of keys) if (row[k] !== undefined && row[k] !== '') return row[k];
+          return '';
+        };
+        const tmByName = new Map(State.users.filter(u=>u.role!=='admin').map(u=>[u.name, u.id]));
+        const toYmd = (v)=>{
+          if (!v) return null;
+          if (v instanceof Date) return `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`;
+          const s = String(v).trim();
+          const m = s.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+          if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+          return s || null;
+        };
+        const statusMap = {'입금완료':'PAID','PAID':'PAID','완료':'PAID','미입금':'UNPAID','UNPAID':'UNPAID','대기':'UNPAID','입금중':'IN_PROGRESS','취소':'CANCELLED','부분':'PARTIAL'};
+        const carrierMap = {'SK':'SK','SKT':'SK','sk':'SK','KT':'KT','kt':'KT','LG':'LGU','LGU':'LGU','LG U+':'LGU','LGU+':'LGU','U+':'LGU'};
+        const rows=[], errors=[];
+        json.forEach((row,idx)=>{
+          const tmName = String(COL(row,'TM','담당자','담당')||'').trim();
+          const tmId = tmName ? tmByName.get(tmName) : null;
+          const carrierRaw = String(COL(row,'통신사','캐리어')||'').trim();
+          const statusRaw = String(COL(row,'상태','status')||'').trim();
+          const order = {
+            tm_user_id: tmId || null,
+            consult_date: toYmd(COL(row,'개통일자','상담일자','일자','날짜')),
+            customer_name: String(COL(row,'고객명','이름','성함')||'').trim() || null,
+            customer_phone: String(COL(row,'전화번호','전화','연락처','휴대폰')||'').trim() || null,
+            carrier: carrierMap[carrierRaw] || carrierRaw || null,
+            amount: Number(String(COL(row,'금액','액수','price')||'0').replace(/[^0-9-]/g,'')) || 0,
+            payment_bank: String(COL(row,'은행','입금은행','bank')||'').trim() || null,
+            payment_account: String(COL(row,'계좌','계좌번호','account')||'').trim() || null,
+            payment_date: toYmd(COL(row,'입금일','입금일자','payment_date')),
+            status: statusMap[statusRaw] || 'UNPAID',
+            note: String(COL(row,'메모','비고','note')||'').trim() || null,
+          };
+          // 입금완료인데 입금일자 비어있으면 오늘로 자동 (대표 지시)
+          if (order.status === 'PAID' && !order.payment_date) {
+            order.payment_date = new Date().toISOString().slice(0,10);
+          }
+          if (tmName && !tmId) errors.push(`${idx+2}행: TM '${tmName}' 미존재 (담당자 미지정으로 등록)`);
+          rows.push(order);
+        });
+        const preview = rows.slice(0,3).map((r,i)=>`${i+1}. ${r.customer_name||'(이름없음)'} · ${r.customer_phone||'-'} · ₩${Number(r.amount||0).toLocaleString()} · ${r.status==='PAID'?'입금완료':'미입금'}`).join('\n');
+        const errMsg = errors.length ? `\n\n⚠ 경고 ${errors.length}건:\n${errors.slice(0,5).join('\n')}${errors.length>5?`\n외 ${errors.length-5}건`:''}` : '';
+        if (!confirm(`엑셀 양식에서 ${rows.length}건을 PB 내역에 추가합니다.\n\n미리보기 (최대 3건):\n${preview}${rows.length>3?`\n...외 ${rows.length-3}건`:''}${errMsg}\n\n진행하시겠습니까?`)) return;
+        let ok=0, fail=0; const failMsgs=[];
+        // 직렬 처리 — 서버 부담/순서 보장
+        for (let i=0;i<rows.length;i++){
+          try{
+            const r = await api('/api/sales/orders',{method:'POST',body:rows[i]});
+            if (r.order) State.salesOrders.unshift(r.order);
+            ok++;
+          }catch(e){ fail++; failMsgs.push(`${i+2}행: ${e.message}`); }
+        }
+        State.salesOrdersLoadedYm = null;
+        loadSalesContext('sales-orders').finally(()=>{ State.loadingPage=null; renderApp(); });
+        alert(`업로드 완료 — 성공 ${ok}건${fail?` / 실패 ${fail}건\n${failMsgs.slice(0,5).join('\n')}`:''}`);
+      }catch(e){
+        alert('엑셀 파싱 실패: '+e.message);
+      }
+    });
+    fi.click();
+  });
+
   // 엑셀 다운로드 — 현재 필터 결과를 CSV(수식 포함) 로 내려받기
   const excelBtn = h('button',{class:'btn',style:'padding:7px 12px;font-size:12px;font-weight:700'},'📊 엑셀 다운로드');
   excelBtn.addEventListener('click',()=>{
@@ -3456,6 +3538,7 @@ function renderSalesOrders(){
     filterStatus,
     filterTm,
     h('div',{style:'flex:1;min-width:160px'}, searchI),
+    importBtn,  // 엑셀 양식 일괄 등록 (대표 지시)
     excelBtn,
     addBtn   // 직원도 본인 PB 추가 가능 (server: tm_user_id = me.id 자동)
   );
@@ -3596,12 +3679,15 @@ function renderSalesOrders(){
             return;
           }
           if(!confirm(`선택한 ${checkedIdsInView.length}건을 모두 입금완료로 변경합니다`)) return;
+          const today = new Date().toISOString().slice(0,10);
           let okCnt=0, failCnt=0;
           await Promise.all(checkedIdsInView.map(async id=>{
             const r = State.salesOrders.find(x=>x.id===id);
             if(!r) return;
             try{
-              const res = await api('/api/sales/orders',{method:'POST',body:{...r,status:'PAID'}});
+              // 입금일자 비어있으면 오늘로 자동 설정 (대표 지시)
+              const payload = {...r, status:'PAID', payment_date: r.payment_date || today};
+              const res = await api('/api/sales/orders',{method:'POST',body:payload});
               Object.assign(r, res.order);
               okCnt++;
             }catch(e){ failCnt++; console.error(e); }
@@ -3775,6 +3861,10 @@ function startEditCell(td, cell, col, row, isPriv){
       if (col.k==='vendor_id') body.vendor_id = newVal?Number(newVal):null;
       if (col.k==='tm_user_id') body.tm_user_id = newVal?Number(newVal):null;
       if (col.k==='amount') body.amount = Number(String(newVal).replace(/[^\d]/g,''))||0;
+      // 인라인 상태를 '입금완료' 로 바꾸면 입금일자 자동 = 오늘 (비어있을 때) — 대표 지시
+      if (col.k==='status' && newVal==='PAID' && !row.payment_date){
+        body.payment_date = new Date().toISOString().slice(0,10);
+      }
       const r=await api('/api/sales/orders',{method:'POST',body});
       Object.assign(row, r.order);
       // 표 행 색상 업데이트 (status 변경 시)
@@ -3918,6 +4008,12 @@ function openOrderModal(existingOrder){
     ...ORDER_STATUS_LIST.map(s=>h('option',{value:s}, ORDER_STATUS_LABEL[s]))
   );
   statusSel.value = (ORDER_STATUS_LIST.includes(o.status) ? o.status : 'UNPAID');
+  // 입금완료 선택 시 입금일자 자동 = 오늘 (비어있을 때만 — 대표 지시: "입금완료 버튼 클릭시 입금일자 딱 뜨게")
+  statusSel.addEventListener('change', ()=>{
+    if (statusSel.value === 'PAID' && !payDateI.value) {
+      payDateI.value = new Date().toISOString().slice(0,10);
+    }
+  });
 
   const noteI   = h('textarea',{rows:3,placeholder:'특이사항/메모',
     style:inputStyle+';resize:vertical;font-family:inherit;min-height:74px'}, o.note||'');
@@ -3929,6 +4025,7 @@ function openOrderModal(existingOrder){
     : null;
 
   async function submit(){
+    const _todayISO = new Date().toISOString().slice(0,10);
     const body = {
       id: existingOrder?.id,
       tm_user_id:     tmSel.value ? Number(tmSel.value) : null,
@@ -3940,7 +4037,8 @@ function openOrderModal(existingOrder){
       amount:         Number(amountI.value) || 0,
       payment_bank:   bankI.value.trim() || null,
       payment_account:accountI.value.trim() || null,
-      payment_date:   payDateI.value || null,
+      // 입금완료인데 입금일자 비어있으면 오늘로 자동 (대표 지시)
+      payment_date:   payDateI.value || (statusSel.value === 'PAID' ? _todayISO : null),
       status:         statusSel.value || 'UNPAID',
       note:           noteI.value.trim() || null,
     };
@@ -4239,9 +4337,12 @@ function renderSalesTM(){
     '디비 효율':{ bg:'#fce7f3', fg:'#9d174d' },
   };
   const cols=['구분','총갯수','일평균','마감예상','총 디비','디비평균','디비 효율'];
+  // 편집 가능한 컬럼 표시 (대표 지시) — 총갯수/총 디비만 직접 입력 가능
+  const EDITABLE_COLS = new Set(['총갯수','총 디비']);
   const thead=h('thead',null,h('tr',null,...cols.map(c=>{
     const m = colMeta[c];
-    return m ? h('th',{style:`background:${m.bg};color:${m.fg}`}, c) : h('th',null,c);
+    const label = EDITABLE_COLS.has(c) ? c+' ✏️' : c;
+    return m ? h('th',{style:`background:${m.bg};color:${m.fg}`,title:EDITABLE_COLS.has(c)?'클릭하여 직접 입력 — 비우면 자동 합산':'자동 계산'}, label) : h('th',null,c);
   })));
   const tbody=h('tbody');
 
@@ -4259,8 +4360,8 @@ function renderSalesTM(){
   }
   function editableMonthCell(uid, key, val, rowIdx, colIdx){
     const m = key==='total_count' ? colMeta['총갯수'] : colMeta['총 디비'];
-    // 총디비는 자동 합산 — 일 TM 마감 db_count 합 (override 폐기). 비편집 셀로 렌더.
-    if (!isPriv || key==='total_db') {
+    // 대표 지시 복원: 총디비도 수동 편집 가능 (자동 합산 디폴트, 대표 override 가능 — 2/3/4월 기존 데이터 백필용)
+    if (!isPriv) {
       return h('td',{style:`text-align:center;font-variant-numeric:tabular-nums;font-weight:700;background:${m.bg};color:${m.fg};padding:8px 10px`}, fmtNum(val||0));
     }
     const input = h('input',{
@@ -4275,10 +4376,8 @@ function renderSalesTM(){
       const newVal = Number(raw)||0;
       input.value = String(newVal);
       if (newVal === Number(val||0)) return;
-      const cur = computed.find(x=>x.user_id===uid) || {};
-      const body = key==='total_count'
-        ? { total_count: newVal, total_db: Number(cur.total_db||0) }
-        : { total_count: Number(cur.total_count||0), total_db: newVal };
+      // Patch 방식 — 편집한 필드만 보냄 (대표 지시: 디비/마감 각각 독립적으로 override 가능)
+      const body = key==='total_count' ? { total_count: newVal } : { total_db: newVal };
       await saveMonthlyCell(uid, body);
     };
     input.addEventListener('focus',()=>{
