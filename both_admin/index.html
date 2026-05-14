@@ -4337,9 +4337,12 @@ function renderSalesTM(){
     '디비 효율':{ bg:'#fce7f3', fg:'#9d174d' },
   };
   const cols=['구분','총갯수','일평균','마감예상','총 디비','디비평균','디비 효율'];
+  // 편집 가능한 컬럼 표시 (대표 지시) — 총갯수/총 디비만 직접 입력 가능
+  const EDITABLE_COLS = new Set(['총갯수','총 디비']);
   const thead=h('thead',null,h('tr',null,...cols.map(c=>{
     const m = colMeta[c];
-    return m ? h('th',{style:`background:${m.bg};color:${m.fg}`}, c) : h('th',null,c);
+    const label = EDITABLE_COLS.has(c) ? c+' ✏️' : c;
+    return m ? h('th',{style:`background:${m.bg};color:${m.fg}`,title:EDITABLE_COLS.has(c)?'클릭하여 직접 입력 — 비우면 자동 합산':'자동 계산'}, label) : h('th',null,c);
   })));
   const tbody=h('tbody');
 
