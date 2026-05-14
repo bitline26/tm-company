@@ -3485,6 +3485,10 @@ function renderSalesOrders(){
             status: statusMap[statusRaw] || 'UNPAID',
             note: String(COL(row,'메모','비고','note')||'').trim() || null,
           };
+          // 입금완료인데 입금일자 비어있으면 오늘로 자동 (대표 지시)
+          if (order.status === 'PAID' && !order.payment_date) {
+            order.payment_date = new Date().toISOString().slice(0,10);
+          }
           if (tmName && !tmId) errors.push(`${idx+2}행: TM '${tmName}' 미존재 (담당자 미지정으로 등록)`);
           rows.push(order);
         });
@@ -3857,6 +3861,10 @@ function startEditCell(td, cell, col, row, isPriv){
       if (col.k==='vendor_id') body.vendor_id = newVal?Number(newVal):null;
       if (col.k==='tm_user_id') body.tm_user_id = newVal?Number(newVal):null;
       if (col.k==='amount') body.amount = Number(String(newVal).replace(/[^\d]/g,''))||0;
+      // 인라인 상태를 '입금완료' 로 바꾸면 입금일자 자동 = 오늘 (비어있을 때) — 대표 지시
+      if (col.k==='status' && newVal==='PAID' && !row.payment_date){
+        body.payment_date = new Date().toISOString().slice(0,10);
+      }
       const r=await api('/api/sales/orders',{method:'POST',body});
       Object.assign(row, r.order);
       // 표 행 색상 업데이트 (status 변경 시)
@@ -4349,8 +4357,8 @@ function renderSalesTM(){
   }
   function editableMonthCell(uid, key, val, rowIdx, colIdx){
     const m = key==='total_count' ? colMeta['총갯수'] : colMeta['총 디비'];
-    // 총디비는 자동 합산 — 일 TM 마감 db_count 합 (override 폐기). 비편집 셀로 렌더.
-    if (!isPriv || key==='total_db') {
+    // 대표 지시 복원: 총디비도 수동 편집 가능 (자동 합산 디폴트, 대표 override 가능 — 2/3/4월 기존 데이터 백필용)
+    if (!isPriv) {
       return h('td',{style:`text-align:center;font-variant-numeric:tabular-nums;font-weight:700;background:${m.bg};color:${m.fg};padding:8px 10px`}, fmtNum(val||0));
     }
     const input = h('input',{
