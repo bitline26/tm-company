@@ -293,9 +293,9 @@ export default requireAuth(async function handler(req, res) {
       const offDays = Number(a.off_full) + Number(a.off_half) * 0.5;
       return {
         user_id: u.id, name: u.name, role: u.role,
-        total_count: m && m.total_count != null ? Number(m.total_count) : d.total_count,
-        // 대표 지시 복원: monthly override 있으면 우선 (2/3/4월 기존 데이터 백필용), 없으면 일 TM 합산
-        total_db:    m && m.total_db != null && m.total_db > 0 ? Number(m.total_db) : d.total_db,
+        // 대표 지시: monthly override > 0 일 때만 우선 (0이면 자동 합산), 디비·마감 각각 독립
+        total_count: m && Number(m.total_count) > 0 ? Number(m.total_count) : d.total_count,
+        total_db:    m && Number(m.total_db) > 0 ? Number(m.total_db) : d.total_db,
         off_days: offDays,
         half_days: Number(a.off_half),
         is_overridden: !!m,
@@ -334,10 +334,14 @@ export default requireAuth(async function handler(req, res) {
       if (!isPriv && userId !== me.id) return res.status(403).json({ error: '본인 행만 입력 가능' });
       const ym = String(b.year_month || b.ym || '').match(/^\d{4}-\d{2}$/)?.[0];
       if (!ym) return res.status(400).json({ error: 'year_month required (YYYY-MM)' });
+      // Patch 방식 — body에 명시된 필드만 업데이트, 미명시 필드는 기존값 유지 (대표 지시: 디비/마감 각각 따로 백필 가능)
+      const existing = (await sql`SELECT * FROM sales_tm_monthly WHERE user_id=${userId} AND year_month=${ym} LIMIT 1`)[0] || {};
+      const total_count = b.total_count !== undefined ? Number(b.total_count||0) : Number(existing.total_count||0);
+      const total_db    = b.total_db    !== undefined ? Number(b.total_db||0)    : Number(existing.total_db||0);
+      const off_days    = b.off_days    !== undefined ? Number(b.off_days||0)    : Number(existing.off_days||0);
       const rows = await sql`
         INSERT INTO sales_tm_monthly (user_id, year_month, total_count, total_db, off_days, updated_at)
-        VALUES (${userId}, ${ym},
-                ${Number(b.total_count||0)}, ${Number(b.total_db||0)}, ${Number(b.off_days||0)}, NOW())
+        VALUES (${userId}, ${ym}, ${total_count}, ${total_db}, ${off_days}, NOW())
         ON CONFLICT (user_id, year_month) DO UPDATE SET
           total_count = EXCLUDED.total_count,
           total_db = EXCLUDED.total_db,

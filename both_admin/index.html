@@ -4373,10 +4373,8 @@ function renderSalesTM(){
       const newVal = Number(raw)||0;
       input.value = String(newVal);
       if (newVal === Number(val||0)) return;
-      const cur = computed.find(x=>x.user_id===uid) || {};
-      const body = key==='total_count'
-        ? { total_count: newVal, total_db: Number(cur.total_db||0) }
-        : { total_count: Number(cur.total_count||0), total_db: newVal };
+      // Patch 방식 — 편집한 필드만 보냄 (대표 지시: 디비/마감 각각 독립적으로 override 가능)
+      const body = key==='total_count' ? { total_count: newVal } : { total_db: newVal };
       await saveMonthlyCell(uid, body);
     };
     input.addEventListener('focus',()=>{
