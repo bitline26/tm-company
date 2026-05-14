@@ -4962,30 +4962,44 @@ if(!window._shBound){
   // keydown 위임
   document.addEventListener('keydown', e=>{
     const t = e.target;
-    if(!t || !t.classList || !t.classList.contains('sheet-input')) return;
-    const input = t;
-    // Delete/Backspace — 단일도 0 처리, 범위면 일괄 0 (직렬 저장)
+    // Delete/Backspace — 범위 선택 상태면 포커스 어디 있든 일괄 0 처리 (대표 지시 — 한번에 삭제)
     if(e.key==='Delete' || e.key==='Backspace'){
-      const rng = _shRangeInputs();
-      const targets = rng.length >= 2 ? rng.map(inp=>({r:inp.dataset.r, c:inp.dataset.c}))
-                                       : [{r: input.dataset.r, c: input.dataset.c}];
+      const hasRange = _shSel.anchor && _shSel.head && (_shSel.anchor.r!==_shSel.head.r || _shSel.anchor.c!==_shSel.head.c);
+      const isSheetInput = t && t.classList && t.classList.contains('sheet-input');
+      if (!hasRange && !isSheetInput) return; // 시트와 무관한 곳
+      // Backspace 가 인풋 안에서 텍스트 1글자 삭제하는 기본동작 방지
       e.preventDefault();
-      const focusPos = { r: input.dataset.r, c: input.dataset.c };
+      const rng = hasRange ? _shRangeInputs() : [];
+      const targets = rng.length >= 2
+        ? rng.map(inp=>({r:inp.dataset.r, c:inp.dataset.c}))
+        : (isSheetInput ? [{r: t.dataset.r, c: t.dataset.c}] : []);
+      if (!targets.length) return;
+      const anchor = _shSel.anchor || (isSheetInput ? {r: t.dataset.r, c: t.dataset.c} : null);
       (async ()=>{
+        let changed = 0, failed = 0;
         for(const p of targets){
           const cur = _shCellAt(p.r, p.c);
-          if(!cur || cur.value === '0') continue;
+          if(!cur) continue;
+          const wasZero = cur.value === '0';
           cur.value = '0';
           if(typeof cur._sheetSave === 'function'){
-            try { await cur._sheetSave(); } catch(_){}
+            try { await cur._sheetSave(); if(!wasZero) changed++; }
+            catch(err){ failed++; console.error('[sheet delete] save fail:', err); }
           }
         }
         _shClearRange();
-        const back = _shCellAt(focusPos.r, focusPos.c);
-        if(back){ back.focus(); try{back.select();}catch(_){} }
+        if(anchor){
+          const back = _shCellAt(anchor.r, anchor.c);
+          if(back){ back.focus(); try{back.select();}catch(_){} }
+        }
+        if (typeof showToast === 'function') {
+          showToast(`${targets.length}개 셀 0으로 변경${failed?` · 실패 ${failed}건`:''}`);
+        }
       })();
       return;
     }
+    if(!t || !t.classList || !t.classList.contains('sheet-input')) return;
+    const input = t;
     // Ctrl+C / Ctrl+V 는 표준 copy/paste 이벤트 핸들러에서 처리 (clipboardData 사용 — 권한 불필요)
     if(e.key==='Escape'){
       _shStopNav(); _shClearRange();
