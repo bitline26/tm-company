@@ -84,9 +84,17 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, tomorrow, count: 0, sent: false, note: '내일 휴무자 없음 — 발송 안 함' });
   }
 
-  // 메시지 작성
-  const lines = rows.map(r => `· ${r.name} (${TYPE_LABEL[r.type] || r.type})`);
-  const message = `[티엠컴퍼니] 내일(${tomorrow}) 휴무자 ${rows.length}명\n\n${lines.join('\n')}`;
+  // 메시지 작성 — 직원별 [직원명/일자/휴무유형] 카드 형식
+  const blocks = rows.map((r,i)=>
+    `${i+1}. 직원명: ${r.name}\n   일자: ${tomorrow}\n   휴무유형: ${TYPE_LABEL[r.type] || r.type}`
+  );
+  const message =
+`[티엠컴퍼니 휴무 알림]
+총 ${rows.length}명 — ${tomorrow}
+
+${blocks.join('\n\n')}
+
+— 자동 발송 (매일 18:00)`;
 
   // 알리고 친구톡 발송
   const result = await sendAligoFriendtalk({
