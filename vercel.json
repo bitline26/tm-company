@@ -6,7 +6,8 @@
     }
   },
   "crons": [
-    { "path": "/api/cron/notify-off", "schedule": "0 9 * * *" }
+    { "path": "/api/cron/notify-off", "schedule": "1 15 * * *" },
+    { "path": "/api/cron/notify-off", "schedule": "30 22 * * *" }
   ],
   "headers": [
     {
