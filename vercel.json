@@ -5,6 +5,9 @@
       "maxDuration": 30
     }
   },
+  "crons": [
+    { "path": "/api/cron/notify-off", "schedule": "0 9 * * *" }
+  ],
   "headers": [
     {
       "source": "/((?!.*\\.(?:png|jpg|jpeg|webp|gif|svg|ico|css|js|woff|woff2|ttf|otf|eot|map)).*)",
