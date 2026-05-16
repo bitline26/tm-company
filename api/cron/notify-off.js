@@ -16,6 +16,20 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'unauthorized — Bearer CRON_SECRET 또는 ?force=1 필요' });
   }
 
+  // 우리 함수의 외부 IP 확인 — 알리고 화이트리스트 등록용 (대표 지시)
+  // ?whoami=1 → ipify 호출해서 우리 서버 외부 IP 반환
+  if (req.query.whoami === '1') {
+    const samples = [];
+    for (let i = 0; i < 5; i++) {
+      try {
+        const r = await fetch('https://api.ipify.org?format=json');
+        const j = await r.json();
+        samples.push(j.ip);
+      } catch (e) { samples.push('err:' + e.message); }
+    }
+    return res.status(200).json({ samples, unique: [...new Set(samples)] });
+  }
+
   // 테스트 발송 — ?test=1 이면 휴무자 무관 ADMIN_PHONE 전체로 "테스트 메시지" 발송
   // 친구추가 했는지 확인하는 용도 (대표 지시)
   if (req.query.test === '1') {
