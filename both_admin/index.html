@@ -1207,7 +1207,8 @@ function renderMyHome(){
   const recs=State.records.filter(r=>r.user_id===me.id);
   const cnt={ANNUAL:0,MONTHLY:0,HALF_AM:0,HALF_PM:0,SICK:0,OFF:0,UNAUTHORIZED:0};
   recs.forEach(r=>{
-    if(r.status!=='APPROVED') return;
+    // REJECTED 만 제외 — APPROVED + REQUESTED 둘 다 카운트 (대표 지시)
+    if(r.status==='REJECTED') return;
     if(cnt[r.type]!=null) cnt[r.type]++;
   });
   const wait=recs.filter(r=>r.status==='REQUESTED').length;
@@ -1788,10 +1789,10 @@ function renderStatChips(){
   const today=new Date();
   const todayYmd=fmtYmd(today.getFullYear(),today.getMonth()+1,today.getDate());
 
-  // 오늘 부재중 (APPROVED 인 OFF/MONTHLY/ANNUAL/SICK/HOLIDAY/HALF_AM/HALF_PM)
+  // 오늘 부재중 — REJECTED만 제외하고 APPROVED+REQUESTED 둘 다 표시 (대표 지시)
   const outToday=State.records.filter(r=>{
     const d=String(r.work_date).slice(0,10);
-    return d===todayYmd && r.status==='APPROVED' && r.type!=='WORK';
+    return d===todayYmd && r.status!=='REJECTED' && r.type!=='WORK';
   });
   const userMap={}; State.users.forEach(u=>userMap[u.id]=u);
   const outNames=outToday.map(r=>{
