@@ -44,7 +44,8 @@ SMS 로 왔으면 친구추가 필요 (@타미통신).
     return res.status(200).json({ ok: r.ok, mode: 'test', aligo: r.sent, preview: message });
   }
 
-  const today = kstToday();
+  // ?date=YYYY-MM-DD 로 임의 날짜 미리 발송 (대표 지시 — 테스트용)
+  const today = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : kstToday();
 
   // 오늘 휴무자 = APPROVED + WORK 아닌 모든 타입
   const rows = await sql`
