@@ -38,10 +38,10 @@ export default requireAuth(async function handler(req, res) {
       }
     }
 
-    // 관리자/실장이 직접 등록한 건 즉시 승인 처리
-    const status = isPriv ? 'APPROVED' : 'REQUESTED';
-    const approvedBy = isPriv ? me.id : null;
-    const approvedAt = isPriv ? new Date().toISOString() : null;
+    // 모든 등록은 REQUESTED — 대표/매니저도 별도 승인 단계 거침 (대표 지시: 승인대기 표시)
+    const status = 'REQUESTED';
+    const approvedBy = null;
+    const approvedAt = null;
 
     const rows = await sql`
       INSERT INTO attendance_records (user_id, work_date, type, status, note, approved_by, approved_at)
