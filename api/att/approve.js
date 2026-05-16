@@ -1,4 +1,5 @@
 import { sql, requireAuth, readJson } from '../_db.js';
+import { buildSingleOffMessage, sendAdminFriendtalk } from '../_notify.js';
 
 // POST /api/att/approve
 // body: { id, action: 'approve' | 'reject', reject_reason? }
@@ -27,6 +28,7 @@ export default requireAuth(async function handler(req, res) {
         RETURNING *
       `;
       if (!rows[0]) return res.status(404).json({ error: 'not found' });
+      notifyAdmin(rows[0], 'APPROVED');
       return res.status(200).json({ ok: true, record: rows[0] });
     } else {
       const rows = await sql`
@@ -37,6 +39,7 @@ export default requireAuth(async function handler(req, res) {
         RETURNING *
       `;
       if (!rows[0]) return res.status(404).json({ error: 'not found' });
+      notifyAdmin(rows[0], 'REJECTED');
       return res.status(200).json({ ok: true, record: rows[0] });
     }
   } catch (e) {
@@ -44,3 +47,20 @@ export default requireAuth(async function handler(req, res) {
     return res.status(500).json({ error: 'server error', detail: String(e.message || e) });
   }
 });
+
+// 즉시 알림톡 — WORK 제외. 실패해도 응답에 영향 없음 (백그라운드)
+function notifyAdmin(record, kind) {
+  if (!record || record.type === 'WORK') return;
+  (async () => {
+    const u = await sql`SELECT name FROM users WHERE id = ${record.user_id}`;
+    const empName = u[0]?.name || `#${record.user_id}`;
+    const date = String(record.work_date).slice(0, 10);
+    const message = buildSingleOffMessage({
+      name: empName, date, type: record.type, kind,
+    });
+    return sendAdminFriendtalk({
+      message,
+      subject: kind === 'APPROVED' ? '휴무 승인' : '휴무 반려',
+    });
+  })().catch(e => console.error('notify(approve) failed:', e.message));
+}

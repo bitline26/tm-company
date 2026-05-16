@@ -1,4 +1,5 @@
 import { sql, requireAuth, readJson } from '../_db.js';
+import { buildSingleOffMessage, sendAdminFriendtalk } from '../_notify.js';
 
 const VALID_TYPES = new Set(['WORK','OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK','HOLIDAY','UNAUTHORIZED']);
 // 분류별 신청 가능 종류 — 서버 측 강제 (관리자 외)
@@ -55,6 +56,25 @@ export default requireAuth(async function handler(req, res) {
             requested_at = NOW()
       RETURNING *
     `;
+
+    // 즉시 알림톡 발송 — WORK(정상근무) 제외, 휴무 계열만
+    // 직원 self 신청은 REQUESTED → "등록" / 관리자 입력은 APPROVED → "승인"
+    // 실패해도 응답에 영향 주지 않음 (백그라운드)
+    if (type !== 'WORK') {
+      const tgt = await sql`SELECT name FROM users WHERE id = ${targetId}`;
+      const empName = tgt[0]?.name || `#${targetId}`;
+      const message = buildSingleOffMessage({
+        name: empName,
+        date,
+        type,
+        kind: status === 'APPROVED' ? 'APPROVED' : 'REGISTERED',
+      });
+      sendAdminFriendtalk({
+        message,
+        subject: status === 'APPROVED' ? '휴무 등록(즉시 승인)' : '휴무 신청 접수',
+      }).catch(e => console.error('notify(request) failed:', e.message));
+    }
+
     return res.status(200).json({ ok: true, record: rows[0] });
   } catch (e) {
     console.error('att/request error:', e);
