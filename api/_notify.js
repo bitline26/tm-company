@@ -1,8 +1,7 @@
-// 알리고 친구톡 발송 공유 모듈
-// 사용처:
-//   1) api/cron/notify-off.js — 매일 00:01 / 07:30 KST 정기 발송
-//   2) api/att/request.js     — 휴무 등록 즉시 발송
-//   3) api/att/approve.js     — 휴무 승인 즉시 발송
+// 알리고 SMS/LMS 발송 공유 모듈
+// 알리고가 친구톡 자유메시지 API(/akv10/friendtalk/send/) 폐기 → 404
+// 대체: SMS/LMS (/send/) 로 우선 발송. 같은 apikey/userid/sender 재사용.
+// 카톡으로 보내려면 알리고 콘솔에서 브랜드메시지 템플릿 등록 후 별도 작업.
 // ADMIN_PHONE 은 콤마 구분 다중 번호 지원 ("01057411114,01043008739")
 
 export const TYPE_LABEL = {
@@ -43,28 +42,30 @@ export function kstToday() {
   return `${y}-${m}-${d}`;
 }
 
+// 알리고 SMS/LMS 단건 발송 — 90바이트 초과 시 자동 LMS 전환
+// API: https://apis.aligo.in/send/
+// 친구톡/알림톡과 달리 템플릿 등록·친구추가 불필요 — 즉시 발송
 async function sendOne({ message, receiver, subject }) {
   const form = new URLSearchParams();
-  form.append('apikey', ALIGO.apikey);
-  form.append('userid', ALIGO.userid);
-  form.append('senderkey', ALIGO.senderkey);
+  form.append('key', ALIGO.apikey);
+  form.append('user_id', ALIGO.userid);
   form.append('sender', ALIGO.sender);
-  form.append('receiver_1', receiver);
-  form.append('subject_1', subject);
-  form.append('message_1', message);
-  form.append('failover', 'Y'); // 친구톡 실패 시 SMS 자동 폴백
-  form.append('fsubject_1', subject);
-  form.append('fmessage_1', message);
+  form.append('receiver', receiver);
+  form.append('msg', message);
+  form.append('title', subject);
+  form.append('msg_type', message.length > 90 ? 'LMS' : 'SMS');
   form.append('testmode_yn', 'N');
 
-  const res = await fetch('https://kakaoapi.aligo.in/akv10/friendtalk/send/', {
+  const res = await fetch('https://apis.aligo.in/send/', {
     method: 'POST',
     body: form,
   });
   const text = await res.text();
   let json;
   try { json = JSON.parse(text); } catch { json = { raw: text }; }
-  return { receiver, status: res.status, ok: res.ok, body: json };
+  // 알리고 성공: result_code === '1' (string). 실패 음수.
+  const okBody = String(json?.result_code) === '1';
+  return { receiver, status: res.status, ok: res.ok && okBody, body: json };
 }
 
 // 다중 수신자 발송 — ADMIN_PHONE 콤마 구분 모두에 1건씩 전송
