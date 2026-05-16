@@ -3204,14 +3204,15 @@ function exportPbExcel(rows){
     const rowIdx = i + 2; // 헤더 1행 + 1-indexed
     const bankCode = BANK_CODES[String(r.payment_bank||'').trim()] || '';
     const acctDigits = String(r.payment_account||'').replace(/[^0-9]/g,''); // '-' 제거
-    // 엑셀이 0으로 시작하는 계좌번호를 숫자로 변환해 앞자리 0을 잘라먹는 문제 방지
-    // ="001234" 형태로 출력하면 엑셀이 텍스트 리터럴로 인식해서 0 보존됨 (대표 지시)
+    // 엑셀이 020, 007 같은 0으로 시작하는 숫자를 잘라먹는 문제 방지 — 은행코드/계좌 둘 다
+    // ="020" 형태로 출력하면 엑셀이 텍스트 리터럴로 인식해서 0 보존됨 (대표 지시)
+    const bankCell = bankCode ? `="${bankCode}"` : '';
     const acctCell = acctDigits ? `="${acctDigits}"` : '';
     const amount = Number(r.amount||0);
     // 휴대폰지원금 자동 수식 — 금액(C열) × 5% 반올림 (요율은 엑셀 셀에서 직접 수정 가능)
     const subsidy = `=ROUND(C${rowIdx}*0.05,0)`;
     const cells = [
-      bankCode,    // A 은행코드
+      bankCell,    // A 은행코드 (앞 0 보존)
       acctCell,    // B 입금계좌 (- 없이, 앞 0 보존)
       amount,      // C 금액
       subsidy,     // D 휴대폰지원금
