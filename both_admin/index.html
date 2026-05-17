@@ -684,7 +684,7 @@ function krHolidayName(ymd){ return KR_HOLIDAY_MAP[ymd] || null; }
 
 // 연도별 fetch 캐시 — 같은 연도 중복 요청 방지
 const _holidayYearLoaded = new Set();
-async function ensureHolidaysFor(year){
+async function _fetchHolidayYear(year){
   const yk = String(year);
   if (_holidayYearLoaded.has(yk)) return;
   _holidayYearLoaded.add(yk);
@@ -700,6 +700,12 @@ async function ensureHolidaysFor(year){
       if (changed && typeof renderApp === 'function') renderApp();
     }
   }catch(_){ /* 폴백 정적 매핑 사용 */ }
+}
+// 대표 지시 — 보고 있는 달 뿐 아니라 앞으로 모든 달이 항상 휴일 표기되도록
+// 현재 연도 + 다음 연도 까지 항상 백그라운드 fetch.
+async function ensureHolidaysFor(year){
+  _fetchHolidayYear(year);
+  _fetchHolidayYear(Number(year)+1);
 }
 function computeKrWorkdays(ym){
   const [y,m] = ym.split('-').map(Number);
@@ -2944,8 +2950,10 @@ function renderEmployeeMgmt(){
 
   return h('div',{style:'padding:20px;max-width:880px'},
     h('h2',{style:'margin:0 0 6px;font-size:20px;font-weight:700'},'직원 관리'),
-    h('div',{style:'font-size:12px;color:var(--text-soft);margin-bottom:16px'},
+    h('div',{style:'font-size:12px;color:var(--text-soft);margin-bottom:10px'},
       '계정 정지 · 삭제 · 허용 IP 설정 — 대표 전용'),
+    h('div',{style:'margin:0 0 14px;padding:10px 14px;background:#fff7e6;border:1px solid #f5d28a;border-radius:8px;font-size:12.5px;color:#7a4f00;font-weight:600'},
+      '🔔 휴무 알림 SMS 발송 번호: 010-4300-8739 1개 고정 (나머지 번호 발송 차단됨 — 대표 지시)'),
     h('div',null,...rows)
   );
 }
@@ -3115,8 +3123,12 @@ function renderApproval(){
     }).catch(()=>{});
   }
   const pending = State.pendingAttList;
-  if(!pending.length) return h('div',{class:'empty',style:'padding:40px;text-align:center'},
-    '승인 대기 중인 요청이 없습니다');
+  const smsBanner = h('div',{style:'margin:14px 20px 14px;padding:10px 14px;background:#fff7e6;border:1px solid #f5d28a;border-radius:8px;font-size:12.5px;color:#7a4f00;font-weight:600'},
+    '🔔 휴무 알림 SMS 발송 번호: 010-4300-8739 1개 고정 (나머지 번호 발송 차단됨 — 대표 지시)');
+  if(!pending.length) return h('div',null,
+    smsBanner,
+    h('div',{class:'empty',style:'padding:40px;text-align:center'},'승인 대기 중인 요청이 없습니다')
+  );
   const list=h('div',{class:'approval-list'});
   async function doApprove(id){
     try{
@@ -3169,7 +3181,7 @@ function renderApproval(){
     );
     list.append(card);
   }
-  return list;
+  return h('div',null, smsBanner, list);
 }
 
 async function logout(){

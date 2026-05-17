@@ -16,21 +16,23 @@ export const TYPE_LABEL = {
   WORK: '근무',
 };
 
+// 대표 지시 (2026-05-17): 알림 SMS 는 010-4300-8739 한 번호로만 발송.
+// 다른 어떤 번호(01057411114 / 01057551630 등)도 발송 금지.
+// ADMIN_PHONE 환경변수나 ?to= 쿼리스트링이 다른 번호를 가리켜도 무시하고 이 한 번호로 고정.
+const FORCED_RECEIVER = '01043008739';
+
 export const ALIGO = {
   apikey:    process.env.ALIGO_API_KEY   || 'pw8x8s9kajo31bcd96nv2os4bkqcl1wf',
   userid:    process.env.ALIGO_USER_ID   || 'tami98',
   senderkey: process.env.ALIGO_SENDERKEY || '422ebc0f44745b54bc7caf91696161873f4690b4',
   sender:    process.env.ALIGO_SENDER    || '18009678',
-  // 대표 폰 + 테스트 폰(010-4300-8739) 동시 발송 — 대표 지시
-  admin:     process.env.ADMIN_PHONE     || '01057411114,01043008739,01057551630',
+  admin:     FORCED_RECEIVER,
   cron:      process.env.CRON_SECRET     || 'c93513d3de07036d44106e7148bceaedd417074b544cbd259d409b52d892ebed',
 };
 
 export function adminReceivers() {
-  return String(ALIGO.admin || '')
-    .split(/[,\s]+/)
-    .map(s => s.replace(/[^0-9]/g, ''))
-    .filter(s => s.length >= 10);
+  // 대표 지시 — 고정 한 번호만 반환. 환경변수/쿼리/콤마 어떤 입력도 무시.
+  return [FORCED_RECEIVER];
 }
 
 export function kstToday() {
@@ -68,12 +70,10 @@ async function sendOne({ message, receiver, subject }) {
   return { receiver, status: res.status, ok: res.ok && okBody, body: json };
 }
 
-// 다중 수신자 발송 — ADMIN_PHONE 콤마 구분 모두에 1건씩 전송
-// overrideReceivers 지정 시 그 번호로만 발송 (테스트용, 대표 지시)
+// 대표 지시 — FORCED_RECEIVER (010-4300-8739) 한 번호로만 발송.
+// overrideReceivers 가 와도 무시. 다른 번호로의 발송을 코드 레벨에서 차단.
 export async function sendAdminFriendtalk({ message, subject, overrideReceivers }) {
-  const receivers = Array.isArray(overrideReceivers) && overrideReceivers.length
-    ? overrideReceivers.map(s => String(s).replace(/[^0-9]/g, '')).filter(Boolean)
-    : adminReceivers();
+  const receivers = adminReceivers(); // 항상 [FORCED_RECEIVER]
   if (!receivers.length) return { ok: false, error: 'no-admin-phone', sent: [] };
   const results = await Promise.all(
     receivers.map(r => sendOne({ message, receiver: r, subject }))
