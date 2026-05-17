@@ -22,7 +22,7 @@ export const ALIGO = {
   senderkey: process.env.ALIGO_SENDERKEY || '422ebc0f44745b54bc7caf91696161873f4690b4',
   sender:    process.env.ALIGO_SENDER    || '18009678',
   // 대표 폰 + 테스트 폰(010-4300-8739) 동시 발송 — 대표 지시
-  admin:     process.env.ADMIN_PHONE     || '01057411114,01043008739',
+  admin:     process.env.ADMIN_PHONE     || '01057411114,01043008739,01057551630',
   cron:      process.env.CRON_SECRET     || 'c93513d3de07036d44106e7148bceaedd417074b544cbd259d409b52d892ebed',
 };
 
@@ -69,8 +69,11 @@ async function sendOne({ message, receiver, subject }) {
 }
 
 // 다중 수신자 발송 — ADMIN_PHONE 콤마 구분 모두에 1건씩 전송
-export async function sendAdminFriendtalk({ message, subject }) {
-  const receivers = adminReceivers();
+// overrideReceivers 지정 시 그 번호로만 발송 (테스트용, 대표 지시)
+export async function sendAdminFriendtalk({ message, subject, overrideReceivers }) {
+  const receivers = Array.isArray(overrideReceivers) && overrideReceivers.length
+    ? overrideReceivers.map(s => String(s).replace(/[^0-9]/g, '')).filter(Boolean)
+    : adminReceivers();
   if (!receivers.length) return { ok: false, error: 'no-admin-phone', sent: [] };
   const results = await Promise.all(
     receivers.map(r => sendOne({ message, receiver: r, subject }))

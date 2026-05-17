@@ -46,14 +46,18 @@ SMS 로 왔으면 친구추가 필요 (@타미통신).
 
   // ?date=YYYY-MM-DD 로 임의 날짜 미리 발송 (대표 지시 — 테스트용)
   const today = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : kstToday();
+  // ?to=01043008739,01012345678 — 특정 번호로만 발송 (테스트 1회용, 대표 지시)
+  const overrideReceivers = req.query.to
+    ? String(req.query.to).split(/[,\s]+/).filter(Boolean)
+    : null;
 
-  // 오늘 휴무자 = APPROVED + WORK 아닌 모든 타입
+  // 오늘 휴무자 — REJECTED 만 제외하고 REQUESTED/APPROVED 둘 다 메시지 포함 (대표 지시)
   const rows = await sql`
     SELECT a.type, u.name, u.tier
     FROM attendance_records a
     JOIN users u ON u.id = a.user_id
     WHERE a.work_date = ${today}
-      AND a.status = 'APPROVED'
+      AND a.status <> 'REJECTED'
       AND a.type <> 'WORK'
       AND u.name NOT IN ('2','3')
     ORDER BY u.tier ASC, u.name ASC
@@ -67,6 +71,7 @@ SMS 로 왔으면 친구추가 필요 (@타미통신).
   const result = await sendAdminFriendtalk({
     message,
     subject: '오늘 휴무자 알림',
+    overrideReceivers,
   });
 
   return res.status(200).json({
