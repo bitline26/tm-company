@@ -1,7 +1,7 @@
 import { neon } from '@neondatabase/serverless';
-import crypto from 'node:crypto';
 
-// 환경 분리: production은 운영 DB, 그 외(preview/development)는 테스트 DB(test2_*)
+// 환경 분리: production은 운영 DB(neon-cobalt-kettle), 그 외(preview/development)는 테스트 DB(tm-2)
+// VERCEL_ENV 값: 'production' | 'preview' | 'development' | undefined(로컬)
 const isProd = process.env.VERCEL_ENV === 'production';
 
 const url = isProd
@@ -15,519 +15,182 @@ if (!url) throw new Error('DATABASE_URL not set');
 
 export const sql = neon(url);
 
-// 직원 12명 (이미지 근무표 기준) — 회원가입 시 이 이름들 중에서만 선택 가능
-// 문실장 = 직원(employee) — 차장 권한 해제됨
-export const PRESET_NAMES = [
-  '문실장','김상현','이경민','임세인','양정연','장영인',
-  '안다혜','지성훈','이기성','고윤호','박철우','최은정',
+// 디비 소스 시드 (업체) — 테스트 DB 비었을 때 1회 주입
+const SEED_SOURCES = [
+  // code, label, vendor, color
+  ['SELF',   '자체광고',  'INTERNAL', '#1428A0'],
+  ['VENDOR_A', 'A업체',   'A업체',    '#7c3aed'],
+  ['VENDOR_B', 'B업체',   'B업체',    '#0ea5e9'],
+  ['VENDOR_C', 'C업체',   'C업체',    '#10b981'],
 ];
-const MANAGER_NAMES = new Set(); // 차장 권한자 없음
 
-// 대표(관리자) 시드 계정 — 매 ensureSchema 마다 upsert (비번 변경 시 즉시 반영)
-const ADMIN_NAME = '1';
-const ADMIN_DEFAULT_PW = '1';
-// 테스트 계정 '2','3' 은 폐기 — DB 에 있으면 마이그레이션이 제거 (직원 목록·PB TM 드롭다운에서도 자동 사라짐)
+// 가짜 DB 10개 (업로드 화면 미리보기용 — 테스트 DB 비었을 때 1회 주입)
+const SEED_POOL = [
+  // source_code, name, phone, carrier, model
+  ['VENDOR_A', '김민수', '010-1234-5678', 'SKT', '갤럭시 S26'],
+  ['VENDOR_A', '이지은', '010-2345-6789', 'KT',  '갤럭시 S26 Ultra'],
+  ['VENDOR_A', '박철수', '010-3456-7890', 'LGU', '갤럭시 Z Flip7'],
+  ['VENDOR_B', '최영희', '010-4567-8901', 'SKT', '갤럭시 Z Fold7'],
+  ['VENDOR_B', '정민호', '010-5678-9012', 'KT',  '갤럭시 S26+'],
+  ['VENDOR_B', '강수정', '010-6789-0123', 'SKT', '갤럭시 S26 FE'],
+  ['VENDOR_C', '윤서연', '010-7890-1234', 'LGU', '갤럭시 S26 Ultra'],
+  ['VENDOR_C', '조현우', '010-8901-2345', 'KT',  '갤럭시 S26'],
+  ['SELF',     '한지민', '010-9012-3456', 'SKT', '갤럭시 S26 Ultra'],
+  ['SELF',     '오태식', '010-0123-4567', 'KT',  '갤럭시 Z Flip7'],
+];
 
-// 스키마 마커 — 이 버전이 DB에 기록되어 있으면 ensureSchema 풀실행 스킵
-// v24 = 2차직원 이름 오타 정정 (전은하→전은용 / 이준헌→이준형 / 남성영→남선영)
-const SCHEMA_VERSION = 24;
-const DEMO_DUP_MARKER = 22;
-// 1회용 시드 마커 — 이 버전이 _schema_init 에 기록된 적 있으면 bulk seed 건너뜀 (이후 SCHEMA_VERSION 더 올려도 재시드 안 됨)
-// v18 = 직원 일부 누락 발견 → 강제 재시드 (1차 12 + 2차 16 = 28명 전부 복구)
-const BULK_SEED_MARKER = 18;
+// 이미지3 근무표 기준 부서별 직원 시드 (테스트 DB가 비었을 때만 1회 자동 주입)
+const SEED_EMPLOYEES = [
+  ['배송',   '권용훈'], ['배송',   '김민정'], ['배송',   '정민지'],
+  ['개통',   '국나래'], ['개통',   '강보람'], ['개통',   '이지윤'],
+  ['해피콜', '전은용'], ['해피콜', '이준형'],
+  ['민원',   '김대현'], ['민원',   '심영규'], ['민원',   '이예진'],
+  ['민원',   '김선화'], ['민원',   '심재범'], ['민원',   '이주필'],
+  ['1차',    '문경자'], ['1차',    '김상현'], ['1차',    '이경민'],
+  ['1차',    '임세인'], ['1차',    '양정연'], ['1차',    '장영인'],
+  ['1차',    '안다혜'], ['1차',    '지성훈'], ['1차',    '이기성'],
+  ['1차',    '고윤호'], ['1차',    '박철우'], ['1차',    '남선영'],
+  ['1차',    '최은정'],
+];
 
 let initialized = false;
-let initPromise = null;
 export async function ensureSchema() {
   if (initialized) return;
-  if (initPromise) return initPromise;        // 동시 호출 시 1회만 실행
-  initPromise = (async () => {
-    // ─── 빠른 경로: 마커 테이블에 현재 버전 기록되어 있으면 풀 DDL 스킵
-    try {
-      const m = await sql`SELECT MAX(version) AS version FROM _schema_init`;
-      if (m[0]?.version >= SCHEMA_VERSION) {
-        initialized = true;
-        return;
-      }
-    } catch (_) {
-      // _schema_init 테이블 없음 — 첫 콜드 스타트, 전체 DDL 실행
+
+  // 1. 신청자 (기존)
+  await sql`
+    CREATE TABLE IF NOT EXISTS applications (
+      id SERIAL PRIMARY KEY,
+      source TEXT NOT NULL CHECK (source IN ('A','B')),
+      name TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      carrier TEXT,
+      model TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await sql`ALTER TABLE applications ADD COLUMN IF NOT EXISTS downloaded_at TIMESTAMPTZ NULL`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_apps_created ON applications (created_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_apps_source ON applications (source)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_apps_downloaded ON applications (downloaded_at)`;
+
+  // 2. 직원 마스터
+  await sql`
+    CREATE TABLE IF NOT EXISTS employees (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      dept TEXT NOT NULL,
+      sort_order INT NOT NULL DEFAULT 0,
+      active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS idx_emp_dept ON employees (dept, sort_order)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_emp_active ON employees (active)`;
+
+  // 3. 근태
+  // status: WORK(정상)/HALF_AM/HALF_PM(반차)/MONTHLY_OFF(월차)/ANNUAL(연차)/SICK(병가)/OFF(휴무)/HOLIDAY(공휴일)/WEEKEND(주말)
+  // ratio: 분배 가중치 (정상 1.0, 반차 0.5, 그 외 0.0)
+  await sql`
+    CREATE TABLE IF NOT EXISTS attendance (
+      id SERIAL PRIMARY KEY,
+      employee_id INT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      work_date DATE NOT NULL,
+      status TEXT NOT NULL DEFAULT 'WORK',
+      ratio REAL NOT NULL DEFAULT 1.0,
+      note TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(employee_id, work_date)
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS idx_att_date ON attendance (work_date)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_att_emp_date ON attendance (employee_id, work_date)`;
+
+  // 4. 디비 소스 (업체)
+  await sql`
+    CREATE TABLE IF NOT EXISTS db_sources (
+      id SERIAL PRIMARY KEY,
+      code TEXT UNIQUE NOT NULL,
+      label TEXT NOT NULL,
+      vendor TEXT,
+      color TEXT DEFAULT '#888',
+      active BOOLEAN NOT NULL DEFAULT TRUE,
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS idx_src_active ON db_sources (active, sort_order)`;
+
+  // 5. 디비 풀 (자체광고 + 외부업체 통합)
+  // status: NEW(신규) / ASSIGNED(분배완료) / CALLING(통화중) / DONE(완료) / DELETED(삭제)
+  await sql`
+    CREATE TABLE IF NOT EXISTS db_pool (
+      id SERIAL PRIMARY KEY,
+      source_id INT NOT NULL REFERENCES db_sources(id),
+      upload_batch TEXT,
+      name TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      carrier TEXT,
+      model TEXT,
+      extra_json JSONB,
+      inflow_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      assigned_to INT REFERENCES employees(id),
+      assigned_at TIMESTAMPTZ,
+      status TEXT NOT NULL DEFAULT 'NEW',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS idx_pool_source ON db_pool (source_id, inflow_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_pool_status ON db_pool (status)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_pool_assigned ON db_pool (assigned_to, assigned_at)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_pool_batch ON db_pool (upload_batch)`;
+
+  // 6. 시드 — 직원
+  const empCnt = await sql`SELECT COUNT(*)::int AS n FROM employees`;
+  if ((empCnt[0]?.n || 0) === 0) {
+    for (let i = 0; i < SEED_EMPLOYEES.length; i++) {
+      const [dept, name] = SEED_EMPLOYEES[i];
+      await sql`INSERT INTO employees (name, dept, sort_order) VALUES (${name}, ${dept}, ${i})`;
     }
-    // 1단계: 테이블 생성 (병렬 — 서로 의존 없음 except attendance→users)
-    await Promise.all([
-      sql`
-        CREATE TABLE IF NOT EXISTS applications (
-          id SERIAL PRIMARY KEY,
-          source TEXT NOT NULL CHECK (source IN ('A','B')),
-          name TEXT NOT NULL,
-          phone TEXT NOT NULL,
-          carrier TEXT,
-          model TEXT,
-          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-      `,
-      sql`
-        CREATE TABLE IF NOT EXISTS users (
-          id SERIAL PRIMARY KEY,
-          name TEXT UNIQUE NOT NULL,
-          password_hash TEXT,
-          password_salt TEXT,
-          role TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('admin','manager','employee')),
-          registered BOOLEAN NOT NULL DEFAULT FALSE,
-          sort_order INT NOT NULL DEFAULT 0,
-          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-      `,
-    ]);
+  }
 
-    // 2단계: attendance_records (users에 FK)
-    await sql`
-      CREATE TABLE IF NOT EXISTS attendance_records (
-        id SERIAL PRIMARY KEY,
-        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        work_date DATE NOT NULL,
-        type TEXT NOT NULL CHECK (type IN ('WORK','OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK','HOLIDAY')),
-        status TEXT NOT NULL DEFAULT 'REQUESTED' CHECK (status IN ('REQUESTED','APPROVED','REJECTED')),
-        note TEXT,
-        requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        approved_by INT REFERENCES users(id),
-        approved_at TIMESTAMPTZ,
-        reject_reason TEXT,
-        UNIQUE(user_id, work_date)
-      )
-    `;
+  // 7. 시드 — 디비 소스 (업체)
+  const srcCnt = await sql`SELECT COUNT(*)::int AS n FROM db_sources`;
+  if ((srcCnt[0]?.n || 0) === 0) {
+    for (let i = 0; i < SEED_SOURCES.length; i++) {
+      const [code, label, vendor, color] = SEED_SOURCES[i];
+      await sql`INSERT INTO db_sources (code, label, vendor, color, sort_order) VALUES (${code}, ${label}, ${vendor}, ${color}, ${i})`;
+    }
+  }
 
-    // ───────── 영업 모듈 (요청 2,3,4) ─────────
-    // sales_period — 월 단위 기간/단가/총근무일 설정
-    await sql`
-      CREATE TABLE IF NOT EXISTS sales_period (
-        id SERIAL PRIMARY KEY,
-        year_month TEXT UNIQUE NOT NULL,           -- 'YYYY-MM'
-        start_date DATE,
-        end_date DATE,
-        total_workdays INT NOT NULL DEFAULT 0,
-        unit_price BIGINT NOT NULL DEFAULT 0,      -- 건당 평균 단가(₩)
-        off_dates DATE[] DEFAULT '{}',             -- 공휴일/지정 휴무
-        note TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `;
-
-    // db_vendors — 디비 공급 업체(대행사) 마스터
-    await sql`
-      CREATE TABLE IF NOT EXISTS db_vendors (
-        id SERIAL PRIMARY KEY,
-        code TEXT UNIQUE NOT NULL,                 -- 'A-A', 'B-B' 등
-        label TEXT NOT NULL,
-        parent_label TEXT,                         -- '타미통신디비', '날짜디비B' 등 그룹
-        color TEXT DEFAULT '#9b9a97',
-        sort_order INT NOT NULL DEFAULT 0,
-        active BOOLEAN NOT NULL DEFAULT TRUE,
-        note TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `;
-
-    // sales_orders — 거래 1건 1행 (요청 4: raw 로그)
-    // status: PAID(입금완료) / IN_PROGRESS(입금중) / UNPAID(미입금) / PARTIAL(일부납부) / CANCELLED(취소)
-    await sql`
-      CREATE TABLE IF NOT EXISTS sales_orders (
-        id SERIAL PRIMARY KEY,
-        tm_user_id INT REFERENCES users(id) ON DELETE SET NULL,
-        vendor_id INT REFERENCES db_vendors(id) ON DELETE SET NULL,
-        customer_name TEXT,
-        customer_phone TEXT,
-        carrier TEXT,                              -- SK / KT / LGU
-        consult_date DATE,                         -- 상담일자
-        payment_bank TEXT,
-        payment_account TEXT,
-        amount BIGINT NOT NULL DEFAULT 0,
-        payment_date DATE,                         -- 입금완료일자
-        status TEXT NOT NULL DEFAULT 'UNPAID'
-          CHECK (status IN ('PAID','IN_PROGRESS','UNPAID','PARTIAL','CANCELLED')),
-        note TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `;
-
-    // sales_tm_daily — 일별 직원 입력 (요청 2 일일보고)
-    // 직원이 매일 그날 받은 디비(db_count)와 그날 마감 건수(count) 입력
-    // 월 누적 = SUM(이번 달 시작~오늘) → admin TM 마감 결과표
-    await sql`
-      CREATE TABLE IF NOT EXISTS sales_tm_daily (
-        id SERIAL PRIMARY KEY,
-        period_id INT REFERENCES sales_period(id) ON DELETE CASCADE,
-        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        work_date DATE NOT NULL,
-        db_count INT NOT NULL DEFAULT 0,
-        count INT NOT NULL DEFAULT 0,             -- 그날 마감 건수
-        is_off BOOLEAN NOT NULL DEFAULT FALSE,
-        note TEXT,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        UNIQUE(user_id, work_date)
-      )
-    `;
-    // 기존 테이블에 count 컬럼 없으면 추가
-    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS count INT NOT NULL DEFAULT 0`;
-    // 일 TM 마감 상세 컬럼 (접수/취소/대기/예약/신불/부재/가망/재컨택)
-    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS received     INT NOT NULL DEFAULT 0`;
-    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS cancelled    INT NOT NULL DEFAULT 0`;
-    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS waiting      INT NOT NULL DEFAULT 0`;
-    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS reserved     INT NOT NULL DEFAULT 0`;
-    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS newpay_fail  INT NOT NULL DEFAULT 0`;
-    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS absent       INT NOT NULL DEFAULT 0`;
-    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS prospect     INT NOT NULL DEFAULT 0`;
-    await sql`ALTER TABLE sales_tm_daily ADD COLUMN IF NOT EXISTS recontact    INT NOT NULL DEFAULT 0`;
-
-    // sales_tm_monthly — 월간 누적 입력 (요청 2 핵심)
-    // 직원이 본인 행의 total_count(총갯수=마감), total_db(총디비), off_days(휴무) 직접 입력
-    // 자동 계산: 일평균/마감예상/디비평균/디비효율 (서버는 raw만 저장, 클라이언트가 계산)
-    await sql`
-      CREATE TABLE IF NOT EXISTS sales_tm_monthly (
-        id SERIAL PRIMARY KEY,
-        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        year_month TEXT NOT NULL,                  -- 'YYYY-MM'
-        total_count INT NOT NULL DEFAULT 0,        -- 총갯수 (누적 마감 건수)
-        total_db INT NOT NULL DEFAULT 0,           -- 총디비 (누적 받은 디비)
-        off_days INT NOT NULL DEFAULT 0,           -- 휴무 일수 (양수 저장, 표시는 -N)
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        UNIQUE(user_id, year_month)
-      )
-    `;
-
-    // sales_vendor_daily — vendor × 일자 (요청 3)
-    await sql`
-      CREATE TABLE IF NOT EXISTS sales_vendor_daily (
-        id SERIAL PRIMARY KEY,
-        vendor_id INT NOT NULL REFERENCES db_vendors(id) ON DELETE CASCADE,
-        work_date DATE NOT NULL,
-        db_count INT NOT NULL DEFAULT 0,
-        deleted_count INT NOT NULL DEFAULT 0,
-        received_count INT NOT NULL DEFAULT 0,
-        remaining_count INT NOT NULL DEFAULT 0,
-        completed_count INT NOT NULL DEFAULT 0,
-        note TEXT,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        UNIQUE(vendor_id, work_date)
-      )
-    `;
-
-    // sales_day_meta — 일별 메타 (재컨택 완료 등)
-    await sql`
-      CREATE TABLE IF NOT EXISTS sales_day_meta (
-        work_date DATE PRIMARY KEY,
-        recontact_completed INT NOT NULL DEFAULT 0,
-        note TEXT,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `;
-
-    // 3단계: ALTER + 인덱스
-    // attendance_records type CHECK 갱신은 DROP → ADD 순차 (병렬 시 race로 충돌)
-    await sql`ALTER TABLE attendance_records DROP CONSTRAINT IF EXISTS attendance_records_type_check`;
-    await sql`ALTER TABLE attendance_records ADD CONSTRAINT attendance_records_type_check
-        CHECK (type IN ('WORK','OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK','HOLIDAY','UNAUTHORIZED'))`;
-    // 정리: 미가입 + 비밀번호 없는 시드 직원(PRESET_NAMES) 일괄 삭제
-    // → 디렉토리에서 '미가입' 카드 제거. 가입 신청 후 대기 중인 사용자(비밀번호 있음)는 유지.
-    await sql`DELETE FROM users WHERE registered = FALSE AND password_hash IS NULL`;
-    // 계정 상태 + 허용 IP (대표가 직원 관리 페이지에서 컨트롤)
-    // status: active(활성) / suspended(정지) / resigned(퇴사) — 로그인 차단
-    // allowed_ips: 비어있으면 제한 없음, 1개 이상이면 그 IP에서만 로그인 가능
-    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'`;
-    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_ips TEXT[] DEFAULT '{}'`;
-    await sql`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_status_check`;
-    await sql`ALTER TABLE users ADD CONSTRAINT users_status_check CHECK (status IN ('active','suspended','resigned'))`;
-    // 로그인 추적 — 대표가 직원 관리 페이지에서 최근 접속 IP 확인 + '현재 IP로 잠그기'에 사용
-    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_ip TEXT`;
-    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ`;
-    // v21: 2차직원 이름의 '공용 ' 접두 제거 (대표 지시) — 고윤호 충돌만 " (2차)" suffix
-    await sql`UPDATE users SET name = '고윤호 (2차)' WHERE name = '공용 고윤호'`;
-    await sql`UPDATE users SET name = SUBSTRING(name FROM 4) WHERE name LIKE '공용 %' AND tier = 2`;
-    // v24: 2차직원 이름 오타 정정 (대표 지시) — 전은하→전은용, 이준헌→이준형, 남성영→남선영
-    await sql`UPDATE users SET name = '전은용' WHERE name = '전은하'`;
-    await sql`UPDATE users SET name = '이준형' WHERE name = '이준헌'`;
-    await sql`UPDATE users SET name = '남선영' WHERE name = '남성영'`;
-    // v22: 입금 중복 시각화 데모 데이터 1회 시드 (같은 번호로 PAID 2건)
-    let runDemoDup = false;
-    try {
-      const r = await sql`SELECT 1 FROM _schema_init WHERE version = ${DEMO_DUP_MARKER} LIMIT 1`;
-      runDemoDup = !r[0];
-    } catch (_) { runDemoDup = true; }
-    if (runDemoDup) {
-      const t1 = await sql`SELECT id FROM users WHERE tier = 1 AND name NOT IN ('2','3') ORDER BY sort_order ASC LIMIT 1`;
-      if (t1[0]) {
-        const tmId = t1[0].id;
-        const today = new Date().toISOString().slice(0,10);
-        const demoPhone = '010-9999-1234';
+  // 8. 시드 — 가짜 DB 10개 (테스트 DB 풀이 비었을 때만)
+  const poolCnt = await sql`SELECT COUNT(*)::int AS n FROM db_pool`;
+  if ((poolCnt[0]?.n || 0) === 0 && !isProd) {
+    for (let i = 0; i < SEED_POOL.length; i++) {
+      const [code, name, phone, carrier, model] = SEED_POOL[i];
+      const src = await sql`SELECT id FROM db_sources WHERE code = ${code} LIMIT 1`;
+      const sourceId = src[0]?.id;
+      if (sourceId) {
         await sql`
-          INSERT INTO sales_orders
-            (tm_user_id, customer_name, customer_phone, carrier, consult_date,
-             payment_bank, payment_account, amount, payment_date, status, note)
-          VALUES
-            (${tmId}, '데모홍길동(중복)', ${demoPhone}, 'SK', ${today},
-             'KB국민', '110-DEMO-001', 300000, ${today}, 'PAID', '⚠ 데모 — 입금중복 시각화'),
-            (${tmId}, '데모홍길동(중복)', ${demoPhone}, 'SK', ${today},
-             'KB국민', '110-DEMO-002', 350000, ${today}, 'PAID', '⚠ 데모 — 입금중복 시각화')
-          ON CONFLICT DO NOTHING`;
+          INSERT INTO db_pool (source_id, upload_batch, name, phone, carrier, model)
+          VALUES (${sourceId}, 'SEED', ${name}, ${phone}, ${carrier}, ${model})
+        `;
       }
     }
-    // IP 그룹 마스터 (대표가 미리 등록, 최대 200) + 직원별 모드/그룹 선택
-    // ip_mode: 'all' = 모든 IP 허용 / 'restricted' = 선택된 그룹의 IP만 허용
-    await sql`
-      CREATE TABLE IF NOT EXISTS ip_groups (
-        id SERIAL PRIMARY KEY,
-        label TEXT UNIQUE NOT NULL,
-        ips TEXT[] NOT NULL DEFAULT '{}',
-        active BOOLEAN NOT NULL DEFAULT TRUE,
-        sort_order INT NOT NULL DEFAULT 0,
-        note TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `;
-    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS ip_mode TEXT NOT NULL DEFAULT 'all'`;
-    await sql`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_ip_mode_check`;
-    await sql`ALTER TABLE users ADD CONSTRAINT users_ip_mode_check CHECK (ip_mode IN ('all','restricted'))`;
-    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS ip_group_ids INT[] NOT NULL DEFAULT '{}'`;
-    // PB 내역 상태 — 'UNPAID_PROOF'(미입금:입금증필요) 추가
-    await sql`ALTER TABLE sales_orders DROP CONSTRAINT IF EXISTS sales_orders_status_check`;
-    await sql`ALTER TABLE sales_orders ADD CONSTRAINT sales_orders_status_check
-        CHECK (status IN ('PAID','IN_PROGRESS','UNPAID','UNPAID_PROOF','PARTIAL','CANCELLED'))`;
-    await Promise.all([
-      sql`ALTER TABLE applications ADD COLUMN IF NOT EXISTS downloaded_at TIMESTAMPTZ NULL`,
-      // 직원 분류 구분 (1차직원 / 2차직원) — 가입 시 선택, NULL = 미선택 = 레거시(2차 기본)
-      sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tier INT`,
-      sql`CREATE INDEX IF NOT EXISTS idx_apps_created ON applications (created_at DESC)`,
-      sql`CREATE INDEX IF NOT EXISTS idx_users_name ON users (name)`,
-      sql`CREATE INDEX IF NOT EXISTS idx_users_role ON users (role)`,
-      sql`CREATE INDEX IF NOT EXISTS idx_att_date ON attendance_records (work_date)`,
-      sql`CREATE INDEX IF NOT EXISTS idx_att_user_date ON attendance_records (user_id, work_date)`,
-      sql`CREATE INDEX IF NOT EXISTS idx_att_status ON attendance_records (status)`,
-      sql`CREATE INDEX IF NOT EXISTS idx_orders_tm ON sales_orders (tm_user_id, consult_date DESC)`,
-      sql`CREATE INDEX IF NOT EXISTS idx_orders_vendor ON sales_orders (vendor_id, consult_date DESC)`,
-      sql`CREATE INDEX IF NOT EXISTS idx_orders_status ON sales_orders (status)`,
-      sql`CREATE INDEX IF NOT EXISTS idx_orders_consult ON sales_orders (consult_date DESC)`,
-      sql`CREATE INDEX IF NOT EXISTS idx_tmd_date ON sales_tm_daily (work_date)`,
-      sql`CREATE INDEX IF NOT EXISTS idx_tmm_ym ON sales_tm_monthly (year_month)`,
-      sql`CREATE INDEX IF NOT EXISTS idx_tmm_user ON sales_tm_monthly (user_id, year_month)`,
-      sql`CREATE INDEX IF NOT EXISTS idx_vd_date ON sales_vendor_daily (work_date)`,
-      sql`CREATE INDEX IF NOT EXISTS idx_vendors_active ON db_vendors (active, sort_order)`,
-    ]);
+  }
 
-    // 4단계: 시드 (병렬)
-    // 1회용 — 1차/2차 명단 일괄 시드. 이미 BULK_SEED_MARKER 가 기록되어 있으면 스킵.
-    let runBulkSeed = false;
-    try {
-      const r = await sql`SELECT 1 AS x FROM _schema_init WHERE version = ${BULK_SEED_MARKER} LIMIT 1`;
-      runBulkSeed = !r[0];
-    } catch (_) { runBulkSeed = true; }
-    if (runBulkSeed) {
-      // 1차 12 + 2차 16 upsert (DELETE 안 함 — 기존 PB/근태 등 데이터 보존)
-      // ON CONFLICT (name) DO UPDATE 로 누락된 직원만 INSERT 되고, 있으면 정보만 갱신
-      const TIER1_SEED = [
-        ['문정자','tami13'],['이경민','tami14'],['임세인','tami9612'],
-        ['양정연','tami1102'],['장영인','tami0425'],['고윤호','tami0308'],
-        ['안다혜','tami0404'],['김상현','tami44'],['박철우','tami0910'],
-        ['이기성','tami1125'],['지성훈','tami02260'],['최은정','tami0426'],
-      ];
-      const TIER2_SEED = [
-        ['강보람','tami0226'],['고윤호 (2차)','tami308'],['국나래','tami1217'],
-        ['권용훈','tami000'],['김민정','tami1114'],['김선화','tami09240'],
-        ['남선영','tami03010'],['이준형','tami09150'],['이지윤','tami1004'],
-        ['전은용','tami10220'],['정민지','tami0721'],
-        ['김대헌','tami0214'],['심재범','tami03080'],['이예진','tami03310'],
-        ['이주필','tami03230'],['한재상','tami0423'],
-      ];
-      let so = 100;
-      for (const [nm, pw] of TIER1_SEED) {
-        const h = hashPassword(pw);
-        await sql`
-          INSERT INTO users (name, password_hash, password_salt, role, registered, tier, sort_order, status)
-          VALUES (${nm}, ${h.hash}, ${h.salt}, 'employee', TRUE, 1, ${so}, 'active')
-          ON CONFLICT (name) DO UPDATE SET
-            password_hash = EXCLUDED.password_hash, password_salt = EXCLUDED.password_salt,
-            role='employee', registered=TRUE, tier=1, status='active', sort_order=EXCLUDED.sort_order`;
-        so++;
-      }
-      so = 200;
-      for (const [nm, pw] of TIER2_SEED) {
-        const h = hashPassword(pw);
-        await sql`
-          INSERT INTO users (name, password_hash, password_salt, role, registered, tier, sort_order, status)
-          VALUES (${nm}, ${h.hash}, ${h.salt}, 'employee', TRUE, 2, ${so}, 'active')
-          ON CONFLICT (name) DO UPDATE SET
-            password_hash = EXCLUDED.password_hash, password_salt = EXCLUDED.password_salt,
-            role='employee', registered=TRUE, tier=2, status='active', sort_order=EXCLUDED.sort_order`;
-        so++;
-      }
-    }
-
-    const { hash, salt } = hashPassword(ADMIN_DEFAULT_PW);
-    const adminUpsert = sql`
-      INSERT INTO users (name, password_hash, password_salt, role, registered, sort_order)
-      VALUES (${ADMIN_NAME}, ${hash}, ${salt}, 'admin', TRUE, -1)
-      ON CONFLICT (name) DO UPDATE
-        SET password_hash = EXCLUDED.password_hash,
-            password_salt = EXCLUDED.password_salt,
-            role = 'admin',
-            registered = TRUE,
-            sort_order = -1
-    `;
-    const adminCleanup = sql`DELETE FROM users WHERE role = 'admin' AND name <> ${ADMIN_NAME}`;
-    // 관전용(viewer) 계정 — '2'(1차 페이지), '3'(2차 페이지). 직원 리스트엔 비노출(/api/auth/me 필터)
-    const v2h = hashPassword('2');
-    const viewer2 = sql`
-      INSERT INTO users (name, password_hash, password_salt, role, registered, tier, sort_order, status)
-      VALUES ('2', ${v2h.hash}, ${v2h.salt}, 'employee', TRUE, 1, -2, 'active')
-      ON CONFLICT (name) DO UPDATE SET
-        password_hash = EXCLUDED.password_hash, password_salt = EXCLUDED.password_salt,
-        role='employee', tier=1, registered=TRUE, status='active', sort_order=-2`;
-    const v3h = hashPassword('3');
-    const viewer3 = sql`
-      INSERT INTO users (name, password_hash, password_salt, role, registered, tier, sort_order, status)
-      VALUES ('3', ${v3h.hash}, ${v3h.salt}, 'employee', TRUE, 2, -3, 'active')
-      ON CONFLICT (name) DO UPDATE SET
-        password_hash = EXCLUDED.password_hash, password_salt = EXCLUDED.password_salt,
-        role='employee', tier=2, registered=TRUE, status='active', sort_order=-3`;
-    // PRESET_NAMES 시드 비활성화 — 신규 직원은 회원가입 페이지에서 직접 신청
-    const presetInserts = [];
-    // 문실장 차장 → 직원 강등 (대표 지시 — schema v17)
-    const demoteMoon = sql`UPDATE users SET role='employee' WHERE name='문실장' AND role='manager'`;
-    // 디비 vendor 시드 (이미지 5월8일 기준)
-    const VENDOR_SEEDS = [
-      ['A-A',  'A-A',  '타미통신디비', '#7c3aed'],
-      ['A-B',  'A-B',  '타미통신디비', '#a78bfa'],
-      ['B-B',  'B-B',  '날짜디비B',    '#0f7b6c'],
-      ['B-C',  'B-C',  '날짜디비B',    '#0ea5e9'],
-      ['C-B',  'C-B',  null,           '#3271b6'],
-      ['TM-A', 'TM-A', '자체광고',     '#06b6d4'],
-    ];
-    const vendorInserts = VENDOR_SEEDS.map(([code,label,parent,color], i) =>
-      sql`
-        INSERT INTO db_vendors (code, label, parent_label, color, sort_order)
-        VALUES (${code}, ${label}, ${parent}, ${color}, ${i})
-        ON CONFLICT (code) DO NOTHING
-      `
-    );
-    await Promise.all([adminUpsert, adminCleanup, viewer2, viewer3, demoteMoon, ...presetInserts, ...vendorInserts]);
-
-    // 5단계: 마커 기록 (이후 콜드 스타트는 풀 DDL 스킵)
-    await sql`
-      CREATE TABLE IF NOT EXISTS _schema_init (
-        version INT PRIMARY KEY,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `;
-    await sql`
-      INSERT INTO _schema_init (version, updated_at)
-      VALUES (${SCHEMA_VERSION}, NOW())
-      ON CONFLICT (version) DO UPDATE SET updated_at = NOW()
-    `;
-
-    initialized = true;
-  })();
-  return initPromise;
+  initialized = true;
 }
 
-// ─────────────── 비밀번호 해시 (pbkdf2) ───────────────
-// 내부 어드민용 — 12명 규모, 로그인 빈도 낮음. iter 1만으로 충분 (≈10ms)
-const PBKDF2_ITER = 10000;
-export function hashPassword(password, saltHex) {
-  const salt = saltHex || crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync(password, salt, PBKDF2_ITER, 32, 'sha256').toString('hex');
-  return { hash, salt };
-}
-export function verifyPassword(password, hash, salt) {
-  if (!hash || !salt) return false;
-  const cmp = crypto.pbkdf2Sync(password, salt, PBKDF2_ITER, 32, 'sha256').toString('hex');
-  return crypto.timingSafeEqual(Buffer.from(cmp, 'hex'), Buffer.from(hash, 'hex'));
-}
+// 부서 정렬 순서 (UI 그룹핑용)
+export const DEPT_ORDER = ['배송', '개통', '해피콜', '민원', '1차'];
 
-// ─────────────── 세션 쿠키 (HMAC 서명) ───────────────
-const SESSION_SECRET = process.env.SESSION_SECRET
-  || 'tm-company-default-session-secret-please-set-SESSION_SECRET-env';
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14; // 14일
-
-export function signSession(payload) {
-  const exp = Date.now() + SESSION_TTL_MS;
-  const json = JSON.stringify({ ...payload, exp });
-  const b64 = Buffer.from(json).toString('base64url');
-  const sig = crypto.createHmac('sha256', SESSION_SECRET).update(b64).digest('base64url');
-  return `${b64}.${sig}`;
-}
-export function verifySession(token) {
-  if (!token) return null;
-  const [b64, sig] = token.split('.');
-  if (!b64 || !sig) return null;
-  const expected = crypto.createHmac('sha256', SESSION_SECRET).update(b64).digest('base64url');
-  let ok = false;
-  try {
-    ok = crypto.timingSafeEqual(Buffer.from(sig, 'base64url'), Buffer.from(expected, 'base64url'));
-  } catch { return null; }
-  if (!ok) return null;
-  try {
-    const payload = JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
-    if (payload.exp && payload.exp < Date.now()) return null;
-    return payload;
-  } catch { return null; }
-}
-
-export function parseCookies(req) {
-  const header = req.headers?.cookie || '';
-  const out = {};
-  header.split(';').forEach(c => {
-    const idx = c.indexOf('=');
-    if (idx === -1) return;
-    const k = c.slice(0, idx).trim();
-    const v = c.slice(idx + 1).trim();
-    if (k) out[k] = decodeURIComponent(v);
-  });
-  return out;
-}
-
-export function setSessionCookie(res, token) {
-  const maxAge = Math.floor(SESSION_TTL_MS / 1000);
-  res.setHeader('Set-Cookie',
-    `tm_session=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`);
-}
-export function clearSessionCookie(res) {
-  res.setHeader('Set-Cookie', 'tm_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
-}
-
-// 세션 쿠키 자체가 HMAC 서명된 {uid,name,role,exp}를 들고 있으므로
-// 매 요청마다 users 테이블 조회할 필요 없음 → 인증 API 라운드트립 -1
-export async function getCurrentUser(req) {
-  const cookies = parseCookies(req);
-  const session = verifySession(cookies.tm_session);
-  if (!session?.uid) return null;
-  return { id: session.uid, name: session.name, role: session.role, registered: true };
-}
-
-export function requireAuth(handler) {
-  return async (req, res) => {
-    const user = await getCurrentUser(req);
-    if (!user) {
-      res.status(401).json({ error: 'unauthorized' });
-      return;
-    }
-    req.user = user;
-    // 스키마는 백그라운드 — 마커가 있으면 즉시, 없으면 me/signup에서 처리됨
-    ensureSchema().catch(() => {});
-    return handler(req, res);
-  };
-}
-
-export function readJson(req) {
-  return new Promise((resolve, reject) => {
-    if (req.body && typeof req.body === 'object') return resolve(req.body);
-    let raw = '';
-    req.on('data', c => raw += c);
-    req.on('end', () => {
-      if (!raw) return resolve({});
-      try { resolve(JSON.parse(raw)); }
-      catch (e) { reject(e); }
-    });
-    req.on('error', reject);
-  });
+// 근태 상태 → 분배 가중치
+export function statusToRatio(status) {
+  switch (status) {
+    case 'WORK': return 1.0;
+    case 'HALF_AM':
+    case 'HALF_PM': return 0.5;
+    default: return 0.0; // MONTHLY_OFF / ANNUAL / SICK / OFF / HOLIDAY / WEEKEND
+  }
 }
