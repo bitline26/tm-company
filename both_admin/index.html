@@ -3095,8 +3095,15 @@ function renderSignupApproval(){
 
 function renderApproval(){
   const userMap={}; State.users.forEach(u=>userMap[u.id]=u);
+  // 페이지 진입 시 1회 fresh fetch — 다른 페이지에서 변경된 REQUESTED 즉시 반영 (대표 지시)
+  if(!renderApproval._loaded){
+    renderApproval._loaded = true;
+    loadMonth().then(renderApp);
+  }
   const pending=State.records.filter(r=>r.status==='REQUESTED');
-  if(!pending.length) return h('div',{class:'empty'},'승인 대기 중인 요청이 없습니다');
+  if(!pending.length) return h('div',{class:'empty',style:'padding:40px;text-align:center'},
+    '승인 대기 중인 요청이 없습니다',
+    h('div',{style:'margin-top:8px;font-size:11px;color:#999'}, `(records ${State.records.length}건 로드됨, REQUESTED ${pending.length}건)`));
   const list=h('div',{class:'approval-list'});
   async function doApprove(id){
     try{
