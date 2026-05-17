@@ -693,6 +693,25 @@ const KR_HOLIDAYS = new Set(Object.keys(KR_HOLIDAY_MAP));
 function isKrHoliday(ymd){ return KR_HOLIDAYS.has(ymd); }
 function krHolidayName(ymd){ return KR_HOLIDAY_MAP[ymd] || null; }
 
+// 한국 기념일·24절기·음력 (네이버 달력 파랑) — 휴일 아니지만 달력에 표시
+// 첫 렌더 폴백. API 응답으로 자동 보강
+const KR_ANNIVERSARY_MAP = {
+  // 2026
+  '2026-01-15':'다이어리데이','2026-01-20':'대한',
+  '2026-02-04':'입춘','2026-02-14':'발렌타인데이','2026-02-19':'우수',
+  '2026-03-03':'납세자의 날','2026-03-05':'경칩','2026-03-08':'세계 여성의 날','2026-03-14':'화이트데이','2026-03-20':'춘분','2026-03-22':'세계 물의 날','2026-03-24':'세계 결핵의 날','2026-03-26':'안중근 의사 순국일',
+  '2026-04-03':'4·3 희생자 추념일','2026-04-05':'식목일·청명','2026-04-07':'보건의 날','2026-04-19':'4·19 혁명 기념일','2026-04-20':'곡우·장애인의 날','2026-04-22':'정보통신의 날','2026-04-25':'법의 날','2026-04-28':'충무공 탄신일',
+  '2026-05-06':'입하','2026-05-08':'어버이날','2026-05-11':'입양의 날','2026-05-14':'식품안전의 날','2026-05-15':'스승의 날','2026-05-18':'5·18 민주화운동 기념일','2026-05-19':'발명의 날','2026-05-20':'세계인의 날·성년의 날','2026-05-21':'부부의 날·소만','2026-05-25':'방재의 날','2026-05-31':'바다의 날',
+  '2026-06-01':'의병의 날','2026-06-05':'환경의 날','2026-06-06':'망종','2026-06-09':'구강보건의 날','2026-06-10':'6·10 민주항쟁 기념일','2026-06-14':'세계 헌혈의 날','2026-06-15':'노인학대 예방의 날','2026-06-19':'단오','2026-06-21':'하지','2026-06-25':'6·25 전쟁일','2026-06-26':'마약 퇴치의 날','2026-06-28':'철도의 날',
+  '2026-07-01':'사회적기업의 날','2026-07-07':'소서','2026-07-11':'세계 인구의 날','2026-07-17':'제헌절','2026-07-18':'정보보호의 날','2026-07-23':'대서',
+  '2026-08-08':'입추','2026-08-19':'칠석','2026-08-23':'처서','2026-08-26':'향토예비군의 날',
+  '2026-09-04':'태권도의 날','2026-09-07':'사회복지의 날·백로','2026-09-10':'자살예방의 날','2026-09-21':'치매극복의 날','2026-09-22':'국제 평화의 날','2026-09-23':'추분',
+  '2026-10-02':'노인의 날','2026-10-08':'한로','2026-10-15':'체육의 날','2026-10-16':'부마민주항쟁 기념일','2026-10-17':'문화의 날','2026-10-21':'경찰의 날','2026-10-23':'상강','2026-10-24':'국제연합일','2026-10-25':'독도의 날','2026-10-28':'교정의 날',
+  '2026-11-03':'학생독립운동 기념일','2026-11-07':'입동','2026-11-09':'소방의 날','2026-11-11':'농업인의 날·빼빼로데이','2026-11-17':'순국선열의 날','2026-11-22':'소설',
+  '2026-12-01':'세계 에이즈의 날','2026-12-03':'세계 장애인의 날','2026-12-07':'대설','2026-12-10':'세계 인권의 날','2026-12-22':'동지',
+};
+function krAnniversaryName(ymd){ return KR_ANNIVERSARY_MAP[ymd] || null; }
+
 // 연도별 fetch 캐시 — 같은 연도 중복 요청 방지
 const _holidayYearLoaded = new Set();
 async function _fetchHolidayYear(year){
@@ -703,13 +722,18 @@ async function _fetchHolidayYear(year){
     const r = await fetch(`/api/holidays?year=${yk}`, { credentials:'same-origin' });
     if (!r.ok) return;
     const j = await r.json();
+    let changed = false;
     if (j && j.holidays) {
-      let changed = false;
       for (const [d, name] of Object.entries(j.holidays)) {
         if (KR_HOLIDAY_MAP[d] !== name) { KR_HOLIDAY_MAP[d] = name; KR_HOLIDAYS.add(d); changed = true; }
       }
-      if (changed && typeof renderApp === 'function') renderApp();
     }
+    if (j && j.anniversaries) {
+      for (const [d, name] of Object.entries(j.anniversaries)) {
+        if (KR_ANNIVERSARY_MAP[d] !== name) { KR_ANNIVERSARY_MAP[d] = name; changed = true; }
+      }
+    }
+    if (changed && typeof renderApp === 'function') renderApp();
   }catch(_){ /* 폴백 정적 매핑 사용 */ }
 }
 // 대표 지시 — 보고 있는 달 뿐 아니라 앞으로 모든 달이 항상 휴일 표기되도록
@@ -1283,8 +1307,10 @@ function renderMyHome(){
     else if(isSun) cls.push('sun');
     else if(isSat) cls.push('sat');
     if(ymd===todayYmd) cls.push('today');
+    const annName=krAnniversaryName(ymd);
     const inner=[ h('div',{class:'pmd-num'}, d) ];
     if (isHoliday) inner.push(h('div',{class:'pmd-hol', title: holName}, holName));
+    if (annName)   inner.push(h('div',{style:'font-size:10px;color:#3b6ea5;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2', title: annName}, annName));
     if(rec){
       const cc=['chip',`chip-${rec.type}`];
       if(rec.status==='REQUESTED') cc.push('is-requested');
@@ -1885,11 +1911,14 @@ function renderGrid(){
     else if(dow===6) cls.push('sat');
     if(ymd===todayYmd) cls.push('today-h');
     const labels=['일','월','화','수','목','금','토'];
-    // 구글/네이버 캘린더 스타일 — 날짜+요일 같이 색 적용. 휴일명은 헤더에 라벨로 표기 (대표 지시)
-    headRow.push(h('th',{class:cls.join(' '), title: holName || ''},
+    const annName=krAnniversaryName(ymd);
+    // 네이버 달력 스타일 — 휴일은 빨강 라벨, 기념일/24절기는 파랑 라벨 (대표 지시)
+    const tip = [holName, annName].filter(Boolean).join(' · ');
+    headRow.push(h('th',{class:cls.join(' '), title: tip},
       h('div',{style:'font-size:13px;font-weight:700;color:'+(ymd===todayYmd?'#0f0f0f':'inherit')}, d),
       h('div',{style:'font-size:9.5px;font-weight:500;opacity:.85'}, labels[dow]),
-      holName ? h('div',{style:'font-size:9px;font-weight:700;color:#cf4b4b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:36px;margin-top:1px'}, holName) : null
+      holName ? h('div',{style:'font-size:9px;font-weight:700;color:#cf4b4b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:36px;margin-top:1px'}, holName) : null,
+      annName ? h('div',{style:'font-size:9px;font-weight:600;color:#3b6ea5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:36px;margin-top:1px'}, annName) : null
     ));
   }
 
