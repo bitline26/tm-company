@@ -2042,8 +2042,10 @@ function openCellDrawer(target,ymd,rec){
       }});
       close();
       await loadMonth();
+      // 승인 대기 목록도 동시에 새로고침 (대표 등록 직후 즉시 반영)
+      State.pendingAttList = null;
       renderApp();
-      showToast(isSelf? (isPriv?'등록(자동승인) 완료':'요청 완료 — 승인 대기'): `${target.name} ${ymd} 등록 완료`);
+      showToast('요청 완료 — 승인 대기로 이동');
     }catch(e){ msg.textContent=e.message; }
   };
   const cancel=async()=>{
@@ -3095,19 +3097,31 @@ function renderSignupApproval(){
 
 function renderApproval(){
   const userMap={}; State.users.forEach(u=>userMap[u.id]=u);
-  // 페이지 진입 시 1회 fresh fetch — 다른 페이지에서 변경된 REQUESTED 즉시 반영 (대표 지시)
-  if(!renderApproval._loaded){
-    renderApproval._loaded = true;
-    loadMonth().then(renderApp);
+  // /api/att/pending — State.records 캐시 의존 없이 항상 fresh 가져오기 (대표 지시)
+  if(State.pendingAttList==null){
+    State.pendingAttList = []; // 로딩 표시
+    api('/api/att/pending').then(r=>{
+      State.pendingAttList = r.records || [];
+      renderApp();
+    }).catch(()=>{ State.pendingAttList = []; renderApp(); });
+    return h('div',{class:'empty',style:'padding:40px;text-align:center'},'불러오는 중…');
   }
-  const pending=State.records.filter(r=>r.status==='REQUESTED');
+  // 메뉴 클릭마다 새로고침 보장
+  if(!renderApproval._lastFetch || Date.now()-renderApproval._lastFetch>2000){
+    renderApproval._lastFetch = Date.now();
+    api('/api/att/pending').then(r=>{
+      State.pendingAttList = r.records || [];
+      renderApp();
+    }).catch(()=>{});
+  }
+  const pending = State.pendingAttList;
   if(!pending.length) return h('div',{class:'empty',style:'padding:40px;text-align:center'},
-    '승인 대기 중인 요청이 없습니다',
-    h('div',{style:'margin-top:8px;font-size:11px;color:#999'}, `(records ${State.records.length}건 로드됨, REQUESTED ${pending.length}건)`));
+    '승인 대기 중인 요청이 없습니다');
   const list=h('div',{class:'approval-list'});
   async function doApprove(id){
     try{
       await api('/api/att/approve',{method:'POST',body:{id,action:'approve'}});
+      State.pendingAttList = null;
       await loadMonth(); renderApp(); showToast('승인됨');
     }catch(e){ alert(e.message); }
   }
@@ -3120,6 +3134,7 @@ function renderApproval(){
       if(!reason){ msg.textContent='사유를 입력해주세요'; return; }
       try{
         await api('/api/att/approve',{method:'POST',body:{id,action:'reject',reject_reason:reason}});
+        State.pendingAttList = null;
         close(); await loadMonth(); renderApp(); showToast('반려됨');
       }catch(e){ msg.textContent=e.message; }
     };
