@@ -2187,7 +2187,8 @@ function renderPeople(){
     for(const u of people){
       const allMine=State.records.filter(r=>r.user_id===u.id);
       const inRangeMine=(from||to)?allMine.filter(inRange):allMine;
-      const recs=inRangeMine.filter(r=>r.status==='APPROVED');
+      // REJECTED 만 제외 — APPROVED + REQUESTED 둘 다 카운트 (대표 지시)
+      const recs=inRangeMine.filter(r=>r.status!=='REJECTED');
       const cnt={ANNUAL:0,MONTHLY:0,HALF:0,SICK:0};
       recs.forEach(r=>{
         if(r.type==='ANNUAL') cnt.ANNUAL++;
