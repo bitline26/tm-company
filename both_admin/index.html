@@ -672,6 +672,7 @@ const KR_HOLIDAY_MAP = {
   '2026-03-01':'삼일절','2026-03-02':'삼일절 대체',
   '2026-05-01':'근로자의 날','2026-05-05':'어린이날',
   '2026-05-24':'부처님오신날','2026-05-25':'부처님오신날 대체',
+  '2026-06-03':'제9회 전국동시지방선거',
   '2026-06-06':'현충일',
   '2026-08-15':'광복절','2026-08-17':'광복절 대체',
   '2026-09-24':'추석 연휴','2026-09-25':'추석','2026-09-26':'추석 연휴','2026-09-28':'추석 대체',
@@ -1884,10 +1885,11 @@ function renderGrid(){
     else if(dow===6) cls.push('sat');
     if(ymd===todayYmd) cls.push('today-h');
     const labels=['일','월','화','수','목','금','토'];
-    // 구글/네이버 캘린더 스타일 — 날짜+요일 같이 색 적용. 휴일명은 툴팁
+    // 구글/네이버 캘린더 스타일 — 날짜+요일 같이 색 적용. 휴일명은 헤더에 라벨로 표기 (대표 지시)
     headRow.push(h('th',{class:cls.join(' '), title: holName || ''},
       h('div',{style:'font-size:13px;font-weight:700;color:'+(ymd===todayYmd?'#0f0f0f':'inherit')}, d),
-      h('div',{style:'font-size:9.5px;font-weight:500;opacity:.85'}, labels[dow])
+      h('div',{style:'font-size:9.5px;font-weight:500;opacity:.85'}, labels[dow]),
+      holName ? h('div',{style:'font-size:9px;font-weight:700;color:#cf4b4b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:36px;margin-top:1px'}, holName) : null
     ));
   }
 
