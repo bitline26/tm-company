@@ -5,6 +5,12 @@
       "maxDuration": 30
     }
   },
+  "rewrites": [
+    { "source": "/api/att/cancel",     "destination": "/api/att/request?__op=cancel" },
+    { "source": "/api/att/pending",    "destination": "/api/att/request?__op=pending" },
+    { "source": "/api/auth/pending",   "destination": "/api/auth/signup?__op=pending" },
+    { "source": "/api/auth/ip-groups", "destination": "/api/auth/signup?__op=ip-groups" }
+  ],
   "crons": [
     { "path": "/api/cron/notify-off", "schedule": "1 15 * * *" },
     { "path": "/api/cron/notify-off", "schedule": "30 22 * * *" }

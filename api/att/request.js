@@ -1,17 +1,71 @@
+// 통합 endpoint — Vercel Hobby 함수 12개 제한 회피
+// rewrites 로 다음 경로가 모두 이 파일로 들어옴:
+//   POST /api/att/request               (기본 — 휴무 등록)
+//   POST /api/att/cancel  (?__op=cancel)
+//   GET  /api/att/pending (?__op=pending)
 import { sql, requireAuth, readJson } from '../_db.js';
 import { buildSingleOffMessage, sendAdminFriendtalk } from '../_notify.js';
 
 const VALID_TYPES = new Set(['WORK','OFF','HALF_AM','HALF_PM','MONTHLY','ANNUAL','SICK','HOLIDAY','UNAUTHORIZED']);
-// 분류별 신청 가능 종류 — 서버 측 강제 (관리자 외)
-// 1차직원: 휴무 + 무단결근
-// 2차직원: 오전반차 / 오후반차 / 무단결근 / 휴무(병가=OFF) / 월차 (연차·병가 단독 폐기)
 const TIER1_REQUESTABLE = new Set(['OFF','UNAUTHORIZED']);
 const TIER2_REQUESTABLE = new Set(['HALF_AM','HALF_PM','UNAUTHORIZED','OFF','MONTHLY']);
 
-// POST /api/att/request
-// body: { user_id?, work_date, type, note? }
-// 직원: 본인만 / 관리자(admin/manager): 다른 직원도 등록 가능 + 즉시 APPROVED
 export default requireAuth(async function handler(req, res) {
+  const op = String(req.query.__op || '');
+
+  // ── /api/att/pending (GET) — 승인 대기 전체 목록 (admin/manager 전용) ──
+  if (op === 'pending') {
+    if (req.method !== 'GET') {
+      res.setHeader('Allow', 'GET');
+      return res.status(405).json({ error: 'method not allowed' });
+    }
+    const me = req.user;
+    if (me.role !== 'admin' && me.role !== 'manager') {
+      return res.status(403).json({ error: '권한 없음' });
+    }
+    try {
+      const records = await sql`
+        SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,
+               a.requested_at, u.name AS user_name
+        FROM attendance_records a
+        JOIN users u ON u.id = a.user_id
+        WHERE a.status = 'REQUESTED'
+        ORDER BY a.work_date ASC, a.user_id ASC
+      `;
+      return res.status(200).json({ records, count: records.length });
+    } catch (e) {
+      console.error('att/pending error:', e);
+      return res.status(500).json({ error: 'server error', detail: String(e.message || e) });
+    }
+  }
+
+  // ── /api/att/cancel (POST) — 본인 REQUESTED 취소, admin/manager 는 모든 건 삭제 ──
+  if (op === 'cancel') {
+    if (req.method !== 'POST') {
+      res.setHeader('Allow', 'POST');
+      return res.status(405).json({ error: 'method not allowed' });
+    }
+    try {
+      const me = req.user;
+      const { id } = await readJson(req);
+      if (!id) return res.status(400).json({ error: 'id required' });
+      const rows = await sql`SELECT id, user_id, status FROM attendance_records WHERE id = ${id} LIMIT 1`;
+      const rec = rows[0];
+      if (!rec) return res.status(404).json({ error: 'not found' });
+      const isPriv = me.role === 'admin' || me.role === 'manager';
+      if (!isPriv) {
+        if (rec.user_id !== me.id) return res.status(403).json({ error: '권한 없음' });
+        if (rec.status !== 'REQUESTED') return res.status(400).json({ error: '승인/반려된 건은 취소 불가' });
+      }
+      await sql`DELETE FROM attendance_records WHERE id = ${id}`;
+      return res.status(200).json({ ok: true });
+    } catch (e) {
+      console.error('att/cancel error:', e);
+      return res.status(500).json({ error: 'server error', detail: String(e.message || e) });
+    }
+  }
+
+  // ── /api/att/request (POST) — 기본 휴무 등록 ──
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'method not allowed' });
@@ -29,7 +83,6 @@ export default requireAuth(async function handler(req, res) {
     if (targetId !== me.id && !isPriv) {
       return res.status(403).json({ error: '본인 일정만 등록할 수 있습니다' });
     }
-    // 직급별 신청 가능 종류 강제 — 본인 신청 시에만 (관리자가 직접 입력 시는 자유)
     if (!isPriv && targetId === me.id) {
       const tier = Number(me.tier) || 2;
       const allowed = tier === 1 ? TIER1_REQUESTABLE : TIER2_REQUESTABLE;
@@ -38,7 +91,6 @@ export default requireAuth(async function handler(req, res) {
       }
     }
 
-    // 모든 등록은 REQUESTED — 대표/매니저도 별도 승인 단계 거침 (대표 지시: 승인대기 표시)
     const status = 'REQUESTED';
     const approvedBy = null;
     const approvedAt = null;
@@ -57,16 +109,11 @@ export default requireAuth(async function handler(req, res) {
       RETURNING *
     `;
 
-    // 즉시 알림톡 발송 — WORK(정상근무) 제외, 휴무 계열만
-    // 직원 self 신청은 REQUESTED → "등록" / 관리자 입력은 APPROVED → "승인"
-    // 실패해도 응답에 영향 주지 않음 (백그라운드)
     if (type !== 'WORK') {
       const tgt = await sql`SELECT name FROM users WHERE id = ${targetId}`;
       const empName = tgt[0]?.name || `#${targetId}`;
       const message = buildSingleOffMessage({
-        name: empName,
-        date,
-        type,
+        name: empName, date, type,
         kind: status === 'APPROVED' ? 'APPROVED' : 'REGISTERED',
       });
       sendAdminFriendtalk({
