@@ -1246,6 +1246,20 @@ function renderMyHome(){
   const u={id:me.id,name:me.name,role:me.role,tier:me.tier,registered:true};
   // 2차 직원은 State.records 에 같은 tier=2 다른 직원들 기록도 포함 → 본인 것만 필터
   const recs=State.records.filter(r=>r.user_id===me.id);
+  // 2차 직원: 동료(같은 tier=2) 휴무 인덱스 (날짜→[{name,type,status}])
+  const userById={}; (State.users||[]).forEach(uu=>{ userById[uu.id]=uu; });
+  const othersByDate={};
+  if(!isTier1){
+    State.records.forEach(r=>{
+      if(r.user_id===me.id) return;
+      if(r.status==='REJECTED'||r.type==='WORK') return;
+      const d=String(r.work_date).slice(0,10);
+      (othersByDate[d]=othersByDate[d]||[]).push({
+        name: userById[r.user_id]?.name || `#${r.user_id}`,
+        type: r.type, status: r.status,
+      });
+    });
+  }
   const cnt={ANNUAL:0,MONTHLY:0,HALF_AM:0,HALF_PM:0,SICK:0,OFF:0,UNAUTHORIZED:0};
   recs.forEach(r=>{
     // REJECTED 만 제외 — APPROVED + REQUESTED 둘 다 카운트 (대표 지시)
@@ -1319,6 +1333,14 @@ function renderMyHome(){
     } else if (isTier1 && !isSat && !isSun && !isHoliday) {
       // 1차 직원: 평일 디폴트로 '정상출근' 표기 (신청 클릭은 그대로 작동)
       inner.push(h('span',{class:'chip chip-WORK',style:'font-size:11px;opacity:.55'}, '정상출근'));
+    }
+    // 2차 직원: 같은 tier 동료 휴무 표시 (날짜 중복 신청 방지용 — 클릭은 그대로 본인 신청 모달)
+    if(!isTier1 && othersByDate[ymd] && othersByDate[ymd].length){
+      const labels=othersByDate[ymd].map(x=>`${x.name} ${TYPE_TINY[x.type]||TYPE_LABELS[x.type]||x.type}`);
+      inner.push(h('div',{
+        style:'font-size:10px;color:#8b6914;font-weight:600;line-height:1.25;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis',
+        title: labels.join(', ')
+      }, labels.join(', ')));
     }
     cal.append(h('div',{class:cls.join(' '),
       title: isHoliday ? holName : (isSun ? '일요일' : (isSat ? '토요일' : '')),

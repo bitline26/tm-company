@@ -87,7 +87,7 @@ export async function sendAdminFriendtalk({ message, subject, overrideReceivers 
   const results = await Promise.all(
     receivers.map(r => sendOne({ message, receiver: r, subject }))
   );
-  const okAll = results.every(r => r.ok && r.body?.code === 0);
+  const okAll = results.every(r => r.ok);
   return { ok: okAll, sent: results };
 }
 

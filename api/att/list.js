@@ -40,17 +40,50 @@ export default requireAuth(async function handler(req, res) {
         `,
       ]);
     } else {
-      users = [{ id: me.id, name: me.name, role: me.role, registered: true }];
-      records = await sql`
-        SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,
-               a.approved_by, a.approved_at, a.reject_reason, a.requested_at,
-               u.name AS approver_name
-        FROM attendance_records a
-        LEFT JOIN users u ON u.id = a.approved_by
-        WHERE a.work_date >= ${start} AND a.work_date < ${end}
-          AND a.user_id = ${me.id}
-        ORDER BY a.work_date ASC
-      `;
+      // 2차 직원: 본인 + 같은 tier=2 동료 휴무까지 (날짜 중복 방지 표시용 — 1차는 기존대로 본인만)
+      const myTier = Number(me.tier) || 2;
+      if (myTier === 2) {
+        [users, records] = await Promise.all([
+          sql`
+            SELECT id, name, role, registered
+            FROM users
+            WHERE registered = TRUE
+              AND (id = ${me.id} OR (tier = 2 AND role = 'employee' AND name NOT IN ('2','3')))
+            ORDER BY sort_order ASC, id ASC
+          `,
+          sql`
+            SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,
+                   a.approved_by, a.approved_at, a.reject_reason, a.requested_at,
+                   apv.name AS approver_name
+            FROM attendance_records a
+            LEFT JOIN users apv ON apv.id = a.approved_by
+            JOIN users u ON u.id = a.user_id
+            WHERE a.work_date >= ${start} AND a.work_date < ${end}
+              AND (
+                a.user_id = ${me.id}
+                OR (
+                  u.tier = 2 AND u.role = 'employee' AND u.registered = TRUE
+                  AND u.name NOT IN ('2','3')
+                  AND a.type <> 'WORK'
+                  AND a.status <> 'REJECTED'
+                )
+              )
+            ORDER BY a.work_date ASC, a.user_id ASC
+          `,
+        ]);
+      } else {
+        users = [{ id: me.id, name: me.name, role: me.role, registered: true }];
+        records = await sql`
+          SELECT a.id, a.user_id, a.work_date, a.type, a.status, a.note,
+                 a.approved_by, a.approved_at, a.reject_reason, a.requested_at,
+                 u.name AS approver_name
+          FROM attendance_records a
+          LEFT JOIN users u ON u.id = a.approved_by
+          WHERE a.work_date >= ${start} AND a.work_date < ${end}
+            AND a.user_id = ${me.id}
+          ORDER BY a.work_date ASC
+        `;
+      }
     }
 
     return res.status(200).json({ ym, users, records, isPriv });
